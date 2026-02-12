@@ -1,0 +1,99 @@
+
+import React from 'react';
+import { Play, LogOut, ArrowRight } from 'lucide-react';
+
+interface GameModalProps {
+    show: boolean;
+    onCancel: () => void;
+    onConfirm: () => void;
+}
+
+export const EndTurnModal: React.FC<GameModalProps> = ({ show, onCancel, onConfirm }) => {
+    if (!show) return null;
+    return (
+        <div className="absolute inset-0 z-[160] flex items-center justify-center bg-black/80 backdrop-blur-sm">
+            <div className="bg-slate-900 p-6 rounded-xl border border-slate-700 shadow-2xl max-w-sm w-full animate-in zoom-in duration-200">
+                <h3 className="text-xl font-bold font-title text-amber-500 mb-2">End Turn?</h3>
+                <p className="text-slate-400 mb-6">Are you sure you want to pass the turn?</p>
+                <div className="flex gap-3 justify-end">
+                    <button onClick={onCancel} className="px-4 py-2 bg-slate-800 rounded font-bold hover:bg-slate-700">Cancel</button>
+                    <button id="btn-end-turn-modal-confirm" onClick={onConfirm} className="px-4 py-2 bg-indigo-600 rounded font-bold hover:bg-indigo-500">Confirm</button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export const ResignModal: React.FC<GameModalProps> = ({ show, onCancel, onConfirm }) => {
+    if (!show) return null;
+    return (
+        <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm">
+            <div className="bg-slate-900 p-6 rounded-xl border border-slate-700 shadow-2xl max-w-sm w-full animate-in zoom-in duration-200 border-red-900/50">
+                <h3 className="text-xl font-bold font-title text-red-500 mb-2">Resign Game?</h3>
+                <p className="text-slate-400 mb-6">You will forfeit the match. Are you sure?</p>
+                <div className="flex gap-3 justify-end">
+                    <button onClick={onCancel} className="px-4 py-2 bg-slate-800 rounded font-bold hover:bg-slate-700">Cancel</button>
+                    <button onClick={onConfirm} className="px-4 py-2 bg-red-600 rounded font-bold hover:bg-red-500">Resign</button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export const QuitModal: React.FC<GameModalProps> = ({ show, onCancel, onConfirm }) => {
+    if (!show) return null;
+    return (
+        <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm">
+            <div className="bg-slate-900 p-6 rounded-xl border border-slate-700 shadow-2xl max-w-sm w-full animate-in zoom-in duration-200">
+                <h3 className="text-xl font-bold font-title text-amber-500 mb-2">Quit to Title?</h3>
+                <p className="text-slate-400 mb-6">Current game progress will be lost.</p>
+                <div className="flex gap-3 justify-end">
+                    <button onClick={onCancel} className="px-4 py-2 bg-slate-800 rounded font-bold hover:bg-slate-700">Cancel</button>
+                    <button onClick={onConfirm} className="px-4 py-2 bg-red-600 rounded font-bold hover:bg-red-500">Quit</button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+interface PauseMenuProps {
+    show: boolean;
+    onResume: () => void;
+    onResign: () => void;
+    onQuit: () => void;
+    autoSort: boolean;
+    onToggleSort: () => void;
+}
+
+export const PauseMenu: React.FC<PauseMenuProps> = ({ show, onResume, onResign, onQuit, autoSort, onToggleSort }) => {
+    if (!show) return null;
+    return (
+        <div className="absolute inset-0 z-[90] flex items-center justify-center bg-black/90 backdrop-blur-md">
+            <div className="bg-slate-900 p-8 rounded-2xl border border-slate-700 shadow-2xl w-80 text-center animate-in zoom-in duration-200 space-y-4">
+                <h2 className="text-2xl font-bold font-title text-white mb-6">PAUSED</h2>
+                
+                <button onClick={onResume} className="w-full py-3 bg-slate-700 hover:bg-slate-600 rounded-lg font-bold flex items-center justify-center gap-2">
+                    <Play size={18} /> Resume
+                </button>
+
+                <div className="flex items-center justify-center gap-3 bg-slate-800 p-3 rounded-lg">
+                    <input 
+                    type="checkbox" 
+                    id="menuSort" 
+                    checked={autoSort} 
+                    onChange={onToggleSort}
+                    className="w-5 h-5 accent-indigo-500"
+                    />
+                    <label htmlFor="menuSort" className="text-slate-300 select-none cursor-pointer font-bold text-sm">Auto-Sort Hand</label>
+                </div>
+
+                <button onClick={onResign} className="w-full py-3 bg-red-900/50 hover:bg-red-900/80 text-red-200 rounded-lg font-bold flex items-center justify-center gap-2 border border-red-900">
+                    <LogOut size={18} /> Resign
+                </button>
+                <button onClick={onQuit} className="w-full py-3 bg-slate-800 hover:bg-slate-700 text-slate-400 rounded-lg font-bold flex items-center justify-center gap-2">
+                    <ArrowRight size={18} /> Quit to Title
+                </button>
+            </div>
+        </div>
+    );
+};
