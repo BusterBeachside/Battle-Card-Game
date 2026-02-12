@@ -19,39 +19,78 @@ export type SoundName =
     | 'tactic'
     | 'turn_start';
 
-const soundConfig = {
-    html5: true,
-    onloaderror: (id: any, error: any) => {
-        console.error(`Howler Load Error [${id}]:`, error);
-    },
-    onplayerror: (id: any, error: any) => {
-        console.warn(`Howler Play Error [${id}]:`, error);
-    }
-};
+class AudioManager {
+    private static instance: AudioManager;
+    private sounds: Record<SoundName, any>;
 
-const sounds: Record<SoundName, any> = {
-    attack_phase: new Howl({ src: ['sounds/attack_phase.mp3'], ...soundConfig }),
-    conscript_mag: new Howl({ src: ['sounds/conscript_mag.mp3'], ...soundConfig }),
-    conscript_phy: new Howl({ src: ['sounds/conscript_phy.mp3'], ...soundConfig }),
-    damage_sm: new Howl({ src: ['sounds/damage_sm.mp3'], ...soundConfig }),
-    damage_md: new Howl({ src: ['sounds/damage_md.mp3'], ...soundConfig }),
-    damage_lg: new Howl({ src: ['sounds/damage_lg.mp3'], ...soundConfig }),
-    destroy: new Howl({ src: ['sounds/destroy.mp3'], ...soundConfig }),
-    draw: new Howl({ src: ['sounds/draw.mp3'], ...soundConfig }),
-    game_over: new Howl({ src: ['sounds/game_over.mp3'], ...soundConfig }),
-    king: new Howl({ src: ['sounds/king.mp3'], ...soundConfig }),
-    menu_click: new Howl({ src: ['sounds/menu_click.mp3'], ...soundConfig }),
-    play_resource: new Howl({ src: ['sounds/play_resource.mp3'], ...soundConfig }),
-    queen: new Howl({ src: ['sounds/queen.mp3'], ...soundConfig }),
-    swap_resource: new Howl({ src: ['sounds/swap_resource.mp3'], ...soundConfig }),
-    tactic: new Howl({ src: ['sounds/tactic.mp3'], ...soundConfig }),
-    turn_start: new Howl({ src: ['sounds/turn_start.mp3'], ...soundConfig }),
-};
+    private constructor() {
+        this.sounds = {} as Record<SoundName, any>;
+        this.init();
+    }
+
+    public static getInstance(): AudioManager {
+        if (!AudioManager.instance) {
+            AudioManager.instance = new AudioManager();
+        }
+        return AudioManager.instance;
+    }
+
+    private init() {
+        const soundFiles: SoundName[] = [
+            'attack_phase',
+            'conscript_mag',
+            'conscript_phy',
+            'damage_sm',
+            'damage_md',
+            'damage_lg',
+            'destroy',
+            'draw',
+            'game_over',
+            'king',
+            'menu_click',
+            'play_resource',
+            'queen',
+            'swap_resource',
+            'tactic',
+            'turn_start'
+        ];
+
+        soundFiles.forEach(name => {
+            this.sounds[name] = new Howl({
+                src: [`sounds/${name}.mp3`],
+                html5: false, // FALSE forces Web Audio API, preventing "Pool Exhausted" errors
+                preload: true,
+                onloaderror: function(id: any, error: any) {
+                    // @ts-ignore
+                    console.error(`Howler Load Error - Path: ${this._src}`, error);
+                },
+                onplayerror: function(id: any, error: any) {
+                    // @ts-ignore
+                    console.warn(`Howler Play Error - Path: ${this._src}`, error);
+                }
+            });
+        });
+    }
+
+    public play(name: SoundName) {
+        try {
+            const sound = this.sounds[name];
+            if (sound) {
+                // Resetting seek ensures the sound restarts if played rapidly
+                if (sound.playing()) {
+                    sound.seek(0);
+                }
+                sound.play();
+            }
+        } catch (e) {
+            console.warn(`Failed to play sound: ${name}`, e);
+        }
+    }
+}
+
+// Initialize the singleton instance immediately
+const audioManager = AudioManager.getInstance();
 
 export const playSound = (name: SoundName) => {
-    try {
-        sounds[name].play();
-    } catch (e) {
-        console.warn("Sound play failed", e);
-    }
+    audioManager.play(name);
 };
