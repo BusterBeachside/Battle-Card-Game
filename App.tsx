@@ -29,7 +29,11 @@ import { useTutorial } from './hooks/useTutorial';
 import { useGameAI } from './hooks/useGameAI';
 import { useGameInteractions } from './hooks/useGameInteractions';
 
+declare var Howl: any;
+
 export const App: React.FC = () => {
+  console.log("Check Howler:", typeof Howl);
+
   const refs = useGameRefs();
   const effects = useGameEffects();
   const ui = useGameUI();

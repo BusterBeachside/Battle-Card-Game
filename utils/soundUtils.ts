@@ -1,5 +1,5 @@
 
-import { Howl } from 'howler';
+declare var Howl: any;
 
 export type SoundName = 
     | 'attack_phase'
@@ -19,7 +19,7 @@ export type SoundName =
     | 'tactic'
     | 'turn_start';
 
-const sounds: Record<SoundName, Howl> = {
+const sounds: Record<SoundName, any> = {
     attack_phase: new Howl({ src: ['./sounds/attack_phase.wav'] }),
     conscript_mag: new Howl({ src: ['./sounds/conscript_mag.wav'] }),
     conscript_phy: new Howl({ src: ['./sounds/conscript_phy.wav'] }),
