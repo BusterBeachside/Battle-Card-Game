@@ -3,8 +3,9 @@ import React, { useEffect, useState } from 'react';
 import { Phase, GameMode } from './types';
 import { addLog } from './utils/core';
 import { createFieldCard } from './utils/rules';
-import { RotateCcw, Play, Edit3, Trash2, GraduationCap } from 'lucide-react';
+import { RotateCcw, Play, Edit3, Trash2, GraduationCap, Volume2 } from 'lucide-react';
 import { sortHand } from './utils/cards';
+import { primeAudio } from './utils/soundUtils';
 
 // Imported Components
 import { CoinFlipOverlay } from './components/overlays/CoinFlipOverlay';
@@ -29,15 +30,14 @@ import { useTutorial } from './hooks/useTutorial';
 import { useGameAI } from './hooks/useGameAI';
 import { useGameInteractions } from './hooks/useGameInteractions';
 
-declare var Howl: any;
-declare var Howler: any;
-
 export const App: React.FC = () => {
   const refs = useGameRefs();
   const effects = useGameEffects();
   const ui = useGameUI();
-  const [hasInteracted, setHasInteracted] = useState(false);
   
+  // Audio Priming State
+  const [audioPrimed, setAudioPrimed] = useState(false);
+
   const { 
     gameState, setGameState, gameStateRef,
     startGame, drawCards, playCard, advancePhase, 
@@ -88,23 +88,6 @@ export const App: React.FC = () => {
   });
 
   const handleAppInteraction = () => {
-      if (!hasInteracted) {
-          setHasInteracted(true);
-          if (typeof Howler !== 'undefined') {
-              // Attempt to unlock audio context on first user interaction
-              // Check if resume exists (it might not if using only HTML5 or specific versions)
-              if (typeof Howler.resume === 'function') {
-                  Howler.resume();
-              } else if (Howler.ctx && typeof Howler.ctx.resume === 'function') {
-                  // Fallback to accessing context directly if available
-                  try {
-                      Howler.ctx.resume();
-                  } catch (e) {
-                      console.warn("Failed to resume audio context", e);
-                  }
-              }
-          }
-      }
       handleGlobalClick();
   };
 
@@ -194,6 +177,38 @@ export const App: React.FC = () => {
       }
     }
   }, [gameState?.phase, ui.isCoinFlipping, gameState?.mode]);
+
+  // --- AUDIO PRIMING OVERLAY ---
+  if (!audioPrimed) {
+      return (
+          <div className="fixed inset-0 z-[9999] bg-slate-950 flex flex-col items-center justify-center p-6 space-y-8 animate-in fade-in duration-500">
+              <div className="text-center space-y-4">
+                  <h1 className="text-6xl md:text-8xl font-black font-title text-transparent bg-clip-text bg-gradient-to-b from-indigo-300 via-indigo-500 to-indigo-800 drop-shadow-[0_0_20px_rgba(99,102,241,0.5)]">
+                      BATTLE
+                  </h1>
+                  <p className="text-slate-400 text-lg uppercase tracking-widest font-bold">Tactical Card Warfare</p>
+              </div>
+              
+              <button 
+                  onClick={() => {
+                      primeAudio();
+                      setAudioPrimed(true);
+                  }}
+                  className="group relative px-12 py-6 bg-slate-900 border-2 border-indigo-500 rounded-2xl hover:bg-indigo-950 transition-all duration-300 hover:scale-105 shadow-[0_0_30px_rgba(99,102,241,0.2)] hover:shadow-[0_0_50px_rgba(99,102,241,0.6)]"
+              >
+                  <div className="flex items-center gap-4">
+                      <Volume2 size={32} className="text-indigo-400 group-hover:text-white animate-pulse" />
+                      <span className="text-2xl font-black text-white tracking-wider">ENTER GAME</span>
+                  </div>
+                  <div className="absolute inset-0 border-2 border-white/10 rounded-2xl"></div>
+              </button>
+              
+              <div className="text-slate-600 text-sm font-mono mt-8">
+                  Click to initialize audio engine
+              </div>
+          </div>
+      );
+  }
 
   if (!gameState) {
       return (
@@ -337,8 +352,6 @@ export const App: React.FC = () => {
           <div className="absolute inset-0 z-[100] bg-black/50 flex items-center justify-center" onClick={() => ui.setCardActionTarget(null)}>
               <div className="bg-slate-900 p-4 rounded-xl border border-slate-700 shadow-2xl transform scale-100 transition-transform" onClick={e => e.stopPropagation()}>
                   <div className="flex justify-center mb-4">
-                      {/* Note: In a real refactor, createFieldCard logic might need to ensure Card is valid or reconstruct it */}
-                      {/* Using safe access */}
                       <div className="w-32 h-44 bg-white rounded-md text-black flex items-center justify-center">
                           {ui.cardActionTarget.card.rank}{ui.cardActionTarget.card.suit}
                       </div>
