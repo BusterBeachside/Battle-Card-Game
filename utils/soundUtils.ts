@@ -1,5 +1,6 @@
 
 declare var Howl: any;
+declare var Howler: any;
 
 export type SoundName = 
     | 'attack_phase'
@@ -36,6 +37,12 @@ class AudioManager {
     }
 
     private init() {
+        // Critical: Unload any previous Howler instances to prevent "Pool Exhausted" errors 
+        // caused by hot-reloading (ghost instances using up HTML5 audio tags).
+        if (typeof Howler !== 'undefined') {
+            Howler.unload();
+        }
+
         const soundFiles: SoundName[] = [
             'attack_phase',
             'conscript_mag',
@@ -56,17 +63,21 @@ class AudioManager {
         ];
 
         soundFiles.forEach(name => {
+            const path = `sounds/${name}.mp3`;
             this.sounds[name] = new Howl({
-                src: [`sounds/${name}.mp3`],
-                html5: false, // FALSE forces Web Audio API, preventing "Pool Exhausted" errors
+                src: [path],
+                format: ['mp3'],
+                html5: false, // Forces Web Audio API. PREVENTS "Pool Exhausted" error.
                 preload: true,
-                onloaderror: function(id: any, error: any) {
-                    // @ts-ignore
-                    console.error(`Howler Load Error - Path: ${this._src}`, error);
+                onloaderror: (id: any, error: any) => {
+                    console.error(`AUDIO LOAD ERROR: Failed to load '${path}'. Error Code: ${error}. \nCheck: Does 'public/${path}' exist? Is it a valid MP3? Is the server returning a 404 HTML page as 200 OK?`);
                 },
-                onplayerror: function(id: any, error: any) {
-                    // @ts-ignore
-                    console.warn(`Howler Play Error - Path: ${this._src}`, error);
+                onplayerror: (id: any, error: any) => {
+                    console.warn(`AUDIO PLAY ERROR: Failed to play '${path}'.`, error);
+                    // Attempt to unlock AudioContext if it is the culprit
+                    if (typeof Howler !== 'undefined' && Howler.ctx && Howler.ctx.state === 'suspended') {
+                         Howler.ctx.resume();
+                    }
                 }
             });
         });
@@ -76,21 +87,15 @@ class AudioManager {
         try {
             const sound = this.sounds[name];
             if (sound) {
-                // Resetting seek ensures the sound restarts if played rapidly
-                if (sound.playing()) {
-                    sound.seek(0);
-                }
                 sound.play();
             }
         } catch (e) {
-            console.warn(`Failed to play sound: ${name}`, e);
+            console.warn(`AudioManager: Error attempting to play ${name}`, e);
         }
     }
 }
 
-// Initialize the singleton instance immediately
-const audioManager = AudioManager.getInstance();
-
+// Export wrapper function
 export const playSound = (name: SoundName) => {
-    audioManager.play(name);
+    AudioManager.getInstance().play(name);
 };
