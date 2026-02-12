@@ -1,5 +1,5 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Phase, GameMode } from './types';
 import { addLog } from './utils/core';
 import { createFieldCard } from './utils/rules';
@@ -30,13 +30,13 @@ import { useGameAI } from './hooks/useGameAI';
 import { useGameInteractions } from './hooks/useGameInteractions';
 
 declare var Howl: any;
+declare var Howler: any;
 
 export const App: React.FC = () => {
-  console.log("Check Howler:", typeof Howl);
-
   const refs = useGameRefs();
   const effects = useGameEffects();
   const ui = useGameUI();
+  const [hasInteracted, setHasInteracted] = useState(false);
   
   const { 
     gameState, setGameState, gameStateRef,
@@ -86,6 +86,27 @@ export const App: React.FC = () => {
       showMenu: ui.showMenu,
       showTurnAnim: effects.showTurnAnim
   });
+
+  const handleAppInteraction = () => {
+      if (!hasInteracted) {
+          setHasInteracted(true);
+          if (typeof Howler !== 'undefined') {
+              // Attempt to unlock audio context on first user interaction
+              // Check if resume exists (it might not if using only HTML5 or specific versions)
+              if (typeof Howler.resume === 'function') {
+                  Howler.resume();
+              } else if (Howler.ctx && typeof Howler.ctx.resume === 'function') {
+                  // Fallback to accessing context directly if available
+                  try {
+                      Howler.ctx.resume();
+                  } catch (e) {
+                      console.warn("Failed to resume audio context", e);
+                  }
+              }
+          }
+      }
+      handleGlobalClick();
+  };
 
   // --- Handlers wrapping UI logic ---
   const handleModeSelect = (mode: GameMode) => {
@@ -176,7 +197,10 @@ export const App: React.FC = () => {
 
   if (!gameState) {
       return (
-        <div className="relative flex flex-col items-center justify-center h-screen w-full bg-slate-950 overflow-hidden selection:bg-indigo-500/30">
+        <div 
+            className="relative flex flex-col items-center justify-center h-screen w-full bg-slate-950 overflow-hidden selection:bg-indigo-500/30"
+            onClick={handleAppInteraction}
+        >
             <MainMenuBackground />
             <MainMenu 
                 menuStep={ui.menuStep}
@@ -249,7 +273,7 @@ export const App: React.FC = () => {
           if (interactions.dragState) interactions.setDragState(prev => prev ? { ...prev, currentX: e.clientX, currentY: e.clientY } : null);
       }}
       onMouseUp={(e) => interactions.handleDrop(e.nativeEvent)}
-      onClick={handleGlobalClick}
+      onClick={handleAppInteraction}
     >
       {ui.isCoinFlipping && (
            <CoinFlipOverlay 
