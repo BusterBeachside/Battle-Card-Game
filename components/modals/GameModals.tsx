@@ -2,6 +2,7 @@
 import React from 'react';
 import { Play, LogOut, ArrowRight } from 'lucide-react';
 import { playSound } from '../../utils/soundUtils';
+import { OptionsMenu } from './OptionsMenu';
 
 interface GameModalProps {
     show: boolean;
@@ -64,36 +65,54 @@ interface PauseMenuProps {
     onQuit: () => void;
     autoSort: boolean;
     onToggleSort: () => void;
+    sfxVolume: number;
+    setSfxVolume: (v: number) => void;
+    musicVolume: number;
+    setMusicVolume: (v: number) => void;
 }
 
-export const PauseMenu: React.FC<PauseMenuProps> = ({ show, onResume, onResign, onQuit, autoSort, onToggleSort }) => {
+export const PauseMenu: React.FC<PauseMenuProps> = ({ 
+    show, 
+    onResume, 
+    onResign, 
+    onQuit, 
+    autoSort, 
+    onToggleSort,
+    sfxVolume,
+    setSfxVolume,
+    musicVolume,
+    setMusicVolume
+}) => {
     if (!show) return null;
     return (
         <div className="absolute inset-0 z-[90] flex items-center justify-center bg-black/90 backdrop-blur-md">
-            <div className="bg-slate-900 p-8 rounded-2xl border border-slate-700 shadow-2xl w-80 text-center animate-in zoom-in duration-200 space-y-4">
-                <h2 className="text-2xl font-bold font-title text-white mb-6">PAUSED</h2>
+            <div className="bg-slate-900 p-8 rounded-2xl border border-slate-700 shadow-2xl w-96 text-center animate-in zoom-in duration-200 space-y-4 max-h-[90vh] overflow-y-auto">
+                <h2 className="text-2xl font-bold font-title text-white mb-2">PAUSED</h2>
                 
-                <button onClick={() => { playSound('menu_click'); onResume(); }} className="w-full py-3 bg-slate-700 hover:bg-slate-600 rounded-lg font-bold flex items-center justify-center gap-2">
+                <button onClick={() => { playSound('menu_click'); onResume(); }} className="w-full py-3 bg-emerald-700 hover:bg-emerald-600 rounded-lg font-bold flex items-center justify-center gap-2 text-white shadow-lg">
                     <Play size={18} /> Resume
                 </button>
 
-                <div className="flex items-center justify-center gap-3 bg-slate-800 p-3 rounded-lg">
-                    <input 
-                    type="checkbox" 
-                    id="menuSort" 
-                    checked={autoSort} 
-                    onChange={onToggleSort}
-                    className="w-5 h-5 accent-indigo-500"
+                <div className="py-2">
+                    <OptionsMenu 
+                        embedded 
+                        autoSort={autoSort} 
+                        toggleAutoSort={onToggleSort}
+                        sfxVolume={sfxVolume}
+                        setSfxVolume={setSfxVolume}
+                        musicVolume={musicVolume}
+                        setMusicVolume={setMusicVolume}
                     />
-                    <label htmlFor="menuSort" className="text-slate-300 select-none cursor-pointer font-bold text-sm">Auto-Sort Hand</label>
                 </div>
 
-                <button onClick={() => { playSound('menu_click'); onResign(); }} className="w-full py-3 bg-red-900/50 hover:bg-red-900/80 text-red-200 rounded-lg font-bold flex items-center justify-center gap-2 border border-red-900">
-                    <LogOut size={18} /> Resign
-                </button>
-                <button onClick={() => { playSound('menu_click'); onQuit(); }} className="w-full py-3 bg-slate-800 hover:bg-slate-700 text-slate-400 rounded-lg font-bold flex items-center justify-center gap-2">
-                    <ArrowRight size={18} /> Quit to Title
-                </button>
+                <div className="grid grid-cols-2 gap-3">
+                    <button onClick={() => { playSound('menu_click'); onResign(); }} className="py-3 bg-red-900/30 hover:bg-red-900/50 text-red-200 rounded-lg font-bold flex items-center justify-center gap-2 border border-red-900/50">
+                        <LogOut size={18} /> Resign
+                    </button>
+                    <button onClick={() => { playSound('menu_click'); onQuit(); }} className="py-3 bg-slate-800 hover:bg-slate-700 text-slate-400 rounded-lg font-bold flex items-center justify-center gap-2 border border-slate-700">
+                        <ArrowRight size={18} /> Quit
+                    </button>
+                </div>
             </div>
         </div>
     );

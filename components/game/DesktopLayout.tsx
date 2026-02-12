@@ -85,6 +85,7 @@ export const DesktopLayout: React.FC<LayoutProps> = ({
 
             <div id="field-area" className="flex-1 flex flex-col relative bg-[url('https://www.transparenttextures.com/patterns/dark-matter.png')]">
                 
+                {/* TOP PLAYER ZONE */}
                 <div className="flex-1 flex flex-col justify-center p-4 border-b border-slate-800/30 relative">
                     
                     <div className="absolute top-[-40px] left-1/2 -translate-x-1/2 flex -space-x-4 scale-75 opacity-90 transition-all hover:-space-x-2" ref={refs.cpuHandRef}>
@@ -94,9 +95,10 @@ export const DesktopLayout: React.FC<LayoutProps> = ({
                         Cards: {topPlayer.hand.length}
                     </div>
 
-                    <div className="flex justify-center items-center gap-12 w-full h-full">
+                    <div className="relative w-full flex justify-center items-center h-full">
                         
-                        <div className="flex gap-4">
+                        {/* Lanes Container - Decoupled Heights */}
+                        <div className="flex gap-8 items-start">
                             <div className="bg-slate-900/40 lane-physical p-4 rounded-xl border border-slate-700/50 flex flex-wrap gap-2 min-w-[100px] min-h-[120px] justify-center items-start content-start shadow-inner max-w-[200px] md:max-w-[300px] overflow-visible">
                                 {topPlayer.field.filter(c => getEffectiveColor(c) === Color.Black).map(fc => (
                                     <CardDisplay 
@@ -133,25 +135,28 @@ export const DesktopLayout: React.FC<LayoutProps> = ({
                             </div>
                         </div>
 
-                        <div id={`resource-container-${topPlayer.id}`} className="flex flex-col gap-2 items-center bg-black/20 p-2 rounded-lg border border-slate-700/30">
-                            <div className="flex items-center gap-2">
-                                <div className="text-[10px] text-slate-500 font-bold uppercase">Resources</div>
-                                <div className="text-xs font-bold text-slate-400">{topPlayer.resources.length}</div>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4 scale-90 origin-top">
-                                <div className="flex flex-col -space-y-20 relative z-10">
-                                    {topPlayer.resources.slice(0, 5).map((r, i) => (
-                                        <div key={r.instanceId} style={{ zIndex: i }} className="origin-top transition-transform hover:z-50 hover:scale-105" onClick={() => handlers.onCardClick(r.card, 'RESOURCE', topPlayer.id, r.instanceId)}>
-                                            <CardDisplay card={r.card} isTapped={r.isTapped} size="md" isSummoningSick={false} />
-                                        </div>
-                                    ))}
+                        {/* Resources - Right Aligned */}
+                        <div className="absolute right-8 top-1/2 -translate-y-1/2">
+                            <div id={`resource-container-${topPlayer.id}`} className="flex flex-col gap-2 items-center bg-black/20 p-2 rounded-lg border border-slate-700/30">
+                                <div className="flex items-center gap-2">
+                                    <div className="text-[10px] text-slate-500 font-bold uppercase">Resources</div>
+                                    <div className="text-xs font-bold text-slate-400">{topPlayer.resources.length}</div>
                                 </div>
-                                <div className="flex flex-col -space-y-20 relative z-0">
-                                    {topPlayer.resources.slice(5, 10).map((r, i) => (
-                                        <div key={r.instanceId} style={{ zIndex: i }} className="origin-top transition-transform hover:z-50 hover:scale-105" onClick={() => handlers.onCardClick(r.card, 'RESOURCE', topPlayer.id, r.instanceId)}>
-                                            <CardDisplay card={r.card} isTapped={r.isTapped} size="md" isSummoningSick={false} />
-                                        </div>
-                                    ))}
+                                <div className="grid grid-cols-2 gap-4 scale-90 origin-top">
+                                    <div className="flex flex-col -space-y-20 relative z-10">
+                                        {topPlayer.resources.slice(0, 5).map((r, i) => (
+                                            <div key={r.instanceId} style={{ zIndex: i }} className="origin-top transition-transform hover:z-50 hover:scale-105" onClick={() => handlers.onCardClick(r.card, 'RESOURCE', topPlayer.id, r.instanceId)}>
+                                                <CardDisplay card={r.card} isTapped={r.isTapped} size="md" isSummoningSick={false} />
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <div className="flex flex-col -space-y-20 relative z-0">
+                                        {topPlayer.resources.slice(5, 10).map((r, i) => (
+                                            <div key={r.instanceId} style={{ zIndex: i }} className="origin-top transition-transform hover:z-50 hover:scale-105" onClick={() => handlers.onCardClick(r.card, 'RESOURCE', topPlayer.id, r.instanceId)}>
+                                                <CardDisplay card={r.card} isTapped={r.isTapped} size="md" isSummoningSick={false} />
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -159,9 +164,12 @@ export const DesktopLayout: React.FC<LayoutProps> = ({
                     </div>
                 </div>
 
+                {/* BOTTOM PLAYER ZONE */}
                 <div className="flex-1 flex flex-col justify-center p-4 relative">
-                    <div className="flex justify-center items-center gap-12 w-full h-full">
-                        <div className="flex gap-4">
+                    <div className="relative w-full flex justify-center items-center h-full">
+                        
+                        {/* Lanes Container - Decoupled Heights */}
+                        <div className="flex gap-8 items-end">
                             <div id={`lane-black-${bottomPlayer.id}`} className="bg-slate-900/40 lane-physical p-4 rounded-xl border border-slate-700/50 flex flex-wrap gap-2 min-w-[100px] min-h-[120px] justify-center items-start content-start shadow-inner max-w-[200px] md:max-w-[300px] overflow-visible">
                                 {bottomPlayer.field.filter(c => getEffectiveColor(c) === Color.Black).map(fc => (
                                     <CardDisplay 
@@ -206,27 +214,30 @@ export const DesktopLayout: React.FC<LayoutProps> = ({
                             </div>
                         </div>
 
-                        <div id={`resource-container-${bottomPlayer.id}`} className="flex flex-col gap-2 items-center bg-black/20 p-2 rounded-lg border border-slate-700/30">
-                            <div className="flex items-center gap-2">
-                                <div className="text-[10px] text-indigo-400 font-bold uppercase">Resources</div>
-                                <div className="text-xs font-bold text-indigo-400">
-                                    {bottomPlayer.resources.filter(r => !r.isTapped).length}/{bottomPlayer.resources.length}
+                        {/* Resources - Right Aligned */}
+                        <div className="absolute right-8 top-1/2 -translate-y-1/2">
+                            <div id={`resource-container-${bottomPlayer.id}`} className="flex flex-col gap-2 items-center bg-black/20 p-2 rounded-lg border border-slate-700/30">
+                                <div className="flex items-center gap-2">
+                                    <div className="text-[10px] text-indigo-400 font-bold uppercase">Resources</div>
+                                    <div className="text-xs font-bold text-indigo-400">
+                                        {bottomPlayer.resources.filter(r => !r.isTapped).length}/{bottomPlayer.resources.length}
+                                    </div>
                                 </div>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4 scale-90 origin-top">
-                                <div className="flex flex-col -space-y-20 relative z-10">
-                                    {bottomPlayer.resources.slice(0, 5).map((r, i) => (
-                                        <div key={r.instanceId} id={r.instanceId} style={{ zIndex: i }} className="transition-all cursor-pointer hover:z-50 hover:scale-105 hover:-translate-y-2" onClick={() => handlers.onCardClick(r.card, 'RESOURCE', bottomPlayer.id, r.instanceId)}>
-                                            <CardDisplay card={r.card} isTapped={r.isTapped} size="md" isSummoningSick={false} />
-                                        </div>
-                                    ))}
-                                </div>
-                                <div className="flex flex-col -space-y-20 relative z-0">
-                                    {bottomPlayer.resources.slice(5, 10).map((r, i) => (
-                                        <div key={r.instanceId} id={r.instanceId} style={{ zIndex: i }} className="transition-all cursor-pointer hover:z-50 hover:scale-105 hover:-translate-y-2" onClick={() => handlers.onCardClick(r.card, 'RESOURCE', bottomPlayer.id, r.instanceId)}>
-                                            <CardDisplay card={r.card} isTapped={r.isTapped} size="md" isSummoningSick={false} />
-                                        </div>
-                                    ))}
+                                <div className="grid grid-cols-2 gap-4 scale-90 origin-top">
+                                    <div className="flex flex-col -space-y-20 relative z-10">
+                                        {bottomPlayer.resources.slice(0, 5).map((r, i) => (
+                                            <div key={r.instanceId} id={r.instanceId} style={{ zIndex: i }} className="transition-all cursor-pointer hover:z-50 hover:scale-105 hover:-translate-y-2" onClick={() => handlers.onCardClick(r.card, 'RESOURCE', bottomPlayer.id, r.instanceId)}>
+                                                <CardDisplay card={r.card} isTapped={r.isTapped} size="md" isSummoningSick={false} />
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <div className="flex flex-col -space-y-20 relative z-0">
+                                        {bottomPlayer.resources.slice(5, 10).map((r, i) => (
+                                            <div key={r.instanceId} id={r.instanceId} style={{ zIndex: i }} className="transition-all cursor-pointer hover:z-50 hover:scale-105 hover:-translate-y-2" onClick={() => handlers.onCardClick(r.card, 'RESOURCE', bottomPlayer.id, r.instanceId)}>
+                                                <CardDisplay card={r.card} isTapped={r.isTapped} size="md" isSummoningSick={false} />
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
                         </div>

@@ -5,7 +5,7 @@ import { addLog } from './utils/core';
 import { createFieldCard } from './utils/rules';
 import { RotateCcw, Play, Edit3, Trash2, GraduationCap, Volume2 } from 'lucide-react';
 import { sortHand } from './utils/cards';
-import { primeAudio } from './utils/soundUtils';
+import { primeAudio, playSound } from './utils/soundUtils';
 
 // Imported Components
 import { CoinFlipOverlay } from './components/overlays/CoinFlipOverlay';
@@ -17,6 +17,7 @@ import { MainMenu } from './components/screens/MainMenu';
 import { MainMenuBackground } from './components/effects/MainMenuBackground';
 import { SandboxTools } from './components/tools/SandboxTools';
 import { EndTurnModal, ResignModal, QuitModal, PauseMenu } from './components/modals/GameModals';
+import { OptionsMenu } from './components/modals/OptionsMenu';
 import { DiscardModal } from './components/modals/DiscardModal';
 import { MobileLayout } from './components/game/MobileLayout';
 import { DesktopLayout } from './components/game/DesktopLayout';
@@ -111,6 +112,7 @@ export const App: React.FC = () => {
 
   const handleResign = () => {
       if (!gameState) return;
+      playSound('game_over'); // Play sound on resign
       setGameState(prev => {
           if(!prev) return null;
           const activePid = getActiveDecisionPlayerId(prev);
@@ -224,7 +226,19 @@ export const App: React.FC = () => {
                 handleStartGameClick={handleStartGameClick}
                 handleSpectateClick={handleSpectateClick}
                 startLesson={startLesson}
+                onOpenOptions={() => ui.setShowOptions(true)}
             />
+            {ui.showOptions && (
+                <OptionsMenu 
+                    onClose={() => ui.setShowOptions(false)}
+                    autoSort={ui.autoSort}
+                    toggleAutoSort={() => ui.toggleAutoSort(setGameState, getActiveDecisionPlayerId)}
+                    sfxVolume={ui.sfxVolume}
+                    setSfxVolume={ui.setSfxVolume}
+                    musicVolume={ui.musicVolume}
+                    setMusicVolume={ui.setMusicVolume}
+                />
+            )}
         </div>
       );
   }
@@ -265,11 +279,6 @@ export const App: React.FC = () => {
         .lane-magical {
             box-shadow: inset 0 0 20px rgba(220, 38, 38, 0.1);
             animation: pulse-magical 4s ease-in-out infinite;
-        }
-
-        @keyframes pulse-magical {
-            0%, 100% { box-shadow: inset 0 0 20px rgba(220, 38, 38, 0.1); }
-            50% { box-shadow: inset 0 0 40px rgba(220, 38, 38, 0.4); }
         }
 
         @keyframes shake-1 { 0% { transform: translate(0, 0) } 25% { transform: translate(-2px, 2px) } 50% { transform: translate(2px, -2px) } 75% { transform: translate(-2px, -2px) } 100% { transform: translate(0, 0) } }
@@ -313,7 +322,6 @@ export const App: React.FC = () => {
                   <h1 className="text-5xl md:text-7xl font-black font-title text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-500 drop-shadow-[0_0_25px_rgba(16,185,129,0.5)]">
                       TUTORIAL COMPLETE
                   </h1>
-                  <h2 className="text-2xl text-slate-300">You have mastered the basics!</h2>
                   <div className="flex gap-4 justify-center mt-8">
                       <button onClick={handleQuitToTitle} className="px-8 py-3 bg-emerald-600 hover:bg-emerald-500 rounded-lg font-bold text-xl shadow-lg shadow-emerald-500/30 transform transition-all hover:scale-105 active:scale-95 flex items-center gap-2">
                           <RotateCcw size={20} /> Return to Menu
@@ -431,13 +439,18 @@ export const App: React.FC = () => {
       }} />
       <ResignModal show={ui.showResignModal} onCancel={() => ui.setShowResignModal(false)} onConfirm={handleResign} />
       <QuitModal show={ui.showQuitModal} onCancel={() => ui.setShowQuitModal(false)} onConfirm={handleQuitToTitle} />
+      
       <PauseMenu 
         show={ui.showMenu} 
         onResume={() => ui.setShowMenu(false)} 
         onResign={() => ui.setShowResignModal(true)} 
         onQuit={() => ui.setShowQuitModal(true)} 
         autoSort={ui.autoSort} 
-        onToggleSort={() => ui.toggleAutoSort(setGameState, getActiveDecisionPlayerId)} 
+        onToggleSort={() => ui.toggleAutoSort(setGameState, getActiveDecisionPlayerId)}
+        sfxVolume={ui.sfxVolume}
+        setSfxVolume={ui.setSfxVolume}
+        musicVolume={ui.musicVolume}
+        setMusicVolume={ui.setMusicVolume}
       />
 
       <DiscardModal 

@@ -134,7 +134,7 @@ export const useGameState = ({ effects, refs, autoSort }: GameStateProps) => {
         else if (state.players[1].life <= 0) state.winner = 0;
         if (state.winner !== null) {
             state.phase = Phase.GAME_OVER;
-            playSound('game_over');
+            if (state.mode !== 'TUTORIAL') playSound('game_over');
         }
     };
 
@@ -374,6 +374,11 @@ export const useGameState = ({ effects, refs, autoSort }: GameStateProps) => {
     };
 
     const confirmAttack = () => {
+        // Play tap sound if attackers are declared
+        if (gameStateRef.current && gameStateRef.current.pendingAttackers.length > 0) {
+            playSound('draw');
+        }
+
         setGameState(prev => {
             if(!prev) return null;
             if (prev.mode === 'TUTORIAL' && prev.tutorialState?.lessonId === 'lesson-2' && prev.turnPlayer === 0 && prev.phase === Phase.ATTACK_DECLARE) {
@@ -440,6 +445,7 @@ export const useGameState = ({ effects, refs, autoSort }: GameStateProps) => {
                     const blockerId = Object.keys(state.pendingBlocks).find(k => state.pendingBlocks[k] === atk.instanceId);
                     if (blockerId) {
                         setGameState(prev => prev ? { ...prev, activeCombatCardId: atk.instanceId } : null);
+                        playSound('menu_click'); // Lunge sound
                         
                         await new Promise(r => setTimeout(r, 400));
                         setGameState(prev => {
@@ -483,18 +489,16 @@ export const useGameState = ({ effects, refs, autoSort }: GameStateProps) => {
                                 nextPlayers[defIdx] = { ...nextPlayers[defIdx], life: Math.max(0, nextPlayers[defIdx].life - dmg) }; 
                             }
                             let nextState = { ...prev, players: nextPlayers };
-                            if (nextPlayers[defIdx].life <= 0 && nextState.winner === null) {
-                                nextState.winner = attackerPlayer.id;
-                                nextState.phase = Phase.GAME_OVER;
-                                playSound('game_over');
-                            }
+                            // Remove Immediate Game Over Trigger
+                            // Game Over is now handled in the Cleanup phase to ensure all animations play.
                             return nextState;
                         });
                     };
                     effects.addDamageAnim(dmg, defenderPlayer.id, applyDamage);
 
                     setGameState(prev => prev ? { ...prev, logs: addLog(prev, `🔥 Direct Hit! ${formatCardLog(atk.card)} deals ${dmg} damage.`) } : null);
-                    await new Promise(r => setTimeout(r, 800)); // Increased from 300 to 800 for impact
+                    // Wait longer than animation (1200ms) to ensure impact happens before next loop or cleanup
+                    await new Promise(r => setTimeout(r, 1250)); 
                     setGameState(prev => prev ? { ...prev, activeCombatCardId: null } : null);
                 }
 
@@ -538,7 +542,7 @@ export const useGameState = ({ effects, refs, autoSort }: GameStateProps) => {
                     if (atkP.life <= 0) nextState.winner = defP.id;
                     if (nextState.winner !== null) {
                         nextState.phase = Phase.GAME_OVER;
-                        playSound('game_over');
+                        if (nextState.mode !== 'TUTORIAL') playSound('game_over');
                     }
                     return nextState;
                 });

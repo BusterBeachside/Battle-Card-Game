@@ -2,7 +2,7 @@
 import React from 'react';
 import { GameMode } from '../../types';
 import { TUTORIAL_LESSONS } from '../../data/tutorials';
-import { Coins, Sword, Edit3, RotateCcw, Cpu, Users, Tv, ArrowRight, GraduationCap, ChevronLeft, BookOpen, CheckCircle } from 'lucide-react';
+import { Coins, Sword, Edit3, RotateCcw, Cpu, Users, Tv, ArrowRight, GraduationCap, ChevronLeft, BookOpen, CheckCircle, Settings } from 'lucide-react';
 import { playSound } from '../../utils/soundUtils';
 
 interface MainMenuProps {
@@ -12,6 +12,7 @@ interface MainMenuProps {
     handleStartGameClick: (isCpu: boolean) => void;
     handleSpectateClick: () => void;
     startLesson: (lessonId: string) => void;
+    onOpenOptions: () => void;
 }
 
 export const MainMenu: React.FC<MainMenuProps> = ({ 
@@ -20,7 +21,8 @@ export const MainMenu: React.FC<MainMenuProps> = ({
     handleModeSelect, 
     handleStartGameClick, 
     handleSpectateClick,
-    startLesson
+    startLesson,
+    onOpenOptions
 }) => {
     const isLessonCompleted = (lessonId: string) => {
         return localStorage.getItem(`battle_lesson_complete_${lessonId}`) === 'true';
@@ -34,8 +36,16 @@ export const MainMenu: React.FC<MainMenuProps> = ({
     return (
         <div className="relative z-10 flex flex-col items-center space-y-8 md:space-y-12 animate-in fade-in zoom-in duration-700 w-full max-w-6xl px-4 md:px-6">
             
+            {/* Top Right Settings Button */}
+            <button 
+                onClick={() => handleClick(onOpenOptions)}
+                className="absolute top-0 right-4 p-3 bg-slate-800/50 hover:bg-slate-700 rounded-full border border-slate-600 hover:border-indigo-500 transition-all text-slate-400 hover:text-white"
+            >
+                <Settings size={24} />
+            </button>
+
             {/* Title Section */}
-            <div className="text-center space-y-4">
+            <div className="text-center space-y-4 pt-8">
                 <div className="flex items-center justify-center gap-4 opacity-60">
                         <div className="h-px w-16 md:w-32 bg-gradient-to-r from-transparent via-indigo-500 to-transparent"></div>
                         <span className="text-indigo-400 text-xs md:text-sm font-bold tracking-[0.4em] uppercase font-title text-shadow-sm">Tactical Card Warfare</span>

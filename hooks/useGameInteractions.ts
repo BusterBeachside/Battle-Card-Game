@@ -51,9 +51,10 @@ export const useGameInteractions = (
         else if (currentState.phase === Phase.RESOURCE_ADD_SELECT && location === 'HAND' && ownerId === activePlayerId) {
             const targetResourceContainer = document.getElementById(`resource-container-${ownerId}`);
             let cardEl = document.getElementById(card.id); 
-            if (cardEl && targetResourceContainer) { await effects.triggerFlyer(card, cardEl.getBoundingClientRect(), targetResourceContainer.getBoundingClientRect()); }
             
             playSound('play_resource');
+
+            if (cardEl && targetResourceContainer) { await effects.triggerFlyer(card, cardEl.getBoundingClientRect(), targetResourceContainer.getBoundingClientRect()); }
 
             actions.setGameState((prev: any) => {
                if(!prev) return null;

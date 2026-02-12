@@ -21,6 +21,8 @@ class NativeAudioManager {
     private static instance: NativeAudioManager;
     private sounds: Map<SoundName, HTMLAudioElement> = new Map();
     private isInitialized = false;
+    private sfxVolume = 0.5;
+    private musicVolume = 0.5;
 
     private constructor() {
         this.init();
@@ -47,10 +49,10 @@ class NativeAudioManager {
         // Fetch all sounds in parallel
         await Promise.all(soundFiles.map(async (name) => {
             try {
-                // Absolute path relative to root
-                const response = await fetch(`/sounds/${name}.mp3`);
+                // Relative path (no leading slash) for Itch.io compatibility
+                const response = await fetch(`sounds/${name}.mp3`);
                 if (!response.ok) {
-                    throw new Error(`HTTP ${response.status} for /sounds/${name}.mp3`);
+                    throw new Error(`HTTP ${response.status} for sounds/${name}.mp3`);
                 }
                 const blob = await response.blob();
                 const url = URL.createObjectURL(blob);
@@ -87,6 +89,7 @@ class NativeAudioManager {
     public play(name: SoundName) {
         const audio = this.sounds.get(name);
         if (audio) {
+            audio.volume = this.sfxVolume;
             // Reset position to allow replaying
             if (!audio.paused) {
                 audio.currentTime = 0;
@@ -101,6 +104,15 @@ class NativeAudioManager {
             console.debug(`NativeAudioManager: Sound '${name}' not ready or missing.`);
         }
     }
+
+    public setSfxVolume(v: number) {
+        this.sfxVolume = Math.max(0, Math.min(1, v));
+    }
+
+    public setMusicVolume(v: number) {
+        this.musicVolume = Math.max(0, Math.min(1, v));
+        // Placeholder for future music implementation
+    }
 }
 
 // Export singleton accessors
@@ -110,4 +122,12 @@ export const playSound = (name: SoundName) => {
 
 export const primeAudio = () => {
     NativeAudioManager.getInstance().prime();
+};
+
+export const setGlobalSfxVolume = (v: number) => {
+    NativeAudioManager.getInstance().setSfxVolume(v);
+};
+
+export const setGlobalMusicVolume = (v: number) => {
+    NativeAudioManager.getInstance().setMusicVolume(v);
 };

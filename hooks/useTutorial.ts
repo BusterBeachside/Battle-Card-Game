@@ -48,7 +48,10 @@ export const useTutorial = ({
                 if (prev.tutorialState.lessonId) {
                     localStorage.setItem(`battle_lesson_complete_${prev.tutorialState.lessonId}`, 'true');
                 }
+                
+                // Play victory sound (using game_over sound) specifically for completion
                 playSound('game_over');
+
                 return {
                     ...prev,
                     tutorialState: { ...prev.tutorialState, active: false, completed: true },

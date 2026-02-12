@@ -56,8 +56,16 @@ export const Explosion: React.FC<{ x: number; y: number; onComplete: () => void 
                     }}
                 />
             ))}
-            <div className="absolute w-20 h-20 bg-white rounded-full animate-ping opacity-50" />
+            {/* Shortened burst animation */}
+            <div 
+                className="absolute w-20 h-20 bg-white rounded-full opacity-50" 
+                style={{ animation: 'burst 0.5s ease-out forwards' }}
+            />
             <style>{`
+                @keyframes burst {
+                    0% { transform: scale(0); opacity: 0.8; }
+                    100% { transform: scale(2); opacity: 0; }
+                }
                 ${[...Array(8)].map((_, i) => {
                     const angle = (i / 8) * 360;
                     const dist = 60 + Math.random() * 40;
