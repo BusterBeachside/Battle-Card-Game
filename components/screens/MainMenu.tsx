@@ -3,6 +3,7 @@ import React from 'react';
 import { GameMode } from '../../types';
 import { TUTORIAL_LESSONS } from '../../data/tutorials';
 import { Coins, Sword, Edit3, RotateCcw, Cpu, Users, Tv, ArrowRight, GraduationCap, ChevronLeft, BookOpen, CheckCircle } from 'lucide-react';
+import { playSound } from '../../utils/soundUtils';
 
 interface MainMenuProps {
     menuStep: 'MODE' | 'PLAYERS' | 'TUTORIAL_MENU';
@@ -25,6 +26,11 @@ export const MainMenu: React.FC<MainMenuProps> = ({
         return localStorage.getItem(`battle_lesson_complete_${lessonId}`) === 'true';
     };
 
+    const handleClick = (cb: () => void) => {
+        playSound('menu_click');
+        cb();
+    };
+
     return (
         <div className="relative z-10 flex flex-col items-center space-y-8 md:space-y-12 animate-in fade-in zoom-in duration-700 w-full max-w-6xl px-4 md:px-6">
             
@@ -45,7 +51,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                 
                 {/* Street Mode Card */}
                 <button 
-                    onClick={() => handleModeSelect('STREET')} 
+                    onClick={() => handleClick(() => handleModeSelect('STREET'))} 
                     className="group relative flex flex-col items-center text-center p-4 md:p-8 rounded-2xl bg-gradient-to-b from-slate-800 to-slate-900 border border-slate-700 hover:border-indigo-500/50 transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_0_30px_rgba(99,102,241,0.2)]"
                 >
                     <div className="absolute inset-0 bg-indigo-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
@@ -61,7 +67,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
 
                 {/* Pro Mode Card */}
                 <button 
-                    onClick={() => handleModeSelect('PRO')} 
+                    onClick={() => handleClick(() => handleModeSelect('PRO'))} 
                     className="group relative flex flex-col items-center text-center p-4 md:p-8 rounded-2xl bg-gradient-to-b from-slate-800 to-slate-900 border border-slate-700 hover:border-red-500/50 transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_0_30px_rgba(239,68,68,0.2)]"
                 >
                     <div className="absolute inset-0 bg-red-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
@@ -77,7 +83,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
 
                 {/* Sandbox Mode Card */}
                 <button 
-                    onClick={() => handleModeSelect('SANDBOX')} 
+                    onClick={() => handleClick(() => handleModeSelect('SANDBOX'))} 
                     className="group relative flex flex-col items-center text-center p-4 md:p-8 rounded-2xl bg-gradient-to-b from-slate-800 to-slate-900 border border-slate-700 hover:border-amber-500/50 transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_0_30px_rgba(245,158,11,0.2)]"
                 >
                     <div className="absolute inset-0 bg-amber-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
@@ -93,7 +99,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
 
                 {/* Tutorial Mode Card */}
                 <button 
-                    onClick={() => handleModeSelect('TUTORIAL')} 
+                    onClick={() => handleClick(() => handleModeSelect('TUTORIAL'))} 
                     className="group relative flex flex-col items-center text-center p-4 md:p-8 rounded-2xl bg-gradient-to-b from-slate-800 to-slate-900 border border-slate-700 hover:border-emerald-500/50 transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_0_30px_rgba(16,185,129,0.2)]"
                 >
                     <div className="absolute inset-0 bg-emerald-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
@@ -113,7 +119,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                 <div className="flex flex-col gap-4 w-full max-w-lg animate-in slide-in-from-right fade-in duration-300 px-4">
                      <div className="flex items-center gap-3 mb-2 text-slate-300">
                         <button 
-                        onClick={() => setMenuStep('MODE')} 
+                        onClick={() => handleClick(() => setMenuStep('MODE'))} 
                         className="p-2 -ml-2 hover:bg-white/10 rounded-full transition-colors text-slate-400 hover:text-white"
                         >
                             <ChevronLeft size={24} />
@@ -129,7 +135,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                             return (
                                 <button 
                                     key={lesson.id} 
-                                    onClick={() => isAvailable && startLesson(lesson.id)}
+                                    onClick={() => isAvailable && handleClick(() => startLesson(lesson.id))}
                                     disabled={!isAvailable}
                                     className={`group relative flex items-center justify-between p-5 rounded-xl border transition-all hover:-translate-x-[-4px] hover:shadow-lg
                                         ${isAvailable ? 'bg-slate-800 hover:bg-emerald-900/20 border-slate-700 hover:border-emerald-500/50' : 'bg-slate-900/50 border-slate-800 opacity-50 cursor-not-allowed'}
@@ -156,7 +162,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                 <div className="flex flex-col gap-4 w-full max-w-md animate-in slide-in-from-right fade-in duration-300 px-4">
                     <div className="flex items-center gap-3 mb-2 text-slate-300">
                         <button 
-                        onClick={() => setMenuStep('MODE')} 
+                        onClick={() => handleClick(() => setMenuStep('MODE'))} 
                         className="p-2 -ml-2 hover:bg-white/10 rounded-full transition-colors text-slate-400 hover:text-white"
                         >
                             <RotateCcw size={20} />
@@ -164,7 +170,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                         <span className="text-sm font-bold uppercase tracking-wider text-slate-500">Select Opponent</span>
                     </div>
 
-                    <button onClick={() => handleStartGameClick(true)} className="group relative flex items-center justify-between bg-slate-800 hover:bg-emerald-900/20 border border-slate-700 hover:border-emerald-500/50 p-5 rounded-xl transition-all hover:-translate-x-[-4px] hover:shadow-lg">
+                    <button onClick={() => handleClick(() => handleStartGameClick(true))} className="group relative flex items-center justify-between bg-slate-800 hover:bg-emerald-900/20 border border-slate-700 hover:border-emerald-500/50 p-5 rounded-xl transition-all hover:-translate-x-[-4px] hover:shadow-lg">
                         <div className="flex items-center gap-4">
                             <div className="bg-emerald-900/20 p-3 rounded-lg text-emerald-400 group-hover:text-emerald-300 ring-1 ring-emerald-900/50 transition-colors">
                                 <Cpu size={24} />
@@ -177,7 +183,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                         <ArrowRight className="text-slate-600 group-hover:text-emerald-400 transition-transform group-hover:translate-x-1" />
                     </button>
 
-                    <button onClick={() => handleStartGameClick(false)} className="group relative flex items-center justify-between bg-slate-800 hover:bg-amber-900/20 border border-slate-700 hover:border-amber-500/50 p-5 rounded-xl transition-all hover:-translate-x-[-4px] hover:shadow-lg">
+                    <button onClick={() => handleClick(() => handleStartGameClick(false))} className="group relative flex items-center justify-between bg-slate-800 hover:bg-amber-900/20 border border-slate-700 hover:border-amber-500/50 p-5 rounded-xl transition-all hover:-translate-x-[-4px] hover:shadow-lg">
                         <div className="flex items-center gap-4">
                             <div className="bg-amber-900/20 p-3 rounded-lg text-amber-400 group-hover:text-amber-300 ring-1 ring-amber-900/50 transition-colors">
                                 <Users size={24} />
@@ -190,7 +196,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                         <ArrowRight className="text-slate-600 group-hover:text-amber-400 transition-transform group-hover:translate-x-1" />
                     </button>
 
-                    <button onClick={handleSpectateClick} className="group relative flex items-center justify-between bg-slate-800 hover:bg-purple-900/20 border border-slate-700 hover:border-purple-500/50 p-5 rounded-xl transition-all hover:-translate-x-[-4px] hover:shadow-lg">
+                    <button onClick={() => handleClick(() => handleSpectateClick())} className="group relative flex items-center justify-between bg-slate-800 hover:bg-purple-900/20 border border-slate-700 hover:border-purple-500/50 p-5 rounded-xl transition-all hover:-translate-x-[-4px] hover:shadow-lg">
                         <div className="flex items-center gap-4">
                             <div className="bg-purple-900/20 p-3 rounded-lg text-purple-400 group-hover:text-purple-300 ring-1 ring-purple-900/50 transition-colors">
                                 <Tv size={24} />

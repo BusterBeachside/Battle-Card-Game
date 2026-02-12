@@ -2,6 +2,7 @@
 import { useCallback } from 'react';
 import { GameState, Phase, TutorialStep } from '../types';
 import { addLog } from '../utils/core';
+import { playSound } from '../utils/soundUtils';
 
 interface UseTutorialProps {
     gameState: GameState | null;
@@ -47,6 +48,7 @@ export const useTutorial = ({
                 if (prev.tutorialState.lessonId) {
                     localStorage.setItem(`battle_lesson_complete_${prev.tutorialState.lessonId}`, 'true');
                 }
+                playSound('game_over');
                 return {
                     ...prev,
                     tutorialState: { ...prev.tutorialState, active: false, completed: true },

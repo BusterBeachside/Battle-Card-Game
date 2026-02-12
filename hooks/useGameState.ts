@@ -6,6 +6,7 @@ import { createFieldCard, getEffectiveColor } from '../utils/rules';
 import { generateId, addLog } from '../utils/core';
 import { INITIAL_LIFE, MAX_RESOURCES } from '../constants';
 import { TUTORIAL_LESSONS } from '../data/tutorials';
+import { playSound } from '../utils/soundUtils';
 
 interface GameStateRefs {
     handRef: React.RefObject<HTMLDivElement>;
@@ -131,7 +132,10 @@ export const useGameState = ({ effects, refs, autoSort }: GameStateProps) => {
     const checkGameOver = (state: GameState) => {
         if (state.players[0].life <= 0) state.winner = 1;
         else if (state.players[1].life <= 0) state.winner = 0;
-        if (state.winner !== null) state.phase = Phase.GAME_OVER;
+        if (state.winner !== null) {
+            state.phase = Phase.GAME_OVER;
+            playSound('game_over');
+        }
     };
 
     const drawCards = async (playerId: number, count: number) => {
@@ -157,6 +161,8 @@ export const useGameState = ({ effects, refs, autoSort }: GameStateProps) => {
              }
 
              if (startRect && targetRect) { effects.triggerFlyer(card, startRect, targetRect); }
+             
+             playSound('draw');
 
              setGameState(prev => {
                  if (!prev) return null;
@@ -170,7 +176,7 @@ export const useGameState = ({ effects, refs, autoSort }: GameStateProps) => {
                  nextPlayers[pIndex] = nextP;
                  return { ...prev, deck: prev.mode === 'STREET' || prev.mode === 'TUTORIAL' ? nextDeck : prev.deck, players: nextPlayers };
              });
-             await new Promise(r => setTimeout(r, 60));
+             await new Promise(r => setTimeout(r, 100)); // Increased slighty for sound pacing
         }
         if (cardsToDraw.length > 0) { setGameState(prev => prev ? { ...prev, logs: addLog(prev, `${startState.players[pIndex].name} drew ${cardsToDraw.length} cards.`) } : null); }
         if (failuresNeeded > 0) {
@@ -201,6 +207,7 @@ export const useGameState = ({ effects, refs, autoSort }: GameStateProps) => {
                     newState.pendingAttackers = []; newState.pendingBlocks = {}; newState.selectedCardId = null; newState.recentDamage = {}; newState.activeCombatCardId = null;
                     player.hasAttackedThisTurn = false;
                     newState.logs = addLog(newState, `Turn ${newState.turnCount}: ${player.name}'s Upkeep.`);
+                    playSound('turn_start');
                     setTimeout(() => advancePhase(Phase.DRAW), 800);
                     break;
                 case Phase.DRAW:
@@ -252,6 +259,16 @@ export const useGameState = ({ effects, refs, autoSort }: GameStateProps) => {
             }
         }
 
+        // Trigger Sounds
+        if (isFaceCard) {
+            playSound('tactic');
+            if (card.rank === 'K') playSound('king');
+            if (card.rank === 'Q') playSound('queen');
+        } else {
+            if (card.baseColor === Color.Red) playSound('conscript_mag');
+            else playSound('conscript_phy');
+        }
+
         if (isFaceCard) {
             let targetRect: DOMRect | undefined;
             if (targetId) { const targetEl = document.getElementById(targetId); if (targetEl) targetRect = targetEl.getBoundingClientRect(); }
@@ -292,6 +309,7 @@ export const useGameState = ({ effects, refs, autoSort }: GameStateProps) => {
                 const targetF = targetP.field[targetFIdx];
                 if (getEffectiveColor(targetF) !== card.baseColor) return prev;
                 effects.triggerExplosion(targetId!); 
+                playSound('destroy');
                 effects.triggerScreenShake(4); // Heavy shake for King
                 nextPlayer.discard.push(playedCard!); 
                 targetP.field.splice(targetFIdx, 1); 
@@ -414,6 +432,7 @@ export const useGameState = ({ effects, refs, autoSort }: GameStateProps) => {
                         effects.triggerSoulTrail(cardInstanceId, targetRef.current.getBoundingClientRect(), 'cyan');
                     }
                     effects.triggerExplosion(cardInstanceId);
+                    playSound('destroy');
                 };
 
                 // Blocked Combats
@@ -447,6 +466,11 @@ export const useGameState = ({ effects, refs, autoSort }: GameStateProps) => {
                     const shakeIntensity = atk.card.rank === 'A' ? 1 : Math.min(4, Math.ceil(atk.card.numericValue / 2.5));
                     effects.triggerScreenShake(shakeIntensity);
 
+                    const val = atk.card.numericValue;
+                    if (val <= 4 || atk.card.rank === 'A') playSound('damage_sm');
+                    else if (val <= 7) playSound('damage_md');
+                    else playSound('damage_lg');
+
                     await new Promise(r => setTimeout(r, 200));
                     const dmg = atk.card.rank === 'A' ? 1 : atk.card.numericValue;
                     
@@ -462,6 +486,7 @@ export const useGameState = ({ effects, refs, autoSort }: GameStateProps) => {
                             if (nextPlayers[defIdx].life <= 0 && nextState.winner === null) {
                                 nextState.winner = attackerPlayer.id;
                                 nextState.phase = Phase.GAME_OVER;
+                                playSound('game_over');
                             }
                             return nextState;
                         });
@@ -511,7 +536,10 @@ export const useGameState = ({ effects, refs, autoSort }: GameStateProps) => {
                     
                     if (defP.life <= 0) nextState.winner = atkP.id;
                     if (atkP.life <= 0) nextState.winner = defP.id;
-                    if (nextState.winner !== null) nextState.phase = Phase.GAME_OVER;
+                    if (nextState.winner !== null) {
+                        nextState.phase = Phase.GAME_OVER;
+                        playSound('game_over');
+                    }
                     return nextState;
                 });
             })();

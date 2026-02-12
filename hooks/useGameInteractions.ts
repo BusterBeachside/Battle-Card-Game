@@ -4,6 +4,7 @@ import { Card, Phase, DragState } from '../types';
 import { createFieldCard, canBlock, getEffectiveColor } from '../utils/rules';
 import { addLog } from '../utils/core';
 import { sortHand } from '../utils/cards';
+import { playSound } from '../utils/soundUtils';
 
 export const useGameInteractions = (
     gameState: any, 
@@ -51,6 +52,9 @@ export const useGameInteractions = (
             const targetResourceContainer = document.getElementById(`resource-container-${ownerId}`);
             let cardEl = document.getElementById(card.id); 
             if (cardEl && targetResourceContainer) { await effects.triggerFlyer(card, cardEl.getBoundingClientRect(), targetResourceContainer.getBoundingClientRect()); }
+            
+            playSound('play_resource');
+
             actions.setGameState((prev: any) => {
                if(!prev) return null;
                const p = prev.players[activePlayerId];
@@ -76,6 +80,9 @@ export const useGameInteractions = (
                     await Promise.all([p1, p2]);
                 }
             }
+            
+            playSound('swap_resource');
+
             actions.setGameState((prev: any) => {
                 if(!prev) return null;
                 const p = prev.players[activePlayerId];
@@ -257,6 +264,8 @@ export const useGameInteractions = (
              });
              await Promise.all(animations);
          }
+         
+         playSound('play_resource');
 
          actions.setGameState((prev: any) => {
             if (!prev) return null;
@@ -294,11 +303,13 @@ export const useGameInteractions = (
                   if (!tutorial.isInteractionAllowed('btn-attack-phase')) return;
                   tutorial.advanceTutorialStep('CLICK_UI_BUTTON', 'btn-attack-phase');
              }
+             playSound('attack_phase');
              actions.advancePhase(Phase.ATTACK_DECLARE);
         }
         else if (action === 'END_TURN') {
              if (!tutorial.isInteractionAllowed('btn-end-turn')) return;
              ui.setShowEndTurnModal(true);
+             playSound('menu_click');
         }
         else if (action === 'CONFIRM_ATTACK') {
              if (gameState?.mode === 'TUTORIAL') {
