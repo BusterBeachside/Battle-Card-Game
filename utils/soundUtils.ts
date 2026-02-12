@@ -20,26 +20,32 @@ export type SoundName =
     | 'turn_start';
 
 const soundConfig = {
-    html5: true
+    html5: true,
+    onloaderror: (id: any, error: any) => {
+        console.error(`Howler Load Error [${id}]:`, error);
+    },
+    onplayerror: (id: any, error: any) => {
+        console.warn(`Howler Play Error [${id}]:`, error);
+    }
 };
 
 const sounds: Record<SoundName, any> = {
-    attack_phase: new Howl({ src: ['sounds/attack_phase.wav'], ...soundConfig }),
-    conscript_mag: new Howl({ src: ['sounds/conscript_mag.wav'], ...soundConfig }),
-    conscript_phy: new Howl({ src: ['sounds/conscript_phy.wav'], ...soundConfig }),
-    damage_sm: new Howl({ src: ['sounds/damage_sm.wav'], ...soundConfig }),
-    damage_md: new Howl({ src: ['sounds/damage_md.wav'], ...soundConfig }),
-    damage_lg: new Howl({ src: ['sounds/damage_lg.wav'], ...soundConfig }),
-    destroy: new Howl({ src: ['sounds/destroy.wav'], ...soundConfig }),
-    draw: new Howl({ src: ['sounds/draw.wav'], ...soundConfig }),
-    game_over: new Howl({ src: ['sounds/game_over.wav'], ...soundConfig }),
-    king: new Howl({ src: ['sounds/king.wav'], ...soundConfig }),
-    menu_click: new Howl({ src: ['sounds/menu_click.wav'], ...soundConfig }),
-    play_resource: new Howl({ src: ['sounds/play_resource.wav'], ...soundConfig }),
-    queen: new Howl({ src: ['sounds/queen.wav'], ...soundConfig }),
-    swap_resource: new Howl({ src: ['sounds/swap_resource.wav'], ...soundConfig }),
-    tactic: new Howl({ src: ['sounds/tactic.wav'], ...soundConfig }),
-    turn_start: new Howl({ src: ['sounds/turn_start.wav'], ...soundConfig }),
+    attack_phase: new Howl({ src: ['sounds/attack_phase.mp3'], ...soundConfig }),
+    conscript_mag: new Howl({ src: ['sounds/conscript_mag.mp3'], ...soundConfig }),
+    conscript_phy: new Howl({ src: ['sounds/conscript_phy.mp3'], ...soundConfig }),
+    damage_sm: new Howl({ src: ['sounds/damage_sm.mp3'], ...soundConfig }),
+    damage_md: new Howl({ src: ['sounds/damage_md.mp3'], ...soundConfig }),
+    damage_lg: new Howl({ src: ['sounds/damage_lg.mp3'], ...soundConfig }),
+    destroy: new Howl({ src: ['sounds/destroy.mp3'], ...soundConfig }),
+    draw: new Howl({ src: ['sounds/draw.mp3'], ...soundConfig }),
+    game_over: new Howl({ src: ['sounds/game_over.mp3'], ...soundConfig }),
+    king: new Howl({ src: ['sounds/king.mp3'], ...soundConfig }),
+    menu_click: new Howl({ src: ['sounds/menu_click.mp3'], ...soundConfig }),
+    play_resource: new Howl({ src: ['sounds/play_resource.mp3'], ...soundConfig }),
+    queen: new Howl({ src: ['sounds/queen.mp3'], ...soundConfig }),
+    swap_resource: new Howl({ src: ['sounds/swap_resource.mp3'], ...soundConfig }),
+    tactic: new Howl({ src: ['sounds/tactic.mp3'], ...soundConfig }),
+    turn_start: new Howl({ src: ['sounds/turn_start.mp3'], ...soundConfig }),
 };
 
 export const playSound = (name: SoundName) => {
