@@ -49,10 +49,25 @@ class NativeAudioManager {
         // Fetch all sounds in parallel
         await Promise.all(soundFiles.map(async (name) => {
             try {
-                // Relative path (no leading slash) for Itch.io compatibility
-                const response = await fetch(`sounds/${name}.mp3`);
+                let audioPath: string;
+                try {
+                    // Robust base URL detection: use document.baseURI if available (handles <base> tags), 
+                    // otherwise fall back to window.location.href.
+                    const baseUrl = document.baseURI || window.location.href;
+                    
+                    // Construct absolute URL relative to the base. 
+                    // This handles scenarios like Itch.io where the game is in a subdirectory.
+                    audioPath = new URL(`sounds/${name}.mp3`, baseUrl).href;
+                } catch (e) {
+                    // Fallback: If URL construction fails (e.g. strictly opaque origin), use simple relative path.
+                    // This relies on the browser's fetch capability to resolve it.
+                    console.warn(`NativeAudioManager: URL construction failed for ${name}, using relative path.`);
+                    audioPath = `sounds/${name}.mp3`;
+                }
+
+                const response = await fetch(audioPath);
                 if (!response.ok) {
-                    throw new Error(`HTTP ${response.status} for sounds/${name}.mp3`);
+                    throw new Error(`HTTP ${response.status} for ${audioPath}`);
                 }
                 const blob = await response.blob();
                 const url = URL.createObjectURL(blob);
@@ -71,17 +86,23 @@ class NativeAudioManager {
     public prime() {
         console.log("NativeAudioManager: Priming audio engine...");
         this.sounds.forEach((audio, name) => {
-            // Attempt to play and immediately pause to unlock the audio element for this user session
-            const playPromise = audio.play();
-            if (playPromise !== undefined) {
-                playPromise.then(() => {
-                    audio.pause();
-                    audio.currentTime = 0;
-                }).catch(error => {
-                    // This is expected if the user hasn't interacted yet, but this function 
-                    // should be called FROM a click handler, so it should work.
-                    console.warn(`NativeAudioManager: Priming failed for ${name}.`, error);
-                });
+            // Check readyState to ensure audio is loaded before attempting interaction
+            // readyState > 0 means HAVE_METADATA or higher
+            if (audio.readyState > 0) {
+                // Attempt to play and immediately pause to unlock the audio element for this user session
+                const playPromise = audio.play();
+                if (playPromise !== undefined) {
+                    playPromise.then(() => {
+                        audio.pause();
+                        audio.currentTime = 0;
+                    }).catch(error => {
+                        // This is expected if the user hasn't interacted yet, but this function 
+                        // should be called FROM a click handler, so it should work.
+                        console.warn(`NativeAudioManager: Priming failed for ${name}.`, error);
+                    });
+                }
+            } else {
+                console.warn(`NativeAudioManager: Skipped priming '${name}' - audio not ready.`);
             }
         });
     }

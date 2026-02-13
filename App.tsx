@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { Phase, GameMode } from './types';
 import { addLog } from './utils/core';
@@ -465,7 +464,7 @@ export const App: React.FC = () => {
         mode={gameState.mode} 
       />
 
-      {effects.specialAnim && <SpecialCardAnimation type={effects.specialAnim.type} card={effects.specialAnim.card} targetRect={effects.specialAnim.targetRect} onComplete={() => effects.setSpecialAnim(null)} />}
+      {effects.specialAnim && <SpecialCardAnimation type={effects.specialAnim.type as 'K' | 'Q' | 'J'} card={effects.specialAnim.card} targetRect={effects.specialAnim.targetRect} onComplete={() => effects.setSpecialAnim(null)} />}
 
       {effects.flyingCards.map(fc => (
           <Flyer key={fc.id} fc={fc} />
@@ -524,21 +523,23 @@ export const App: React.FC = () => {
               }
               return null;
           })}
-          {interactions.dragState?.sourceType === 'FIELD' && interactions.dragState.currentX && (
-               (() => {
-                   const startEl = document.getElementById(interactions.dragState.instanceId!);
+          {(() => {
+              const ds = interactions.dragState;
+              if (ds?.sourceType === 'FIELD' && ds.currentX && ds.instanceId) {
+                   const startEl = document.getElementById(ds.instanceId);
                    if(startEl) {
                        const rect = startEl.getBoundingClientRect();
                        return (
                            <line 
                                 x1={rect.left + rect.width/2} y1={rect.top + rect.height/2}
-                                x2={interactions.dragState.currentX} y2={interactions.dragState.currentY}
+                                x2={ds.currentX} y2={ds.currentY}
                                 stroke="#3b82f6" strokeWidth="4" strokeDasharray="5" className="opacity-70"
                            />
                        );
                    }
-               })()
-          )}
+              }
+              return null;
+          })()}
       </svg>
       
       {ui.isMobile ? (
