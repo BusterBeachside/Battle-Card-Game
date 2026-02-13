@@ -35,7 +35,9 @@ class AudioManager {
     }
 
     private getSoundUrl(name: string): string {
-        return `sounds/${name}.mp3`;
+        // FIX 1: Use the URL constructor to find the "real" path relative to this script
+        // This bypasses the busterbeachside.itch.io/ vs itch.zone/ mismatch
+        return new URL(`./sounds/${name}.mp3`, import.meta.url).href;
     }
 
     public init() {
@@ -70,16 +72,23 @@ class AudioManager {
         
         const url = this.getSoundUrl(name);
         try {
-            const response = await fetch(url);
+            // FIX 2: Explicitly set CORS mode to 'cors'
+            const response = await fetch(url, { mode: 'cors' }); 
+            
             if (!response.ok) {
                 console.warn(`[Audio] Failed to fetch sound: ${name} (${response.status})`);
                 return;
             }
             const arrayBuffer = await response.arrayBuffer();
-            const audioBuffer = await this.context.decodeAudioData(arrayBuffer);
+            
+            // FIX 3: Catch potential decoding errors (often caused by 48kHz vs 44.1kHz)
+            const audioBuffer = await this.context.decodeAudioData(arrayBuffer).catch(err => {
+                throw new Error(`Decoding failed - check if MP3 is 44.1kHz CBR: ${err.message}`);
+            });
+
             this.buffers.set(name, audioBuffer);
         } catch (error) {
-            console.warn(`[Audio] Error decoding sound: ${name}`, error);
+            console.warn(`[Audio] Error loading sound: ${name}`, error);
         }
     }
 
