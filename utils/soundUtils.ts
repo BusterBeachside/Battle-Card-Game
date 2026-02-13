@@ -17,43 +17,30 @@ export type SoundName =
     | 'tactic'
     | 'turn_start';
 
-class NativeAudioManager {
-    private static instance: NativeAudioManager;
-    private soundDataUris: Map<SoundName, string> = new Map();
-    private activeSounds: Set<HTMLAudioElement> = new Set();
-    private isInitialized = false;
+class AudioManager {
+    private static instance: AudioManager;
+    private sounds: Map<SoundName, HTMLAudioElement> = new Map();
     private sfxVolume = 0.5;
     private musicVolume = 0.5;
+    private initialized = false;
 
     private constructor() {}
 
-    public static getInstance(): NativeAudioManager {
-        if (!NativeAudioManager.instance) {
-            NativeAudioManager.instance = new NativeAudioManager();
+    public static getInstance(): AudioManager {
+        if (!AudioManager.instance) {
+            AudioManager.instance = new AudioManager();
         }
-        return NativeAudioManager.instance;
+        return AudioManager.instance;
     }
 
     private getSoundUrl(name: string): string {
         return `sounds/${name}.mp3`;
     }
 
-    private arrayBufferToBase64(buffer: ArrayBuffer): string {
-        let binary = '';
-        const bytes = new Uint8Array(buffer);
-        const len = bytes.byteLength;
-        // Chunking to avoid stack overflow on large files
-        const chunk = 8192; 
-        for (let i = 0; i < len; i += chunk) {
-            binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, Math.min(i + chunk, len))));
-        }
-        return window.btoa(binary);
-    }
+    public init() {
+        if (this.initialized) return;
+        this.initialized = true;
 
-    public async init() {
-        if (this.isInitialized) return;
-        this.isInitialized = true;
-        
         const soundFiles: SoundName[] = [
             'attack_phase', 'conscript_mag', 'conscript_phy', 'damage_sm',
             'damage_md', 'damage_lg', 'destroy', 'draw', 'game_over',
@@ -61,39 +48,34 @@ class NativeAudioManager {
             'swap_resource', 'tactic', 'turn_start'
         ];
 
-        console.log("[Audio] Starting Base64 load...");
-        await Promise.all(soundFiles.map(name => this.loadSound(name)));
-        console.log(`[Audio] Loaded ${this.soundDataUris.size} sounds.`);
-    }
+        // Detection for Itch.io environment to enable CORS only where needed/supported.
+        // Itch CDN (hwcdn.net) often requires CORS or behaves better with it, 
+        // while local previews fail with it.
+        const isItchEnvironment = window.location.hostname.includes('itch.io') || window.location.hostname.includes('hwcdn.net');
+        console.log(`[Audio] Initializing. Environment: ${isItchEnvironment ? 'Itch/Prod' : 'Dev/Preview'}`);
 
-    private async loadSound(name: SoundName) {
-        const url = this.getSoundUrl(name);
-
-        try {
-            const response = await fetch(url);
+        soundFiles.forEach(name => {
+            const url = this.getSoundUrl(name);
+            const audio = new Audio(url);
             
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status} fetching ${url}`);
+            if (isItchEnvironment) {
+                audio.crossOrigin = "anonymous";
             }
-
-            const arrayBuffer = await response.arrayBuffer();
             
-            // Check magic bytes for HTML (Soft 404 detection)
-            // '<' is 60, '!' is 33, 'd' is 100
-            const header = new Uint8Array(arrayBuffer.slice(0, 4));
-            if (header[0] === 60 || (header[0] === 239 && header[1] === 187 && header[2] === 191 && header[3] === 60)) {
-                 // 60 = '<', or UTF-8 BOM + '<'
-                 throw new Error(`Detected HTML content in ${url}`);
-            }
-
-            const base64 = this.arrayBufferToBase64(arrayBuffer);
-            const dataUri = `data:audio/mp3;base64,${base64}`;
+            audio.preload = 'auto';
             
-            this.soundDataUris.set(name, dataUri);
+            // Optional: attach error handlers to debug specific files
+            audio.onerror = (e) => {
+                if (typeof e === 'string') {
+                    console.warn(`[Audio] Error loading ${name}:`, e);
+                } else {
+                    const target = e.target as HTMLAudioElement;
+                    console.warn(`[Audio] Error loading ${name}:`, target.error);
+                }
+            };
 
-        } catch (error) {
-            console.warn(`[Audio] Failed to load '${name}':`, error);
-        }
+            this.sounds.set(name, audio);
+        });
     }
 
     public prime() {
@@ -101,24 +83,32 @@ class NativeAudioManager {
     }
 
     public play(name: SoundName) {
-        const uri = this.soundDataUris.get(name);
-        if (uri) {
-            const audio = new Audio(uri);
-            audio.volume = this.sfxVolume;
-            
-            this.activeSounds.add(audio);
-            
-            audio.onended = () => {
-                this.activeSounds.delete(audio);
-            };
+        if (!this.initialized) this.init();
 
-            const playPromise = audio.play();
+        const original = this.sounds.get(name);
+        if (original) {
+            // We clone the node to allow overlapping sounds
+            // cloneNode(true) copies attributes like src and crossOrigin
+            const sound = original.cloneNode(true) as HTMLAudioElement;
+            sound.volume = this.sfxVolume;
+            
+            // Explicitly set crossOrigin on clone if original had it, just to be safe
+            if (original.crossOrigin) {
+                sound.crossOrigin = original.crossOrigin;
+            }
+
+            const playPromise = sound.play();
             if (playPromise !== undefined) {
-                playPromise.catch(e => {
-                    // console.warn(`[Audio] Play blocked for ${name}:`, e);
-                    this.activeSounds.delete(audio);
+                playPromise.catch(error => {
+                    // Ignore "NotAllowedError" (user hasn't interacted yet)
+                    // and "AbortError" (sound stopped before finishing)
+                    if (error.name !== 'NotAllowedError' && error.name !== 'AbortError') {
+                        console.warn(`[Audio] Playback failed for ${name}:`, error);
+                    }
                 });
             }
+        } else {
+            console.warn(`[Audio] Sound not found: ${name}`);
         }
     }
 
@@ -133,17 +123,17 @@ class NativeAudioManager {
 
 // Export singleton wrappers
 export const playSound = (name: SoundName) => {
-    NativeAudioManager.getInstance().play(name);
+    AudioManager.getInstance().play(name);
 };
 
 export const primeAudio = () => {
-    NativeAudioManager.getInstance().prime();
+    AudioManager.getInstance().prime();
 };
 
 export const setGlobalSfxVolume = (v: number) => {
-    NativeAudioManager.getInstance().setSfxVolume(v);
+    AudioManager.getInstance().setSfxVolume(v);
 };
 
 export const setGlobalMusicVolume = (v: number) => {
-    NativeAudioManager.getInstance().setMusicVolume(v);
+    AudioManager.getInstance().setMusicVolume(v);
 };
