@@ -35,7 +35,7 @@ class NativeAudioManager {
         return NativeAudioManager.instance;
     }
 
-    private init() {
+    private async init() {
         if (this.isInitialized) return;
         this.isInitialized = true;
 
@@ -46,75 +46,76 @@ class NativeAudioManager {
             'swap_resource', 'tactic', 'turn_start'
         ];
 
-        soundFiles.forEach(name => {
-            // Use strict relative path. 
-            // In Vite with base: './', 'sounds/name.mp3' resolves relative to index.html.
-            // This works for AI Studio Preview, Itch.io, and Localhost.
-            const src = `sounds/${name}.mp3`;
-            
-            const audio = new Audio(src);
-            audio.preload = 'auto'; // Hint browser to download
-            audio.volume = this.sfxVolume;
-
-            // Log failures without crashing
-            audio.addEventListener('error', (e) => {
-                const err = audio.error;
-                // Code 4 = MEDIA_ERR_SRC_NOT_SUPPORTED (404 Not Found or Bad Format)
-                if (err && process.env.NODE_ENV === 'development') {
-                    console.warn(`NativeAudioManager: Failed to load '${name}' (Code: ${err.code}). Path: ${audio.src}`);
+        // Fetch all sounds in parallel
+        await Promise.all(soundFiles.map(async (name) => {
+            try {
+                // Relative path (no leading slash) for Itch.io compatibility
+                const response = await fetch(`sounds/${name}.mp3`);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status} for sounds/${name}.mp3`);
                 }
-            });
-
-            this.sounds.set(name, audio);
-        });
+                const blob = await response.blob();
+                const url = URL.createObjectURL(blob);
+                
+                const audio = new Audio(url);
+                // Preload settings
+                audio.preload = 'auto';
+                
+                this.sounds.set(name, audio);
+            } catch (error) {
+                console.error(`NativeAudioManager: Failed to load sound '${name}'`, error);
+            }
+        }));
     }
 
     public prime() {
-        // Trigger a load on all sounds.
-        // We do not play() here to avoid "NotSupportedError" spam if the file is still 404ing or loading.
-        // The click interaction on the Title Screen is sufficient to unlock AudioContext if we were using it,
-        // but for HTML5 Audio, standard interaction is usually enough when we actually call play().
-        console.log("NativeAudioManager: Priming audio...");
-        this.sounds.forEach((audio) => {
-            if (audio.readyState === 0) {
-                audio.load();
+        console.log("NativeAudioManager: Priming audio engine...");
+        this.sounds.forEach((audio, name) => {
+            // Attempt to play and immediately pause to unlock the audio element for this user session
+            const playPromise = audio.play();
+            if (playPromise !== undefined) {
+                playPromise.then(() => {
+                    audio.pause();
+                    audio.currentTime = 0;
+                }).catch(error => {
+                    // This is expected if the user hasn't interacted yet, but this function 
+                    // should be called FROM a click handler, so it should work.
+                    console.warn(`NativeAudioManager: Priming failed for ${name}.`, error);
+                });
             }
         });
     }
 
     public play(name: SoundName) {
         const audio = this.sounds.get(name);
-        if (!audio) return;
-
-        audio.volume = this.sfxVolume;
-        
-        // Resetting currentTime allows rapid replay of the same sound (e.g. drawing multiple cards)
-        if (audio.readyState >= 1) { // HAVE_METADATA or greater
-             audio.currentTime = 0;
-        }
-
-        const playPromise = audio.play();
-        if (playPromise !== undefined) {
-            playPromise.catch(error => {
-                // Ignore interruption errors (happens when spamming sounds) or not-supported (loading)
-                if (error.name !== 'AbortError' && error.name !== 'NotSupportedError') {
-                    console.warn(`NativeAudioManager: Play error for ${name}:`, error);
-                }
-            });
+        if (audio) {
+            audio.volume = this.sfxVolume;
+            // Reset position to allow replaying
+            if (!audio.paused) {
+                audio.currentTime = 0;
+            } else {
+                audio.currentTime = 0;
+                audio.play().catch(e => {
+                    console.warn(`NativeAudioManager: Play interrupted for ${name}`, e);
+                });
+            }
+        } else {
+            // Sound might still be loading or failed
+            console.debug(`NativeAudioManager: Sound '${name}' not ready or missing.`);
         }
     }
 
     public setSfxVolume(v: number) {
         this.sfxVolume = Math.max(0, Math.min(1, v));
-        this.sounds.forEach(audio => audio.volume = this.sfxVolume);
     }
 
     public setMusicVolume(v: number) {
         this.musicVolume = Math.max(0, Math.min(1, v));
-        // Placeholder for future music
+        // Placeholder for future music implementation
     }
 }
 
+// Export singleton accessors
 export const playSound = (name: SoundName) => {
     NativeAudioManager.getInstance().play(name);
 };
