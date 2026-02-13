@@ -35,9 +35,10 @@ class AudioManager {
     }
 
     private getSoundUrl(name: string): string {
-        // FIX 1: Use the URL constructor to find the "real" path relative to this script
-        // This bypasses the busterbeachside.itch.io/ vs itch.zone/ mismatch
-        return new URL(`./sounds/${name}.mp3`, import.meta.url).href;
+        // Simple relative path. 
+        // In the Preview/Local: resolves to http://localhost:PORT/sounds/name.mp3
+        // In Itch.io: resolves relative to the index.html inside the iframe.
+        return `./sounds/${name}.mp3`;
     }
 
     public init() {
@@ -72,8 +73,10 @@ class AudioManager {
         
         const url = this.getSoundUrl(name);
         try {
-            // FIX 2: Explicitly set CORS mode to 'cors'
-            const response = await fetch(url, { mode: 'cors' }); 
+            // Standard fetch without custom mode/credentials.
+            // This allows the browser to handle Itch.io authentication cookies automatically
+            // and follow redirects to Google Cloud Storage without triggering CORS blocking.
+            const response = await fetch(url);
             
             if (!response.ok) {
                 console.warn(`[Audio] Failed to fetch sound: ${name} (${response.status})`);
@@ -81,14 +84,15 @@ class AudioManager {
             }
             const arrayBuffer = await response.arrayBuffer();
             
-            // FIX 3: Catch potential decoding errors (often caused by 48kHz vs 44.1kHz)
-            const audioBuffer = await this.context.decodeAudioData(arrayBuffer).catch(err => {
-                throw new Error(`Decoding failed - check if MP3 is 44.1kHz CBR: ${err.message}`);
-            });
-
-            this.buffers.set(name, audioBuffer);
+            // Decode with explicit error catching
+            try {
+                const audioBuffer = await this.context.decodeAudioData(arrayBuffer);
+                this.buffers.set(name, audioBuffer);
+            } catch (decodeErr: any) {
+                 console.warn(`[Audio] Decode error for ${name}:`, decodeErr.message);
+            }
         } catch (error) {
-            console.warn(`[Audio] Error loading sound: ${name}`, error);
+            console.warn(`[Audio] Network error loading sound: ${name}`, error);
         }
     }
 
@@ -124,8 +128,6 @@ class AudioManager {
             } catch (e) {
                 console.warn(`[Audio] Playback failed for ${name}:`, e);
             }
-        } else {
-            // Sound hasn't loaded yet or failed to load
         }
     }
 
