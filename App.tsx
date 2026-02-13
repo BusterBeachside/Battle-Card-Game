@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { Phase, GameMode } from './types';
 import { addLog } from './utils/core';
@@ -509,7 +508,7 @@ export const App: React.FC = () => {
       <svg className="absolute inset-0 z-10 w-full h-full pointer-events-none">
           {Object.entries(gameState.pendingBlocks).map(([blockerId, attackerId]) => {
               const blockerEl = document.getElementById(blockerId);
-              const attackerEl = document.getElementById(attackerId);
+              const attackerEl = document.getElementById(attackerId as string);
               if (blockerEl && attackerEl) {
                   const bRect = blockerEl.getBoundingClientRect();
                   const aRect = attackerEl.getBoundingClientRect();

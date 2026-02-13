@@ -19,7 +19,9 @@ export type SoundName =
 
 class NativeAudioManager {
     private static instance: NativeAudioManager;
-    private sounds: Map<SoundName, HTMLAudioElement> = new Map();
+    private audioContext: AudioContext | null = null;
+    private sfxGainNode: GainNode | null = null;
+    private buffers: Map<SoundName, AudioBuffer> = new Map();
     private isInitialized = false;
     private sfxVolume = 0.5;
     private musicVolume = 0.5;
@@ -35,9 +37,23 @@ class NativeAudioManager {
         return NativeAudioManager.instance;
     }
 
+    private getContext(): AudioContext {
+        if (!this.audioContext) {
+            const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+            this.audioContext = new AudioContextClass();
+            this.sfxGainNode = this.audioContext.createGain();
+            this.sfxGainNode.gain.value = this.sfxVolume;
+            this.sfxGainNode.connect(this.audioContext.destination);
+        }
+        return this.audioContext;
+    }
+
     private async init() {
         if (this.isInitialized) return;
         this.isInitialized = true;
+        
+        // Initialize context (created in suspended state usually)
+        const ctx = this.getContext();
 
         const soundFiles: SoundName[] = [
             'attack_phase', 'conscript_mag', 'conscript_phy', 'damage_sm',
@@ -46,76 +62,62 @@ class NativeAudioManager {
             'swap_resource', 'tactic', 'turn_start'
         ];
 
-        // Fetch all sounds in parallel
+        // Fetch all sounds
         await Promise.all(soundFiles.map(async (name) => {
             try {
-                // Relative path (no leading slash) for Itch.io compatibility
-                const response = await fetch(`sounds/${name}.mp3`);
+                // Use explicit relative path for Itch.io compatibility
+                const response = await fetch(`./sounds/${name}.mp3`);
                 if (!response.ok) {
-                    throw new Error(`HTTP ${response.status} for sounds/${name}.mp3`);
+                    throw new Error(`HTTP ${response.status}`);
                 }
-                const blob = await response.blob();
-                const url = URL.createObjectURL(blob);
-                
-                const audio = new Audio(url);
-                // Preload settings
-                audio.preload = 'auto';
-                
-                this.sounds.set(name, audio);
+                const arrayBuffer = await response.arrayBuffer();
+                // Decode the audio data using Web Audio API
+                // This is more robust than HTMLAudioElement for games
+                const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+                this.buffers.set(name, audioBuffer);
             } catch (error) {
-                console.error(`NativeAudioManager: Failed to load sound '${name}'`, error);
+                console.warn(`NativeAudioManager: Failed to load sound '${name}'`, error);
             }
         }));
     }
 
     public prime() {
-        console.log("NativeAudioManager: Priming audio engine...");
-        this.sounds.forEach((audio, name) => {
-            // Attempt to play and immediately pause to unlock the audio element for this user session
-            const playPromise = audio.play();
-            if (playPromise !== undefined) {
-                playPromise.then(() => {
-                    audio.pause();
-                    audio.currentTime = 0;
-                }).catch(error => {
-                    // This is expected if the user hasn't interacted yet, but this function 
-                    // should be called FROM a click handler, so it should work.
-                    console.warn(`NativeAudioManager: Priming failed for ${name}.`, error);
-                });
-            }
-        });
+        const ctx = this.getContext();
+        // Resume if suspended (browser autoplay policy requirement)
+        if (ctx.state === 'suspended') {
+            ctx.resume().catch(e => console.error("Audio Context resume failed", e));
+        }
     }
 
     public play(name: SoundName) {
-        const audio = this.sounds.get(name);
-        if (audio) {
-            audio.volume = this.sfxVolume;
-            // Reset position to allow replaying
-            if (!audio.paused) {
-                audio.currentTime = 0;
-            } else {
-                audio.currentTime = 0;
-                audio.play().catch(e => {
-                    console.warn(`NativeAudioManager: Play interrupted for ${name}`, e);
-                });
+        if (!this.audioContext || !this.sfxGainNode) return;
+        
+        const buffer = this.buffers.get(name);
+        if (buffer) {
+            try {
+                const source = this.audioContext.createBufferSource();
+                source.buffer = buffer;
+                source.connect(this.sfxGainNode);
+                source.start(0);
+            } catch (e) {
+                console.warn(`Error playing sound ${name}`, e);
             }
-        } else {
-            // Sound might still be loading or failed
-            console.debug(`NativeAudioManager: Sound '${name}' not ready or missing.`);
         }
     }
 
     public setSfxVolume(v: number) {
         this.sfxVolume = Math.max(0, Math.min(1, v));
+        if (this.sfxGainNode) {
+            this.sfxGainNode.gain.value = this.sfxVolume;
+        }
     }
 
     public setMusicVolume(v: number) {
         this.musicVolume = Math.max(0, Math.min(1, v));
-        // Placeholder for future music implementation
+        // Placeholder for music implementation
     }
 }
 
-// Export singleton accessors
 export const playSound = (name: SoundName) => {
     NativeAudioManager.getInstance().play(name);
 };
