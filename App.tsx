@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { Phase, GameMode } from './types';
 import { addLog } from './utils/core';
@@ -99,8 +100,24 @@ export const App: React.FC = () => {
   };
   
   const startLesson = (lessonId: string) => { startGame('TUTORIAL', { p1: false, p2: true }, lessonId); };
-  const handleStartGameClick = (isCpu: boolean) => { if (ui.selectedMode) startGame(ui.selectedMode, { p1: false, p2: isCpu }); };
-  const handleSpectateClick = () => { if (ui.selectedMode) startGame(ui.selectedMode, { p1: true, p2: true }); };
+  
+  const handleStartGameClick = (isCpu: boolean) => { 
+      if (ui.selectedMode) {
+          startGame(ui.selectedMode, { p1: false, p2: isCpu });
+          if (ui.selectedMode === 'STREET' || ui.selectedMode === 'PRO') {
+              ui.setIsCoinFlipping(true);
+          }
+      }
+  };
+
+  const handleSpectateClick = () => { 
+      if (ui.selectedMode) {
+          startGame(ui.selectedMode, { p1: true, p2: true });
+          if (ui.selectedMode === 'STREET' || ui.selectedMode === 'PRO') {
+              ui.setIsCoinFlipping(true);
+          }
+      }
+  };
 
   const handleQuitToTitle = () => {
       const isTutorial = gameState?.mode === 'TUTORIAL';
