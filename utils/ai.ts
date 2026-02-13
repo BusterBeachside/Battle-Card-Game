@@ -61,47 +61,39 @@ export const getCpuResourceDecision = (cpu: PlayerState, turnCount: number): {
 
     const worstHandCard = scoredHand[0];
 
-    // DECISION: Should we ADD a resource?
-    let shouldAdd = true;
-    if (currentRes >= MAX_RESOURCES) shouldAdd = false;
-    
-    // Soft Cap: If we have enough resources (e.g. 6), slow down unless hand is full
-    else if (currentRes >= 6 && cpu.hand.length < 6) shouldAdd = false;
-
-    // Safety: If the "worst" card is actually a playable/good card (Score > 100), 
-    // we should only resource it if we really have nothing better to do.
-    // If we have < 3 resources, always ramp.
-    if (shouldAdd && currentRes >= 3 && worstHandCard.score > 100) {
-        // Check if we can already play a card without ramping
-        const canPlay = cpu.hand.some(c => c.cost <= currentRes);
-        if (canPlay) shouldAdd = false;
-    }
-
-    if (shouldAdd && worstHandCard) {
-        return { action: 'ADD', cardIdToAdd: worstHandCard.c.id };
-    }
-
     // DECISION: Should we SWAP?
-    // If we decided NOT to Add (either due to cap or strategy), we might still want to Swap.
-    // We Swap if there is a card in our Resource Pile that is significantly better than the worst card in our hand.
-    
+    // Check swap first to see if there's huge value
     const scoredResources = cpu.resources.map(r => ({ r, score: getKeepScore(r.card, currentRes) }));
     scoredResources.sort((a, b) => b.score - a.score); // Highest score (best card) first
     
     const bestResource = scoredResources[0];
 
-    // Swap Threshold: The resource card must be significantly better (e.g. +40 score).
-    // Example: Swapping a 9 (Score ~29) for an Ace (Score 200) -> Diff 171. YES.
-    // Example: Swapping a 9 (Score ~29) for a 5 (Score ~115 if playable). YES.
-    // Example: Swapping a 9 (Score ~29) for an 8 (Score ~28). NO.
+    // Determine Swap Threshold based on game stage
+    // Early game (low resources): High threshold to discourage swapping (we need to RAMP)
+    // Late game (high resources): Low threshold to encourage filtering before maxing out
+    let swapThreshold = 40;
+    if (currentRes < 5) {
+        swapThreshold = 80; // RAMP MODE: Only swap if getting something insanely better (e.g. Ace for a 2)
+    } else if (currentRes < 8) {
+        swapThreshold = 50; // MID GAME
+    } else if (currentRes >= 9) {
+        swapThreshold = 10; // LATE GAME: Filter aggressively before locking at 10
+    }
+
     if (bestResource && worstHandCard) {
-        if (bestResource.score > worstHandCard.score + 40) {
+        if (bestResource.score > worstHandCard.score + swapThreshold) {
             return { 
                 action: 'SWAP', 
                 cardIdToSwapHand: worstHandCard.c.id, 
                 resourceInstanceIdToSwap: bestResource.r.instanceId 
             };
         }
+    }
+
+    // DECISION: Should we ADD a resource?
+    // Logic update: CPU MUST add if < 10 resources, unless swapping.
+    if (currentRes < MAX_RESOURCES && worstHandCard) {
+        return { action: 'ADD', cardIdToAdd: worstHandCard.c.id };
     }
 
     return { action: 'SKIP' };
@@ -137,22 +129,98 @@ export const getBestMainPhaseAction = (gameState: GameState): { type: 'PLAY_UNIT
 
     // Queen: Strategy -> Shift a unit's color.
     const queens = playable.filter(c => c.rank === Rank.Queen);
+    let bestQueenPlay: { cardId: string, targetId: string, score: number } | null = null;
+
     for (const queen of queens) {
-        const queenColor = queen.baseColor;
+        const qColor = queen.baseColor;
         
-        // Find enemies that are NOT this color
-        const enemyTargets = opponent.field.filter(f => getEffectiveColor(f) !== queenColor);
-        enemyTargets.sort((a, b) => b.card.numericValue - a.card.numericValue);
-        
-        // UPDATE: Only Shift if it gives a clear advantage (e.g. bypassing a big blocker, or blocking a big attacker)
-        // For now, simplify to: Only shift enemies if they are substantial (Value >= 6)
-        if (enemyTargets.length > 0 && enemyTargets[0].card.numericValue >= 6) {
-            return { type: 'PLAY_TACTIC', cardId: queen.id, targetId: enemyTargets[0].instanceId };
+        // 1. Evaluate Enemy Targets (Disrupt defense or mitigate offense)
+        const enemyTargets = opponent.field.filter(f => getEffectiveColor(f) !== qColor);
+        for (const t of enemyTargets) {
+            let score = 0;
+            const tVal = t.card.numericValue;
+            
+            // A. Offensive Value: Is this enemy blocking my big units?
+            // My units in target's CURRENT color
+            const myAttackersCurrent = cpu.field.filter(f => !f.isTapped && !f.isSummoningSick && getEffectiveColor(f) === getEffectiveColor(t));
+            // If I have a big attacker here, moving the blocker is good.
+            const blockedAttacker = myAttackersCurrent.sort((a,b) => b.card.numericValue - a.card.numericValue)[0];
+            if (blockedAttacker && blockedAttacker.card.numericValue >= tVal) {
+                score += 40; // Remove blocker
+                if (blockedAttacker.card.numericValue > tVal) score += 10; // Save my unit from trade
+            }
+
+            // B. Defensive Value: Is this enemy threatening me, and can I block it if I move it?
+            // Do I have blockers in the NEW color?
+            const myBlockersNew = cpu.field.filter(f => !f.isTapped && getEffectiveColor(f) === qColor);
+            const bestBlocker = myBlockersNew.sort((a,b) => b.card.numericValue - a.card.numericValue)[0];
+            
+            // Do I LACK blockers in the OLD color?
+            const myBlockersOld = cpu.field.filter(f => !f.isTapped && getEffectiveColor(f) === getEffectiveColor(t));
+            
+            if (myBlockersOld.length === 0 && myBlockersNew.length > 0) {
+                // Moving unblocked threat to blocked lane
+                score += 50;
+                if (bestBlocker && bestBlocker.card.numericValue > tVal) score += 20; // Favorable trade
+            } else if (myBlockersOld.length === 0 && myBlockersNew.length === 0) {
+                // Moving unblocked threat to... still unblocked lane.
+                score -= 50; 
+            }
+
+            if (score > 30) {
+                if (!bestQueenPlay || score > bestQueenPlay.score) {
+                    bestQueenPlay = { cardId: queen.id, targetId: t.instanceId, score };
+                }
+            }
         }
 
-        // Fallback: Own units - Shift own unit to avoid a blocker?
-        // Basic AI: Randomly shifting own units can be detrimental. Restrict to very specific logic or skip.
-        // Let's skip shifting own units for now to avoid bad plays, effectively saving the Queen for enemy disruption or resources.
+        // 2. Evaluate Self Targets (Fix bad matchups)
+        const selfTargets = cpu.field.filter(f => getEffectiveColor(f) !== qColor);
+        for (const t of selfTargets) {
+            let score = 0;
+            const tVal = t.card.numericValue;
+
+            // A. Offense: Am I blocked? Will I be unblocked?
+            const enemyBlockersOld = opponent.field.filter(f => !f.isTapped && getEffectiveColor(f) === getEffectiveColor(t));
+            const enemyBlockersNew = opponent.field.filter(f => !f.isTapped && getEffectiveColor(f) === qColor);
+            
+            const biggestBlockerOld = enemyBlockersOld.sort((a,b) => b.card.numericValue - a.card.numericValue)[0];
+            const biggestBlockerNew = enemyBlockersNew.sort((a,b) => b.card.numericValue - a.card.numericValue)[0];
+
+            // If I am currently blocked by a bigger/equal unit
+            if (biggestBlockerOld && biggestBlockerOld.card.numericValue >= tVal) {
+                // And in new lane, I am unblocked OR blocked by smaller unit
+                if (!biggestBlockerNew) {
+                    score += 50; // Free hit!
+                } else if (biggestBlockerNew.card.numericValue < tVal) {
+                    score += 40; // Favorable trade
+                }
+            } else if (!biggestBlockerOld) {
+                // Currently unblocked. Moving to unblocked is neutral. Moving to blocked is bad.
+                if (biggestBlockerNew) score -= 30;
+            }
+
+            // B. Defense: Do I need to block something in the new lane?
+            const enemyThreatsNew = opponent.field.filter(f => !f.isTapped && getEffectiveColor(f) === qColor); // Potential attackers
+            // If there is an unblocked threat in new lane that I can handle
+            if (enemyThreatsNew.length > 0) {
+                 const bigThreat = enemyThreatsNew.sort((a,b) => b.card.numericValue - a.card.numericValue)[0];
+                 // If I move there, can I kill it or trade?
+                 if (tVal >= bigThreat.card.numericValue) {
+                     score += 30; // Move to intercept
+                 }
+            }
+
+            if (score > 30) {
+                if (!bestQueenPlay || score > bestQueenPlay.score) {
+                    bestQueenPlay = { cardId: queen.id, targetId: t.instanceId, score };
+                }
+            }
+        }
+    }
+
+    if (bestQueenPlay) {
+        return { type: 'PLAY_TACTIC', cardId: bestQueenPlay.cardId, targetId: bestQueenPlay.targetId };
     }
 
     // Jack: Play for draw
@@ -199,6 +267,26 @@ export const getCpuAttackers = (gameState: GameState): string[] => {
     const potential = cpu.field.filter(f => !f.isTapped && !f.isSummoningSick);
     const blockers = opponent.field.filter(f => !f.isTapped);
     
+    // --- LETHAL CHECK (Checkmate Logic) ---
+    // If attacking with everything results in a win, do it. Ignore safety.
+    const getPotentialDamage = (attackers: FieldCard[], currentBlockers: FieldCard[]) => {
+        const redAtk = attackers.filter(c => getEffectiveColor(c) === Color.Red).map(c => c.card.rank === 'A' ? 1 : c.card.numericValue).sort((a,b) => b-a);
+        const blackAtk = attackers.filter(c => getEffectiveColor(c) === Color.Black).map(c => c.card.rank === 'A' ? 1 : c.card.numericValue).sort((a,b) => b-a);
+        
+        const redBlkCount = currentBlockers.filter(c => getEffectiveColor(c) === Color.Red).length;
+        const blackBlkCount = currentBlockers.filter(c => getEffectiveColor(c) === Color.Black).length;
+        
+        // Remove damage that gets blocked (Highest damage sources are blocked first by rational opponent)
+        const unblockedRed = redAtk.slice(redBlkCount);
+        const unblockedBlack = blackAtk.slice(blackBlkCount);
+        
+        return [...unblockedRed, ...unblockedBlack].reduce((sum, val) => sum + val, 0);
+    };
+
+    if (getPotentialDamage(potential, blockers) >= opponent.life) {
+        return potential.map(c => c.instanceId);
+    }
+
     // 1. Identify desirable attacks (Greedy Phase)
     let candidates: FieldCard[] = [];
 
@@ -240,22 +328,12 @@ export const getCpuAttackers = (gameState: GameState): string[] => {
         const blackBlockers = myBlockers.filter(b => getEffectiveColor(b) === Color.Black).length;
         const redBlockers = myBlockers.filter(b => getEffectiveColor(b) === Color.Red).length;
         
-        // Sort threats descending by value to simulate worst case (blocking best, taking dmg from rest? no usually we block best)
-        // Opponent attacks with everything. We block optimally.
-        // We assume 1 blocker stops 1 attacker.
-        // The damage we take is from the unblocked attackers.
-        // Which attackers go unblocked? The opponent chooses who attacks, but we choose blockers.
-        // We will block the highest damage threats.
-        // So we take damage from the remaining threats.
-        
+        // Calculate max incoming damage assuming opponent attacks with everything
         const blackThreats = threats.filter(t => getEffectiveColor(t) === Color.Black).map(t => t.card.rank === 'A' ? 1 : t.card.numericValue).sort((a,b) => b-a);
         const redThreats = threats.filter(t => getEffectiveColor(t) === Color.Red).map(t => t.card.rank === 'A' ? 1 : t.card.numericValue).sort((a,b) => b-a);
         
         let dmg = 0;
         if (blackThreats.length > blackBlockers) {
-            // We have fewer blockers than threats. We block the top N. The rest get through.
-            // Wait, logic is: Threats[0] is blocked by Blocker[0].
-            // We take damage from Threats[blackBlockers ... end].
             dmg += blackThreats.slice(blackBlockers).reduce((a, b) => a + b, 0);
         }
         if (redThreats.length > redBlockers) {
@@ -305,6 +383,9 @@ export const getCpuAttackers = (gameState: GameState): string[] => {
         
         if (!pulled) {
              // Mismatch, remaining candidates can't help with defense colors.
+             // Pull weakest anyway to see if it helps later (unlikely but safe) or break?
+             // If we can't find a candidate to help defense, we are dead anyway. 
+             // Just break to preserve whatever offense we have.
              break;
         }
         

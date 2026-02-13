@@ -37,6 +37,11 @@ export const DesktopLayout: React.FC<LayoutProps> = ({
         }
     };
 
+    // Dynamic scale helper for crowded lanes
+    const getLaneScaleClass = (count: number) => {
+        return count > 8 ? 'scale-[0.65] -m-3' : '';
+    };
+
     const isMainPhase = gameState.phase === Phase.MAIN;
     const player = gameState.players[gameState.turnPlayer];
     const availableRes = player.resources.filter(r => !r.isTapped).length;
@@ -44,6 +49,11 @@ export const DesktopLayout: React.FC<LayoutProps> = ({
     const canAttack = !player.hasAttackedThisTurn && player.field.some(c => !c.isTapped && !c.isSummoningSick);
     const canDoAnything = (canPlayCard || canAttack) && gameState.phase === Phase.MAIN;
     const isEndTurnPulse = canDoAnything && !gameState.isSandboxRun ? '' : 'ring-2 ring-indigo-400 animate-pulse';
+
+    const topBlack = topPlayer.field.filter(c => getEffectiveColor(c) === Color.Black);
+    const topRed = topPlayer.field.filter(c => getEffectiveColor(c) === Color.Red);
+    const bottomBlack = bottomPlayer.field.filter(c => getEffectiveColor(c) === Color.Black);
+    const bottomRed = bottomPlayer.field.filter(c => getEffectiveColor(c) === Color.Red);
 
     return (
         <div className="flex flex-col h-full bg-slate-950 select-none">
@@ -100,37 +110,39 @@ export const DesktopLayout: React.FC<LayoutProps> = ({
                         {/* Lanes Container - Decoupled Heights */}
                         <div className="flex gap-8 items-start">
                             <div className="bg-slate-900/40 lane-physical p-4 rounded-xl border border-slate-700/50 flex flex-wrap gap-2 min-w-[100px] min-h-[120px] justify-center items-start content-start shadow-inner max-w-[200px] md:max-w-[300px] overflow-visible">
-                                {topPlayer.field.filter(c => getEffectiveColor(c) === Color.Black).map(fc => (
-                                    <CardDisplay 
-                                        key={fc.instanceId} 
-                                        domId={fc.instanceId}
-                                        data-instance-id={fc.instanceId}
-                                        card={fc.card} 
-                                        isTapped={fc.isTapped}
-                                        isSummoningSick={fc.isSummoningSick}
-                                        isLunging={gameState.activeCombatCardId === fc.instanceId}
-                                        damageTaken={gameState.recentDamage[fc.instanceId]}
-                                        attachedCards={fc.attachedCards}
-                                        orientation="top"
-                                        onClick={() => handlers.onCardClick(fc.card, 'FIELD', topPlayer.id, fc.instanceId)}
-                                    />
+                                {topBlack.map(fc => (
+                                    <div key={fc.instanceId} className={getLaneScaleClass(topBlack.length)}>
+                                        <CardDisplay 
+                                            domId={fc.instanceId}
+                                            data-instance-id={fc.instanceId}
+                                            card={fc.card} 
+                                            isTapped={fc.isTapped}
+                                            isSummoningSick={fc.isSummoningSick}
+                                            isLunging={gameState.activeCombatCardId === fc.instanceId}
+                                            damageTaken={gameState.recentDamage[fc.instanceId]}
+                                            attachedCards={fc.attachedCards}
+                                            orientation="top"
+                                            onClick={() => handlers.onCardClick(fc.card, 'FIELD', topPlayer.id, fc.instanceId)}
+                                        />
+                                    </div>
                                 ))}
                             </div>
                             <div className="bg-red-900/20 lane-magical p-4 rounded-xl border border-red-900/30 flex flex-wrap gap-2 min-w-[100px] min-h-[120px] justify-center items-start content-start shadow-inner max-w-[200px] md:max-w-[300px] overflow-visible">
-                                {topPlayer.field.filter(c => getEffectiveColor(c) === Color.Red).map(fc => (
-                                    <CardDisplay 
-                                        key={fc.instanceId} 
-                                        domId={fc.instanceId}
-                                        data-instance-id={fc.instanceId}
-                                        card={fc.card} 
-                                        isTapped={fc.isTapped}
-                                        isSummoningSick={fc.isSummoningSick} 
-                                        isLunging={gameState.activeCombatCardId === fc.instanceId}
-                                        damageTaken={gameState.recentDamage[fc.instanceId]}
-                                        attachedCards={fc.attachedCards}
-                                        orientation="top"
-                                        onClick={() => handlers.onCardClick(fc.card, 'FIELD', topPlayer.id, fc.instanceId)}
-                                    />
+                                {topRed.map(fc => (
+                                    <div key={fc.instanceId} className={getLaneScaleClass(topRed.length)}>
+                                        <CardDisplay 
+                                            domId={fc.instanceId}
+                                            data-instance-id={fc.instanceId}
+                                            card={fc.card} 
+                                            isTapped={fc.isTapped}
+                                            isSummoningSick={fc.isSummoningSick} 
+                                            isLunging={gameState.activeCombatCardId === fc.instanceId}
+                                            damageTaken={gameState.recentDamage[fc.instanceId]}
+                                            attachedCards={fc.attachedCards}
+                                            orientation="top"
+                                            onClick={() => handlers.onCardClick(fc.card, 'FIELD', topPlayer.id, fc.instanceId)}
+                                        />
+                                    </div>
                                 ))}
                             </div>
                         </div>
@@ -171,45 +183,47 @@ export const DesktopLayout: React.FC<LayoutProps> = ({
                         {/* Lanes Container - Decoupled Heights */}
                         <div className="flex gap-8 items-end">
                             <div id={`lane-black-${bottomPlayer.id}`} className="bg-slate-900/40 lane-physical p-4 rounded-xl border border-slate-700/50 flex flex-wrap gap-2 min-w-[100px] min-h-[120px] justify-center items-start content-start shadow-inner max-w-[200px] md:max-w-[300px] overflow-visible">
-                                {bottomPlayer.field.filter(c => getEffectiveColor(c) === Color.Black).map(fc => (
-                                    <CardDisplay 
-                                        key={fc.instanceId} 
-                                        domId={fc.instanceId}
-                                        data-instance-id={fc.instanceId}
-                                        card={fc.card} 
-                                        isTapped={fc.isTapped}
-                                        isSummoningSick={fc.isSummoningSick} 
-                                        isAttacking={gameState.pendingAttackers.includes(fc.instanceId)}
-                                        isBlocking={!!gameState.pendingBlocks[fc.instanceId]}
-                                        isLunging={gameState.activeCombatCardId === fc.instanceId}
-                                        damageTaken={gameState.recentDamage[fc.instanceId]}
-                                        attachedCards={fc.attachedCards}
-                                        onClick={() => handlers.onCardClick(fc.card, 'FIELD', bottomPlayer.id, fc.instanceId)}
-                                        onMouseDown={(e) => handlers.onDragStart(e, fc.card, 'FIELD', bottomPlayer.id, fc.instanceId)}
-                                        isPlayable={gameState.phase === Phase.ATTACK_DECLARE && !fc.isTapped && !fc.isSummoningSick}
-                                        orientation="bottom"
-                                    />
+                                {bottomBlack.map(fc => (
+                                    <div key={fc.instanceId} className={getLaneScaleClass(bottomBlack.length)}>
+                                        <CardDisplay 
+                                            domId={fc.instanceId}
+                                            data-instance-id={fc.instanceId}
+                                            card={fc.card} 
+                                            isTapped={fc.isTapped}
+                                            isSummoningSick={fc.isSummoningSick} 
+                                            isAttacking={gameState.pendingAttackers.includes(fc.instanceId)}
+                                            isBlocking={!!gameState.pendingBlocks[fc.instanceId]}
+                                            isLunging={gameState.activeCombatCardId === fc.instanceId}
+                                            damageTaken={gameState.recentDamage[fc.instanceId]}
+                                            attachedCards={fc.attachedCards}
+                                            onClick={() => handlers.onCardClick(fc.card, 'FIELD', bottomPlayer.id, fc.instanceId)}
+                                            onMouseDown={(e) => handlers.onDragStart(e, fc.card, 'FIELD', bottomPlayer.id, fc.instanceId)}
+                                            isPlayable={gameState.phase === Phase.ATTACK_DECLARE && !fc.isTapped && !fc.isSummoningSick}
+                                            orientation="bottom"
+                                        />
+                                    </div>
                                 ))}
                             </div>
                             <div className="bg-red-900/20 lane-magical p-4 rounded-xl border border-red-900/30 flex flex-wrap gap-2 min-w-[100px] min-h-[120px] justify-center items-start content-start shadow-inner max-w-[200px] md:max-w-[300px] overflow-visible">
-                                {bottomPlayer.field.filter(c => getEffectiveColor(c) === Color.Red).map(fc => (
-                                    <CardDisplay 
-                                        key={fc.instanceId} 
-                                        domId={fc.instanceId}
-                                        data-instance-id={fc.instanceId}
-                                        card={fc.card} 
-                                        isTapped={fc.isTapped}
-                                        isSummoningSick={fc.isSummoningSick} 
-                                        isAttacking={gameState.pendingAttackers.includes(fc.instanceId)}
-                                        isBlocking={!!gameState.pendingBlocks[fc.instanceId]}
-                                        isLunging={gameState.activeCombatCardId === fc.instanceId}
-                                        damageTaken={gameState.recentDamage[fc.instanceId]}
-                                        attachedCards={fc.attachedCards}
-                                        onClick={() => handlers.onCardClick(fc.card, 'FIELD', bottomPlayer.id, fc.instanceId)}
-                                        onMouseDown={(e) => handlers.onDragStart(e, fc.card, 'FIELD', bottomPlayer.id, fc.instanceId)}
-                                        isPlayable={gameState.phase === Phase.ATTACK_DECLARE && !fc.isTapped && !fc.isSummoningSick}
-                                        orientation="bottom"
-                                    />
+                                {bottomRed.map(fc => (
+                                    <div key={fc.instanceId} className={getLaneScaleClass(bottomRed.length)}>
+                                        <CardDisplay 
+                                            domId={fc.instanceId}
+                                            data-instance-id={fc.instanceId}
+                                            card={fc.card} 
+                                            isTapped={fc.isTapped}
+                                            isSummoningSick={fc.isSummoningSick} 
+                                            isAttacking={gameState.pendingAttackers.includes(fc.instanceId)}
+                                            isBlocking={!!gameState.pendingBlocks[fc.instanceId]}
+                                            isLunging={gameState.activeCombatCardId === fc.instanceId}
+                                            damageTaken={gameState.recentDamage[fc.instanceId]}
+                                            attachedCards={fc.attachedCards}
+                                            onClick={() => handlers.onCardClick(fc.card, 'FIELD', bottomPlayer.id, fc.instanceId)}
+                                            onMouseDown={(e) => handlers.onDragStart(e, fc.card, 'FIELD', bottomPlayer.id, fc.instanceId)}
+                                            isPlayable={gameState.phase === Phase.ATTACK_DECLARE && !fc.isTapped && !fc.isSummoningSick}
+                                            orientation="bottom"
+                                        />
+                                    </div>
                                 ))}
                             </div>
                         </div>
@@ -332,10 +346,10 @@ export const DesktopLayout: React.FC<LayoutProps> = ({
                         {/* ... (Rest of actions mostly same, slight rendering tweaks if needed) ... */}
                         {gameState.phase === Phase.RESOURCE_START && (
                             <>
-                                <button onClick={() => handlers.onPhaseAction('ADD_RESOURCE')} className="bg-emerald-600 hover:bg-emerald-500 text-white rounded font-bold text-sm flex flex-col items-center justify-center p-1 h-16 transition-transform active:scale-95">
+                                <button id="btn-add-resource" onClick={() => handlers.onPhaseAction('ADD_RESOURCE')} className="bg-emerald-600 hover:bg-emerald-500 text-white rounded font-bold text-sm flex flex-col items-center justify-center p-1 h-16 transition-transform active:scale-95">
                                     <ArrowUpCircle size={20} className="mb-1"/> Add & Draw
                                 </button>
-                                <button onClick={() => handlers.onPhaseAction('SWAP_RESOURCE')} className="bg-amber-600 hover:bg-amber-500 text-white rounded font-bold text-sm flex flex-col items-center justify-center p-1 h-16 transition-transform active:scale-95">
+                                <button id="btn-swap-resource" onClick={() => handlers.onPhaseAction('SWAP_RESOURCE')} className="bg-amber-600 hover:bg-amber-500 text-white rounded font-bold text-sm flex flex-col items-center justify-center p-1 h-16 transition-transform active:scale-95">
                                     <RotateCcw size={20} className="mb-1"/> Swap Res
                                 </button>
                             </>

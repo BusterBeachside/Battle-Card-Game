@@ -1,9 +1,9 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { GameState, Phase, GameMode, PlayerState, Card, FieldCard, Rank, Color } from '../types';
-import { createDeck, createTutorialDeck, sortHand } from '../utils/cards';
+import { GameState, Phase, GameMode, PlayerState, Card, FieldCard, Rank, Color, Suit } from '../types';
+import { createDeck, createTutorialDeck, sortHand, createTutorialCard } from '../utils/cards';
 import { createFieldCard, getEffectiveColor } from '../utils/rules';
-import { generateId, addLog } from '../utils/core';
+import { generateId, addLog, shuffle } from '../utils/core';
 import { INITIAL_LIFE, MAX_RESOURCES } from '../constants';
 import { TUTORIAL_LESSONS } from '../data/tutorials';
 import { playSound } from '../utils/soundUtils';
@@ -44,17 +44,67 @@ export const useGameState = ({ effects, refs, autoSort }: GameStateProps) => {
     const startGame = useCallback((mode: GameMode, cpuConfig: { p1: boolean, p2: boolean }, lessonId?: string) => {
         let tutorialConfig = null;
         let initialPhase = mode === 'SANDBOX' ? Phase.MAIN : Phase.INIT_SELECT;
+        let startingPlayerId = 0;
         
         if (mode === 'TUTORIAL' && lessonId) {
             tutorialConfig = TUTORIAL_LESSONS.find(l => l.id === lessonId);
             if (tutorialConfig && tutorialConfig.setup) {
-                initialPhase = tutorialConfig.setup.phase;
+                initialPhase = tutorialConfig.setup.phase || Phase.INIT_SELECT;
+                if (tutorialConfig.setup.startingPlayerId !== undefined) {
+                    startingPlayerId = tutorialConfig.setup.startingPlayerId;
+                }
             }
         }
 
         let sharedDeck: Card[] = [];
-        if (mode === 'STREET') sharedDeck = createDeck();
-        else if (mode === 'TUTORIAL' && !tutorialConfig?.setup) sharedDeck = createTutorialDeck();
+        if (mode === 'STREET') {
+            sharedDeck = createDeck();
+        } else if (mode === 'TUTORIAL') {
+            if (lessonId === 'lesson-3') {
+                // Special Deck for Lesson 3: 
+                // Exclude all Face Cards and Aces to prevent random tactic draws
+                const fullDeck = createDeck();
+                const allowedRanks = [Rank.Six, Rank.Seven, Rank.Eight, Rank.Nine, Rank.Ten];
+                const riggedDeck = fullDeck.filter(c => allowedRanks.includes(c.rank));
+                sharedDeck = shuffle(riggedDeck);
+            } else if (lessonId === 'lesson-4') {
+                // Special Deck for Lesson 4: J, Q, K stacked on top
+                const fullDeck = createDeck();
+                // Filter out the specific cards we want to stack so we don't have duplicates
+                let remainder = fullDeck.filter(c => 
+                    !(c.rank === Rank.Jack && c.suit === Suit.Spades) &&
+                    !(c.rank === Rank.Queen && c.suit === Suit.Clubs) &&
+                    !(c.rank === Rank.King && c.suit === Suit.Diamonds)
+                );
+                remainder = shuffle(remainder);
+                // Stack specific cards at the beginning (Draw order: Shift from array)
+                // We want P1 to draw J first, then Q, then K.
+                sharedDeck = [
+                    createTutorialCard(Rank.Jack, Suit.Spades),
+                    createTutorialCard(Rank.Queen, Suit.Clubs),
+                    createTutorialCard(Rank.King, Suit.Diamonds),
+                    ...remainder
+                ];
+            } else {
+                sharedDeck = tutorialConfig?.setup ? createDeck() : createTutorialDeck();
+            }
+
+            // Filter out cards already used in setup
+            if (tutorialConfig?.setup) {
+                const usedCards: Card[] = [
+                    ...(tutorialConfig.setup.p1Hand || []),
+                    ...(tutorialConfig.setup.p1Resources || []),
+                    ...(tutorialConfig.setup.p1Field || []),
+                    ...(tutorialConfig.setup.p2Hand || []),
+                    ...(tutorialConfig.setup.p2Resources || []),
+                    ...(tutorialConfig.setup.p2Field || [])
+                ];
+
+                sharedDeck = sharedDeck.filter(deckCard => {
+                    return !usedCards.some(used => used.rank === deckCard.rank && used.suit === deckCard.suit);
+                });
+            }
+        }
 
         const createPlayer = (id: number, name: string, isCpu: boolean): PlayerState => {
             let hand: Card[] = [];
@@ -77,6 +127,7 @@ export const useGameState = ({ effects, refs, autoSort }: GameStateProps) => {
                     if (tutorialConfig.setup.p1Life) life = tutorialConfig.setup.p1Life;
                 } else {
                     hand = tutorialConfig.setup.p2Hand || [];
+                    resources = (tutorialConfig.setup.p2Resources || []).map(c => createFieldCard(c, 1));
                     if (tutorialConfig.setup.p2Field) {
                         field = tutorialConfig.setup.p2Field.map(c => {
                             const fc = createFieldCard(c, 1);
@@ -105,8 +156,8 @@ export const useGameState = ({ effects, refs, autoSort }: GameStateProps) => {
             mode,
             deck: sharedDeck,
             players: [p1, p2],
-            turnPlayer: 0, 
-            startingPlayerId: 0, 
+            turnPlayer: initialPhase === Phase.INIT_SELECT ? 0 : startingPlayerId, 
+            startingPlayerId: startingPlayerId, 
             phase: initialPhase,
             turnCount: 1,
             pendingAttackers: [],
@@ -132,10 +183,51 @@ export const useGameState = ({ effects, refs, autoSort }: GameStateProps) => {
     const checkGameOver = (state: GameState) => {
         if (state.players[0].life <= 0) state.winner = 1;
         else if (state.players[1].life <= 0) state.winner = 0;
+        
         if (state.winner !== null) {
             state.phase = Phase.GAME_OVER;
             if (state.mode !== 'TUTORIAL') playSound('game_over');
         }
+    };
+
+    const resolveTiebreaker = (state: GameState): GameState => {
+        const p1 = state.players[0];
+        const p2 = state.players[1];
+        
+        let reason = "";
+        let winner: number | null = null; // null = draw
+
+        // a. Higher Life
+        if (p1.life > p2.life) {
+            winner = 0;
+            reason = "Tiebreaker: Player 1 has higher Life.";
+        } else if (p2.life > p1.life) {
+            winner = 1;
+            reason = "Tiebreaker: Player 2 has higher Life.";
+        } else {
+            // b. Higher Field Value
+            const getFieldValue = (p: PlayerState) => p.field.reduce((acc, f) => acc + (f.card.rank === 'A' ? 1 : f.card.numericValue), 0);
+            const val1 = getFieldValue(p1);
+            const val2 = getFieldValue(p2);
+            
+            if (val1 > val2) {
+                winner = 0;
+                reason = `Tiebreaker: Life equal. Player 1 has stronger field (${val1} vs ${val2}).`;
+            } else if (val2 > val1) {
+                winner = 1;
+                reason = `Tiebreaker: Life equal. Player 2 has stronger field (${val2} vs ${val1}).`;
+            } else {
+                // c. Draw
+                winner = null; 
+                reason = "Tiebreaker: Total Draw (Life & Field Value equal).";
+            }
+        }
+
+        const nextState = { ...state, phase: Phase.GAME_OVER, logs: addLog(state, reason) };
+        if (winner !== null) nextState.winner = winner;
+        
+        if (state.mode !== 'TUTORIAL') playSound('game_over');
+        return nextState;
     };
 
     const drawCards = async (playerId: number, count: number) => {
@@ -172,6 +264,8 @@ export const useGameState = ({ effects, refs, autoSort }: GameStateProps) => {
                  if (prev.mode === 'STREET' || prev.mode === 'TUTORIAL') { nextDeck = prev.deck.filter(c => c.id !== card.id); } 
                  else { nextP.library = nextP.library.filter(c => c.id !== card.id); }
                  nextP.hand = [...nextP.hand, card];
+                 // Reset consecutive failure on successful draw
+                 nextP.consecutiveDrawFailures = 0;
                  if (autoSort) nextP.hand = sortHand(nextP.hand);
                  nextPlayers[pIndex] = nextP;
                  return { ...prev, deck: prev.mode === 'STREET' || prev.mode === 'TUTORIAL' ? nextDeck : prev.deck, players: nextPlayers };
@@ -179,11 +273,19 @@ export const useGameState = ({ effects, refs, autoSort }: GameStateProps) => {
              await new Promise(r => setTimeout(r, 100)); // Increased slighty for sound pacing
         }
         if (cardsToDraw.length > 0) { setGameState(prev => prev ? { ...prev, logs: addLog(prev, `${startState.players[pIndex].name} drew ${cardsToDraw.length} cards.`) } : null); }
+        
         if (failuresNeeded > 0) {
             setGameState(prev => {
                  if (!prev) return null;
                  const nextPlayers = prev.players.map(pl => pl.id === playerId ? { ...pl, consecutiveDrawFailures: pl.consecutiveDrawFailures + failuresNeeded } : pl);
-                 return { ...prev, players: nextPlayers, logs: addLog(prev, "Deck Empty!") };
+                 const nextState = { ...prev, players: nextPlayers, logs: addLog(prev, `${prev.players[pIndex].name} deck empty!`) };
+                 
+                 // Tiebreaker Check
+                 if (nextPlayers[0].consecutiveDrawFailures > 0 && nextPlayers[1].consecutiveDrawFailures > 0) {
+                     return resolveTiebreaker(nextState);
+                 }
+                 
+                 return nextState;
             });
             setTimeout(() => { if (gameStateRef.current) checkGameOver(gameStateRef.current); }, 100);
         }
@@ -212,13 +314,16 @@ export const useGameState = ({ effects, refs, autoSort }: GameStateProps) => {
                     break;
                 case Phase.DRAW:
                     if (newState.mode === 'TUTORIAL') {
-                        setTimeout(() => advancePhase(Phase.MAIN), 400);
-                        return { ...newState, phase: Phase.RESOURCE_START };
+                        // Tutorial Mode: Draw logic is sometimes handled by scripts, but default to engine
+                        // For Lesson 3 P2 turn, we rely on the engine to draw the card
                     }
                     setTimeout(() => {
                         drawCards(player.id, 1).then(() => {
                             setGameState(current => {
                                 if(!current) return null;
+                                // Check if game over triggered during draw
+                                if (current.phase === Phase.GAME_OVER) return current;
+
                                 const p = current.players[current.turnPlayer];
                                 const isTurn1FirstPlayer = current.turnCount === 1 && current.turnPlayer === current.startingPlayerId;
                                 const hasMaxResources = p.resources.length >= MAX_RESOURCES;
@@ -311,6 +416,19 @@ export const useGameState = ({ effects, refs, autoSort }: GameStateProps) => {
                 effects.triggerExplosion(targetId!); 
                 playSound('destroy');
                 effects.triggerScreenShake(4); // Heavy shake for King
+                
+                // Trigger Soul Trail for King Kill
+                const isSpectate = nextState.players[0].isCpu && nextState.players[1].isCpu;
+                const isHotseat = !nextState.players[1].isCpu || nextState.players[0].isCpu;
+                const viewId = (isHotseat && !isSpectate) ? nextState.turnPlayer : 0;
+                const isTop = targetOwnerId !== viewId;
+                const targetRef = isTop ? refs.topDiscardRef : refs.bottomDiscardRef;
+                
+                if (targetRef.current && targetId) {
+                    const trailColor = getEffectiveColor(targetF) === Color.Red ? 'red' : 'cyan';
+                    effects.triggerSoulTrail(targetId, targetRef.current.getBoundingClientRect(), trailColor);
+                }
+
                 nextPlayer.discard.push(playedCard!); 
                 targetP.field.splice(targetFIdx, 1); 
                 targetP.discard.push(targetF.card, ...targetF.attachedCards);
@@ -365,7 +483,7 @@ export const useGameState = ({ effects, refs, autoSort }: GameStateProps) => {
                 }
             }
             const nextPlayerIdx = prev.turnPlayer === 0 ? 1 : 0;
-            const nextTurnCount = nextPlayerIdx === 0 ? prev.turnCount + 1 : prev.turnCount;
+            const nextTurnCount = nextPlayerIdx === prev.startingPlayerId ? prev.turnCount + 1 : prev.turnCount;
             const nextState = { ...prev, turnPlayer: nextPlayerIdx, turnCount: nextTurnCount, phase: Phase.UPKEEP };
             setTimeout(() => advancePhase(Phase.UPKEEP, nextState), 0);
             return nextState; 
@@ -433,11 +551,13 @@ export const useGameState = ({ effects, refs, autoSort }: GameStateProps) => {
                     const isTop = ownerId !== viewId;
                     
                     const targetRef = isTop ? refs.topDiscardRef : refs.bottomDiscardRef;
-                    if (targetRef.current) {
-                        effects.triggerSoulTrail(cardInstanceId, targetRef.current.getBoundingClientRect(), 'cyan');
+                    const dyingCard = state.players.find(p => p.id === ownerId)?.field.find(f => f.instanceId === cardInstanceId);
+                    
+                    if (targetRef.current && dyingCard) {
+                        const trailColor = getEffectiveColor(dyingCard) === Color.Red ? 'red' : 'cyan';
+                        effects.triggerSoulTrail(cardInstanceId, targetRef.current.getBoundingClientRect(), trailColor);
                     }
                     effects.triggerExplosion(cardInstanceId);
-                    playSound('destroy');
                 };
 
                 // Blocked Combats
@@ -489,8 +609,6 @@ export const useGameState = ({ effects, refs, autoSort }: GameStateProps) => {
                                 nextPlayers[defIdx] = { ...nextPlayers[defIdx], life: Math.max(0, nextPlayers[defIdx].life - dmg) }; 
                             }
                             let nextState = { ...prev, players: nextPlayers };
-                            // Remove Immediate Game Over Trigger
-                            // Game Over is now handled in the Cleanup phase to ensure all animations play.
                             return nextState;
                         });
                     };
@@ -502,50 +620,103 @@ export const useGameState = ({ effects, refs, autoSort }: GameStateProps) => {
                     setGameState(prev => prev ? { ...prev, activeCombatCardId: null } : null);
                 }
 
-                // Cleanup
+                // Cleanup Phase - SEQUENTIAL ANIMATION
+                // Re-fetch state because life totals might have changed during direct attacks
+                const finalState = gameStateRef.current!;
+                const activeAtkIds = finalState.pendingAttackers;
+                const dyingData: { instanceId: string, ownerId: number }[] = [];
+
+                // 1. Identify Deaths (Read-Only)
+                // Need to re-calculate based on current field state (which hasn't changed structure yet, just values in React state possibly)
+                // We use the same logic as before but store it first.
+                const fAtkP = finalState.players[finalState.turnPlayer];
+                const fDefP = finalState.players[finalState.turnPlayer === 0 ? 1 : 0];
+                
+                const activeAtk = fAtkP.field.filter(f => activeAtkIds.includes(f.instanceId));
+
+                for (const atk of activeAtk) {
+                     const blockerId = Object.keys(finalState.pendingBlocks).find(k => finalState.pendingBlocks[k] === atk.instanceId);
+                     if (blockerId) {
+                         const blk = fDefP.field.find(f => f.instanceId === blockerId);
+                         if (blk) {
+                             const atkVal = atk.card.numericValue; 
+                             const blkVal = blk.card.numericValue;
+                             const atkIsAce = atk.card.rank === 'A'; 
+                             const blkIsAce = blk.card.rank === 'A';
+                             
+                             let atkDies = false; let blkDies = false;
+                             
+                             if (atkIsAce) blkDies = true; 
+                             if (blkIsAce) atkDies = true;
+                             
+                             if (!atkIsAce && !blkIsAce) {
+                                 if (atkVal > blkVal) blkDies = true; 
+                                 else if (blkVal > atkVal) atkDies = true; 
+                                 else { atkDies = true; blkDies = true; }
+                             } else { 
+                                 if(atkIsAce && !blkIsAce) atkDies = true; 
+                                 if(blkIsAce && !atkIsAce) blkDies = true; 
+                             }
+
+                             if (atkDies) { dyingData.push({ instanceId: atk.instanceId, ownerId: fAtkP.id }); }
+                             if (blkDies) { dyingData.push({ instanceId: blk.instanceId, ownerId: fDefP.id }); }
+                         }
+                     }
+                }
+
+                // 2. Trigger Animations Staggered AND REMOVE CARDS IMMEDIATELY
+                if (dyingData.length > 0) {
+                    for (const d of dyingData) {
+                        handleCardDeath(d.instanceId, d.ownerId); // Visual Effect
+                        playSound('destroy');
+                        
+                        // Immediately remove the specific card to sync with explosion
+                        setGameState(prev => {
+                            if (!prev) return null;
+                            const nextState = { ...prev };
+                            const nextPlayers = [...nextState.players];
+                            
+                            const pIndex = nextPlayers.findIndex(p => p.id === d.ownerId);
+                            if (pIndex > -1) {
+                                const p = { ...nextPlayers[pIndex] };
+                                const fIndex = p.field.findIndex(f => f.instanceId === d.instanceId);
+                                if (fIndex > -1) {
+                                    const [dead] = p.field.splice(fIndex, 1);
+                                    p.discard = [...p.discard, dead.card, ...dead.attachedCards];
+                                    nextPlayers[pIndex] = p;
+                                }
+                            }
+                            
+                            return { ...nextState, players: nextPlayers };
+                        });
+
+                        await new Promise(r => setTimeout(r, 200)); // Stagger delay
+                    }
+                    // Wait a little extra for the last explosion/soul trail to traverse
+                    await new Promise(r => setTimeout(r, 600));
+                }
+
+                // 3. Final State Update (Phase change, clear pending)
                 setGameState(prev => {
                     if (!prev) return null;
                     const nextState = { ...prev };
-                    const atkP = nextState.players[nextState.turnPlayer];
-                    const defP = nextState.players[nextState.turnPlayer === 0 ? 1 : 0];
-                    const activeAtk = atkP.field.filter(f => nextState.pendingAttackers.includes(f.instanceId));
-
-                    activeAtk.forEach(atk => {
-                        const blockerId = Object.keys(nextState.pendingBlocks).find(k => nextState.pendingBlocks[k] === atk.instanceId);
-                        if (blockerId) {
-                            const blk = defP.field.find(f => f.instanceId === blockerId);
-                            if (blk) {
-                                const atkVal = atk.card.numericValue; const blkVal = blk.card.numericValue;
-                                const atkIsAce = atk.card.rank === 'A'; const blkIsAce = blk.card.rank === 'A';
-                                let atkDies = false; let blkDies = false;
-                                if (atkIsAce) blkDies = true; if (blkIsAce) atkDies = true;
-                                if (!atkIsAce && !blkIsAce) {
-                                    if (atkVal > blkVal) blkDies = true; else if (blkVal > atkVal) atkDies = true; else { atkDies = true; blkDies = true; }
-                                } else { if(atkIsAce && !blkIsAce) atkDies = true; if(blkIsAce && !atkIsAce) blkDies = true; }
-
-                                if (atkDies) { 
-                                    handleCardDeath(atk.instanceId, atkP.id);
-                                    atkP.field = atkP.field.filter(f => f.instanceId !== atk.instanceId); 
-                                    atkP.discard.push(atk.card, ...atk.attachedCards); 
-                                }
-                                if (blkDies) { 
-                                    handleCardDeath(blk.instanceId, defP.id);
-                                    defP.field = defP.field.filter(f => f.instanceId !== blk.instanceId); 
-                                    defP.discard.push(blk.card, ...blk.attachedCards); 
-                                }
-                            }
-                        } 
-                    });
-                    nextState.recentDamage = {}; nextState.pendingAttackers = []; nextState.pendingBlocks = {}; nextState.phase = Phase.MAIN;
                     
-                    if (defP.life <= 0) nextState.winner = atkP.id;
-                    if (atkP.life <= 0) nextState.winner = defP.id;
+                    nextState.recentDamage = {}; 
+                    nextState.pendingAttackers = []; 
+                    nextState.pendingBlocks = {}; 
+                    nextState.phase = Phase.MAIN;
+                    
+                    // Game Over Check (re-check with latest life totals)
+                    if (nextState.players[0].life <= 0) nextState.winner = 1;
+                    else if (nextState.players[1].life <= 0) nextState.winner = 0;
+                    
                     if (nextState.winner !== null) {
                         nextState.phase = Phase.GAME_OVER;
                         if (nextState.mode !== 'TUTORIAL') playSound('game_over');
                     }
                     return nextState;
                 });
+
             })();
         }
     }, [gameState?.phase]);

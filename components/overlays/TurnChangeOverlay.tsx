@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+
+import React, { useEffect, useState, useRef } from 'react';
 
 interface TurnChangeOverlayProps {
     playerName: string;
@@ -8,6 +9,12 @@ interface TurnChangeOverlayProps {
 
 export const TurnChangeOverlay: React.FC<TurnChangeOverlayProps> = ({ playerName, turnCount, onComplete }) => {
     const [animationState, setAnimationState] = useState<'ENTER' | 'EXIT' | 'HIDDEN'>('HIDDEN');
+    const completeRef = useRef(onComplete);
+
+    // Keep ref updated
+    useEffect(() => {
+        completeRef.current = onComplete;
+    }, [onComplete]);
 
     useEffect(() => {
         // Start hidden (left), move to center
@@ -15,28 +22,28 @@ export const TurnChangeOverlay: React.FC<TurnChangeOverlayProps> = ({ playerName
             setAnimationState('ENTER');
         });
 
-        // Start exit animation quicker
+        // Start exit animation
         const timer1 = setTimeout(() => {
             setAnimationState('EXIT');
         }, 1200);
 
-        // Complete faster
+        // Force complete strictly
         const timer2 = setTimeout(() => {
-            onComplete();
+            completeRef.current();
         }, 1600);
 
         return () => {
             clearTimeout(timer1);
             clearTimeout(timer2);
         };
-    }, [onComplete]);
+    }, []); // Empty dependency array ensures this runs exactly once on mount and timer is never reset by prop updates
 
     let transformClass = '-translate-x-full opacity-0'; // Default hidden left
     if (animationState === 'ENTER') transformClass = 'translate-x-0 opacity-100';
     if (animationState === 'EXIT') transformClass = 'translate-x-full opacity-0';
 
     return (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center pointer-events-none overflow-hidden">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center pointer-events-none overflow-hidden">
             {/* Backdrop slice */}
             <div className={`absolute inset-x-0 h-48 bg-slate-900/90 border-y border-amber-500/50 flex flex-col items-center justify-center backdrop-blur-sm transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] ${transformClass}`}>
                 

@@ -67,17 +67,29 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ step, onNext }
                     zIndex: 150,
                     maxWidth: '350px',
                     width: '90%',
-                    transition: 'all 0.5s ease-out'
+                    transition: 'all 0.5s ease-out',
+                    maxHeight: '60vh',
+                    overflowY: 'auto'
                 };
 
-                // Vertical safe zone
-                let topPos = Math.max(100, centerY - 100);
-                if (topPos + 200 > screenH) topPos = screenH - 250;
-                newTextStyle.top = `${topPos}px`;
+                // Vertical safe zone & Anchoring
+                // If target is in the bottom 40% of screen, anchor text to bottom to ensure it fits.
+                // Otherwise, anchor to top or align with element.
+                const isTargetLow = centerY > screenH * 0.6;
+
+                if (isTargetLow) {
+                    newTextStyle.bottom = '5%';
+                    newTextStyle.top = 'auto'; 
+                } else {
+                    let topPos = Math.max(100, centerY - 100);
+                    // Clamp top pos if it pushes box too low even if not in "Low" zone
+                    if (topPos > screenH - 300) topPos = screenH - 300;
+                    newTextStyle.top = `${topPos}px`;
+                    newTextStyle.bottom = 'auto';
+                }
 
                 if (centerX < screenW / 2) {
                     // Left side target -> Right side text
-                    // Position slightly to the right of the element, or fallback to fixed right area
                     const idealLeft = rect.right + 20;
                     if (idealLeft + 350 < screenW) {
                          newTextStyle.left = `${idealLeft}px`;
@@ -107,7 +119,7 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ step, onNext }
                 } else {
                     setHighlightStyle(null);
                 }
-                setTextStyle({ right: '5%', top: '20%', position: 'fixed', zIndex: 150, maxWidth: '350px' });
+                setTextStyle({ right: '5%', top: '20%', position: 'fixed', zIndex: 150, maxWidth: '350px', maxHeight: '60vh', overflowY: 'auto' });
             }
         } else {
             // No highlight
@@ -123,7 +135,7 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ step, onNext }
                 setHighlightStyle(null);
             }
             // Default Text Position
-            setTextStyle({ right: '5%', top: '20%', position: 'fixed', zIndex: 150, maxWidth: '350px' });
+            setTextStyle({ right: '5%', top: '20%', position: 'fixed', zIndex: 150, maxWidth: '350px', maxHeight: '60vh', overflowY: 'auto' });
         }
         rafRef.current = requestAnimationFrame(updateHighlight);
     };
@@ -172,7 +184,7 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ step, onNext }
                     
                     {step.requiredAction === 'NONE' && (
                         <div className="mt-4 text-xs text-slate-400 font-bold uppercase tracking-wider">
-                            Listen closely...
+                            Watch closely...
                         </div>
                     )}
                     

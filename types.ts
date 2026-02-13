@@ -177,5 +177,6 @@ export interface TutorialLessonConfig {
     p2Field?: Card[];
     p2Life?: number;
     phase?: Phase;
+    startingPlayerId?: number;
   }
 }

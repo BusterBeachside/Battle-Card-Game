@@ -51,7 +51,9 @@ export const App: React.FC = () => {
       setGameState,
       gameStateRef,
       performEndTurn,
-      confirmBlocks
+      confirmBlocks,
+      refs,
+      effects
   });
 
   const interactions = useGameInteractions(gameState, {

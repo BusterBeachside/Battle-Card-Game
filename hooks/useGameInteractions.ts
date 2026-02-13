@@ -65,9 +65,11 @@ export const useGameInteractions = (
                return { ...prev, phase: Phase.MAIN, logs: addLog(prev, `Converted [${resCard.rank}${resCard.suit}] into a resource.`) };
             });
             await actions.drawCards(activePlayerId, 1);
+            if (currentState.mode === 'TUTORIAL') tutorial.advanceTutorialStep('CLICK_CARD', card.id);
         }
         else if (currentState.phase === Phase.RESOURCE_SWAP_SELECT_HAND && location === 'HAND') {
              actions.setGameState((prev: any) => ({ ...prev!, selectedCardId: card.id, phase: Phase.RESOURCE_SWAP_SELECT_PILE, logs: addLog(prev!, "Select a resource to swap with.") }));
+             if (currentState.mode === 'TUTORIAL') tutorial.advanceTutorialStep('CLICK_CARD', card.id);
         }
         else if (currentState.phase === Phase.RESOURCE_SWAP_SELECT_PILE && location === 'RESOURCE') {
             if (currentState.selectedCardId) {
@@ -94,18 +96,27 @@ export const useGameInteractions = (
                 if(!prev) return null;
                 const p = prev.players[activePlayerId];
                 const handIdx = p.hand.findIndex((c: any) => c.id === prev.selectedCardId);
+                // Note: We match resource by card ID because instance ID might differ in non-tutorial flow, but in this specific block we trust the logic
                 const resIdx = p.resources.findIndex((c: any) => c.card.id === card.id);
                 if(handIdx > -1 && resIdx > -1) {
                     const handCard = p.hand[handIdx]; const resFieldCard = p.resources[resIdx];
                     
                     const logMsg = `Swapped [${handCard.rank}${handCard.suit}] from hand with [${resFieldCard.card.rank}${resFieldCard.card.suit}] from resources.`;
 
-                    p.hand[handIdx] = resFieldCard.card; p.resources[resIdx] = createFieldCard(handCard, p.id); 
+                    // Create new resource from hand card
+                    const newRes = createFieldCard(handCard, p.id);
+                    // Force instance ID match in tutorial for consistency if swapping back (edge case)
+                    if (prev.mode === 'TUTORIAL') newRes.instanceId = handCard.id;
+
+                    p.hand[handIdx] = resFieldCard.card; 
+                    p.resources[resIdx] = newRes; 
+
                     if(ui.autoSort) p.hand = sortHand(p.hand);
                     return { ...prev, selectedCardId: null, phase: Phase.MAIN, logs: addLog(prev, logMsg) };
                 }
                 return { ...prev, selectedCardId: null, phase: Phase.MAIN };
             });
+            if (currentState.mode === 'TUTORIAL') tutorial.advanceTutorialStep('CLICK_CARD', card.id);
         }
         else if (currentState.phase === Phase.ATTACK_DECLARE && location === 'FIELD' && ownerId === activePlayerId) {
              actions.setGameState((prev: any) => {
@@ -283,7 +294,14 @@ export const useGameInteractions = (
             const selected = p.hand.filter((c: any) => prev.initSelectedIds.includes(c.id));
             const remaining = p.hand.filter((c: any) => !prev.initSelectedIds.includes(c.id));
             p.hand = remaining;
-            selected.forEach((c: any) => p.resources.push(createFieldCard(c, p.id)));
+            
+            // CRITICAL FIX: Preserve IDs for tutorial resources to allow highlighting
+            selected.forEach((c: any) => {
+                const fc = createFieldCard(c, p.id);
+                if (prev.mode === 'TUTORIAL') fc.instanceId = c.id;
+                p.resources.push(fc);
+            });
+
             const otherId = activeId === 0 ? 1 : 0;
             const other = prev.players[otherId];
             let nextState = { ...prev, initSelectedIds: [] };
@@ -335,8 +353,20 @@ export const useGameInteractions = (
              }
              actions.confirmBlocks();
         }
-        else if (action === 'ADD_RESOURCE') actions.advancePhase(Phase.RESOURCE_ADD_SELECT);
-        else if (action === 'SWAP_RESOURCE') actions.advancePhase(Phase.RESOURCE_SWAP_SELECT_HAND);
+        else if (action === 'ADD_RESOURCE') {
+             if (gameState?.mode === 'TUTORIAL') {
+                  if (!tutorial.isInteractionAllowed('btn-add-resource')) return;
+                  tutorial.advanceTutorialStep('CLICK_UI_BUTTON', 'btn-add-resource');
+             }
+             actions.advancePhase(Phase.RESOURCE_ADD_SELECT);
+        }
+        else if (action === 'SWAP_RESOURCE') {
+             if (gameState?.mode === 'TUTORIAL') {
+                  if (!tutorial.isInteractionAllowed('btn-swap-resource')) return;
+                  tutorial.advanceTutorialStep('CLICK_UI_BUTTON', 'btn-swap-resource');
+             }
+             actions.advancePhase(Phase.RESOURCE_SWAP_SELECT_HAND);
+        }
         else if (action === 'CANCEL_RESOURCE') actions.setGameState((prev: any) => prev ? { ...prev, phase: Phase.RESOURCE_START, selectedCardId: null } : null);
         else if (action === 'CONFIRM_INIT') handleConfirmInitSelection();
     };

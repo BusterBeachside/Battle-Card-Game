@@ -37,6 +37,11 @@ export const MobileLayout: React.FC<LayoutProps> = ({
         }
     };
 
+    // Dynamic scale helper for crowded lanes
+    const getLaneScaleClass = (count: number) => {
+        return count > 8 ? 'scale-[0.6] -m-3' : 'scale-75 -mx-2';
+    };
+
     const isMainPhase = gameState.phase === Phase.MAIN;
     // Calculate pulse for end turn button
     const player = gameState.players[gameState.turnPlayer];
@@ -45,6 +50,11 @@ export const MobileLayout: React.FC<LayoutProps> = ({
     const canAttack = !player.hasAttackedThisTurn && player.field.some(c => !c.isTapped && !c.isSummoningSick);
     const canDoAnything = (canPlayCard || canAttack) && gameState.phase === Phase.MAIN;
     const isEndTurnPulse = canDoAnything && !gameState.isSandboxRun ? '' : 'ring-2 ring-indigo-400 animate-pulse';
+
+    const topBlack = topPlayer.field.filter(c => getEffectiveColor(c) === Color.Black);
+    const topRed = topPlayer.field.filter(c => getEffectiveColor(c) === Color.Red);
+    const bottomBlack = bottomPlayer.field.filter(c => getEffectiveColor(c) === Color.Black);
+    const bottomRed = bottomPlayer.field.filter(c => getEffectiveColor(c) === Color.Red);
 
     return (
         <div className="flex flex-col h-full bg-slate-950 select-none">
@@ -120,8 +130,8 @@ export const MobileLayout: React.FC<LayoutProps> = ({
                         <div className="flex-1 flex justify-center gap-1 overflow-visible px-1 min-h-[80px]">
                             {/* Black Lane */}
                             <div className="bg-slate-900/40 lane-physical p-1 rounded border border-slate-700/50 flex flex-wrap gap-1 min-w-[50px] items-start content-start justify-center">
-                                {topPlayer.field.filter(c => getEffectiveColor(c) === Color.Black).map(fc => (
-                                    <div key={fc.instanceId} className="scale-75 origin-top -mx-2">
+                                {topBlack.map(fc => (
+                                    <div key={fc.instanceId} className={`${getLaneScaleClass(topBlack.length)} origin-top`}>
                                         <CardDisplay 
                                             domId={fc.instanceId}
                                             data-instance-id={fc.instanceId}
@@ -140,8 +150,8 @@ export const MobileLayout: React.FC<LayoutProps> = ({
                             </div>
                             {/* Red Lane */}
                             <div className="bg-red-900/20 lane-magical p-1 rounded border border-red-900/30 flex flex-wrap gap-1 min-w-[50px] items-start content-start justify-center">
-                                {topPlayer.field.filter(c => getEffectiveColor(c) === Color.Red).map(fc => (
-                                    <div key={fc.instanceId} className="scale-75 origin-top -mx-2">
+                                {topRed.map(fc => (
+                                    <div key={fc.instanceId} className={`${getLaneScaleClass(topRed.length)} origin-top`}>
                                         <CardDisplay 
                                             domId={fc.instanceId}
                                             data-instance-id={fc.instanceId}
@@ -206,8 +216,8 @@ export const MobileLayout: React.FC<LayoutProps> = ({
                         <div className="flex-1 flex justify-center gap-1 overflow-visible px-1 min-h-[80px]">
                             {/* Black Lane */}
                             <div id={`lane-black-${bottomPlayer.id}`} className="bg-slate-900/40 lane-physical p-1 rounded border border-slate-700/50 flex flex-wrap gap-1 min-w-[50px] items-start content-start justify-center">
-                                {bottomPlayer.field.filter(c => getEffectiveColor(c) === Color.Black).map(fc => (
-                                    <div key={fc.instanceId} className="scale-75 origin-bottom -mx-2">
+                                {bottomBlack.map(fc => (
+                                    <div key={fc.instanceId} className={`${getLaneScaleClass(bottomBlack.length)} origin-bottom`}>
                                         <CardDisplay 
                                             domId={fc.instanceId}
                                             data-instance-id={fc.instanceId}
@@ -230,8 +240,8 @@ export const MobileLayout: React.FC<LayoutProps> = ({
                             </div>
                             {/* Red Lane */}
                             <div className="bg-red-900/20 lane-magical p-1 rounded border border-red-900/30 flex flex-wrap gap-1 min-w-[50px] items-start content-start justify-center">
-                                {bottomPlayer.field.filter(c => getEffectiveColor(c) === Color.Red).map(fc => (
-                                    <div key={fc.instanceId} className="scale-75 origin-bottom -mx-2">
+                                {bottomRed.map(fc => (
+                                    <div key={fc.instanceId} className={`${getLaneScaleClass(bottomRed.length)} origin-bottom`}>
                                         <CardDisplay 
                                             domId={fc.instanceId}
                                             data-instance-id={fc.instanceId}
@@ -273,10 +283,10 @@ export const MobileLayout: React.FC<LayoutProps> = ({
                     )}
                     {gameState.phase === Phase.RESOURCE_START && isInteractive && (
                         <>
-                            <button onClick={() => handlers.onPhaseAction('ADD_RESOURCE')} className="bg-emerald-600 p-3 rounded-full text-white shadow-lg">
+                            <button id="btn-add-resource" onClick={() => handlers.onPhaseAction('ADD_RESOURCE')} className="bg-emerald-600 p-3 rounded-full text-white shadow-lg">
                                 <ArrowUpCircle size={24} />
                             </button>
-                            <button onClick={() => handlers.onPhaseAction('SWAP_RESOURCE')} className="bg-amber-600 p-3 rounded-full text-white shadow-lg">
+                            <button id="btn-swap-resource" onClick={() => handlers.onPhaseAction('SWAP_RESOURCE')} className="bg-amber-600 p-3 rounded-full text-white shadow-lg">
                                 <RotateCcw size={24} />
                             </button>
                         </>

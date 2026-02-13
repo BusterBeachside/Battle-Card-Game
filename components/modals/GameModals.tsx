@@ -29,7 +29,7 @@ export const EndTurnModal: React.FC<GameModalProps> = ({ show, onCancel, onConfi
 export const ResignModal: React.FC<GameModalProps> = ({ show, onCancel, onConfirm }) => {
     if (!show) return null;
     return (
-        <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm">
+        <div className="absolute inset-0 z-[160] flex items-center justify-center bg-black/80 backdrop-blur-sm">
             <div className="bg-slate-900 p-6 rounded-xl border border-slate-700 shadow-2xl max-w-sm w-full animate-in zoom-in duration-200 border-red-900/50">
                 <h3 className="text-xl font-bold font-title text-red-500 mb-2">Resign Game?</h3>
                 <p className="text-slate-400 mb-6">You will forfeit the match. Are you sure?</p>
@@ -45,7 +45,7 @@ export const ResignModal: React.FC<GameModalProps> = ({ show, onCancel, onConfir
 export const QuitModal: React.FC<GameModalProps> = ({ show, onCancel, onConfirm }) => {
     if (!show) return null;
     return (
-        <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm">
+        <div className="absolute inset-0 z-[160] flex items-center justify-center bg-black/80 backdrop-blur-sm">
             <div className="bg-slate-900 p-6 rounded-xl border border-slate-700 shadow-2xl max-w-sm w-full animate-in zoom-in duration-200">
                 <h3 className="text-xl font-bold font-title text-amber-500 mb-2">Quit to Title?</h3>
                 <p className="text-slate-400 mb-6">Current game progress will be lost.</p>
@@ -85,7 +85,7 @@ export const PauseMenu: React.FC<PauseMenuProps> = ({
 }) => {
     if (!show) return null;
     return (
-        <div className="absolute inset-0 z-[90] flex items-center justify-center bg-black/90 backdrop-blur-md">
+        <div className="absolute inset-0 z-[160] flex items-center justify-center bg-black/90 backdrop-blur-md">
             <div className="bg-slate-900 p-8 rounded-2xl border border-slate-700 shadow-2xl w-96 text-center animate-in zoom-in duration-200 space-y-4 max-h-[90vh] overflow-y-auto">
                 <h2 className="text-2xl font-bold font-title text-white mb-2">PAUSED</h2>
                 
