@@ -13,7 +13,7 @@ interface UseGameAIProps {
         playCard: (c: any, targetId?: string, targetOwnerId?: number) => void;
         confirmAttack: () => void;
         confirmBlocks: () => void;
-        handleCardClick: (card: any, location: 'HAND', ownerId: number, instanceId?: string, fromCpu?: boolean) => void; // Need limited handleCardClick for resource selection
+        handleCardClick: (card: any, location: 'HAND' | 'RESOURCE', ownerId: number, instanceId?: string, fromCpu?: boolean) => void; 
         handleConfirmInitSelection: () => void;
         getActiveDecisionPlayerId: (s: GameState) => number;
     };
@@ -68,7 +68,25 @@ export const useGameAI = ({ gameState, gameStateRef, actions, isCoinFlipping, sh
                         await new Promise(r => setTimeout(r, 500));
                         await actions.handleCardClick(card, 'HAND', activePlayerId, undefined, true);
                     }
-                } else if (resDecision.action === 'SWAP') { actions.advancePhase(Phase.MAIN); }
+                } else if (resDecision.action === 'SWAP' && resDecision.cardIdToSwapHand && resDecision.resourceInstanceIdToSwap) {
+                     const handCard = cpu.hand.find(c => c.id === resDecision.cardIdToSwapHand);
+                     const resCard = cpu.resources.find(r => r.instanceId === resDecision.resourceInstanceIdToSwap);
+                     
+                     if (handCard && resCard) {
+                         // 1. Enter Swap Mode
+                         actions.advancePhase(Phase.RESOURCE_SWAP_SELECT_HAND);
+                         await new Promise(r => setTimeout(r, 600));
+                         
+                         // 2. Click Hand Card (Transition to SELECT_PILE)
+                         await actions.handleCardClick(handCard, 'HAND', activePlayerId, undefined, true);
+                         await new Promise(r => setTimeout(r, 600));
+
+                         // 3. Click Resource Card (Execute Swap)
+                         await actions.handleCardClick(resCard.card, 'RESOURCE', activePlayerId, resCard.instanceId, true);
+                     } else {
+                         actions.advancePhase(Phase.MAIN);
+                     }
+                }
                 break;
             case Phase.MAIN:
                 const action = getBestMainPhaseAction(state);

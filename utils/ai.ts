@@ -3,6 +3,23 @@ import { Card, FieldCard, PlayerState, GameState, Rank, Color } from '../types';
 import { MAX_RESOURCES } from '../constants';
 import { getEffectiveColor, canBlock } from './rules';
 
+// Helper function for scoring cards to decide what to keep/resource
+const getKeepScore = (c: Card, currentRes: number) => {
+    if (c.rank === Rank.Ace) return 200; // Must Keep (Wild + Cheap)
+
+    // Always try to keep Tactics
+    if (['K', 'Q', 'J'].includes(c.rank)) return 90; 
+    
+    // High priority: Units we can play NOW or Next Turn
+    if (c.cost <= currentRes) return 110; 
+    if (c.cost === currentRes + 1) return 80;
+    
+    // Low priority: Expensive units. 
+    // We add numericValue to score so we prefer keeping bigger threats if costs are equal.
+    // e.g. Cost 8 vs Cost 9. Both score low (~30), but we keep the 9.
+    return 20 + c.numericValue; 
+};
+
 export const getCpuInitSelection = (hand: Card[]): string[] => {
     // We want to resource cards that are:
     // 1. Not Aces (Wilds are valuable) - Score 100
@@ -26,56 +43,65 @@ export const getCpuInitSelection = (hand: Card[]): string[] => {
     return sorted.slice(0, 3).map(c => c.id);
 };
 
-export const getCpuResourceDecision = (cpu: PlayerState, turnCount: number): { action: 'ADD' | 'SWAP' | 'SKIP', cardIdToAdd?: string } => {
-    if (cpu.resources.length >= MAX_RESOURCES) return { action: 'SKIP' };
-    
-    // Soft Cap: If we have enough resources (e.g. 6), slow down unless hand is full
-    if (cpu.resources.length >= 6 && cpu.hand.length < 6) return { action: 'SKIP' };
-
+export const getCpuResourceDecision = (cpu: PlayerState, turnCount: number): { 
+    action: 'ADD' | 'SWAP' | 'SKIP', 
+    cardIdToAdd?: string,
+    cardIdToSwapHand?: string,
+    resourceInstanceIdToSwap?: string
+} => {
     const currentRes = cpu.resources.length;
     
-    // Calculate a "Utility Score" for keeping each card. Lowest score gets resourced.
-    // We want to KEEP: Playable units, Tactics, and units that complete our curve.
-    // We want to DUMP: High cost units that we can't play for a long time.
-    
-    const getKeepScore = (c: Card) => {
-        if (c.rank === Rank.Ace) return 200; // Must Keep (Wild + Cheap)
-
-        // Always try to keep Tactics
-        if (['K', 'Q', 'J'].includes(c.rank)) return 90; 
-        
-        // High priority: Units we can play NOW or Next Turn
-        if (c.cost <= currentRes) return 110; 
-        if (c.cost === currentRes + 1) return 80;
-        
-        // Low priority: Expensive units. 
-        // We add numericValue to score so we prefer keeping bigger threats if costs are equal.
-        // e.g. Cost 8 vs Cost 9. Both score low (~30), but we keep the 9.
-        return 20 + c.numericValue; 
-    };
-
-    const scoredHand = cpu.hand.map(c => ({ c, score: getKeepScore(c) }));
-    
+    // Calculate keep scores for hand
+    const scoredHand = cpu.hand.map(c => ({ c, score: getKeepScore(c, currentRes) }));
     // Sort Ascending: Lowest score (worst card) first
-    // Tie-breaker: Numeric Value (Resource the weaker card if both are equally playable)
     scoredHand.sort((a, b) => {
         if (a.score !== b.score) return a.score - b.score;
         return a.c.numericValue - b.c.numericValue;
     });
 
-    const worstCard = scoredHand[0];
+    const worstHandCard = scoredHand[0];
 
-    // Safety: If the "worst" card is actually a playable card (Score > 100), 
-    // we should only resource it if we really have nothing better to do (e.g. need to double spell).
+    // DECISION: Should we ADD a resource?
+    let shouldAdd = true;
+    if (currentRes >= MAX_RESOURCES) shouldAdd = false;
+    
+    // Soft Cap: If we have enough resources (e.g. 6), slow down unless hand is full
+    else if (currentRes >= 6 && cpu.hand.length < 6) shouldAdd = false;
+
+    // Safety: If the "worst" card is actually a playable/good card (Score > 100), 
+    // we should only resource it if we really have nothing better to do.
     // If we have < 3 resources, always ramp.
-    if (currentRes >= 3 && worstCard.score > 100) {
+    if (shouldAdd && currentRes >= 3 && worstHandCard.score > 100) {
         // Check if we can already play a card without ramping
         const canPlay = cpu.hand.some(c => c.cost <= currentRes);
-        if (canPlay) return { action: 'SKIP' };
+        if (canPlay) shouldAdd = false;
     }
 
-    if (worstCard) {
-        return { action: 'ADD', cardIdToAdd: worstCard.c.id };
+    if (shouldAdd && worstHandCard) {
+        return { action: 'ADD', cardIdToAdd: worstHandCard.c.id };
+    }
+
+    // DECISION: Should we SWAP?
+    // If we decided NOT to Add (either due to cap or strategy), we might still want to Swap.
+    // We Swap if there is a card in our Resource Pile that is significantly better than the worst card in our hand.
+    
+    const scoredResources = cpu.resources.map(r => ({ r, score: getKeepScore(r.card, currentRes) }));
+    scoredResources.sort((a, b) => b.score - a.score); // Highest score (best card) first
+    
+    const bestResource = scoredResources[0];
+
+    // Swap Threshold: The resource card must be significantly better (e.g. +40 score).
+    // Example: Swapping a 9 (Score ~29) for an Ace (Score 200) -> Diff 171. YES.
+    // Example: Swapping a 9 (Score ~29) for a 5 (Score ~115 if playable). YES.
+    // Example: Swapping a 9 (Score ~29) for an 8 (Score ~28). NO.
+    if (bestResource && worstHandCard) {
+        if (bestResource.score > worstHandCard.score + 40) {
+            return { 
+                action: 'SWAP', 
+                cardIdToSwapHand: worstHandCard.c.id, 
+                resourceInstanceIdToSwap: bestResource.r.instanceId 
+            };
+        }
     }
 
     return { action: 'SKIP' };

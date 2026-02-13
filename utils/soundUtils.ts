@@ -35,9 +35,6 @@ class AudioManager {
     }
 
     private getSoundUrl(name: string): string {
-        // Simple relative path. 
-        // In the Preview/Local: resolves to http://localhost:PORT/sounds/name.mp3
-        // In Itch.io: resolves relative to the index.html inside the iframe.
         return `./sounds/${name}.mp3`;
     }
 
@@ -73,9 +70,6 @@ class AudioManager {
         
         const url = this.getSoundUrl(name);
         try {
-            // Standard fetch without custom mode/credentials.
-            // This allows the browser to handle Itch.io authentication cookies automatically
-            // and follow redirects to Google Cloud Storage without triggering CORS blocking.
             const response = await fetch(url);
             
             if (!response.ok) {
@@ -84,7 +78,6 @@ class AudioManager {
             }
             const arrayBuffer = await response.arrayBuffer();
             
-            // Decode with explicit error catching
             try {
                 const audioBuffer = await this.context.decodeAudioData(arrayBuffer);
                 this.buffers.set(name, audioBuffer);
@@ -107,7 +100,7 @@ class AudioManager {
         if (!this.initialized) this.init();
         if (!this.context) return;
 
-        // Auto-resume context if suspended (common browser policy)
+        // Auto-resume context if suspended
         if (this.context.state === 'suspended') {
             this.context.resume().catch(() => {});
         }
@@ -140,7 +133,6 @@ class AudioManager {
     }
 }
 
-// Export singleton wrappers
 export const playSound = (name: SoundName) => {
     AudioManager.getInstance().play(name);
 };

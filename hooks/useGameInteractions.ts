@@ -71,10 +71,16 @@ export const useGameInteractions = (
         }
         else if (currentState.phase === Phase.RESOURCE_SWAP_SELECT_PILE && location === 'RESOURCE') {
             if (currentState.selectedCardId) {
+                // Determine layout logic to find correct hand ref (Bottom vs Top player)
+                const isHotseat = !currentState.players[1].isCpu || currentState.mode === 'SANDBOX';
+                const viewPlayerId = isHotseat ? activePlayerId : 0;
+                const isBottom = activePlayerId === viewPlayerId;
+
                 const handCardEl = document.getElementById(currentState.selectedCardId);
                 const resCardEl = instanceId ? document.getElementById(instanceId) : null; 
-                const handContainer = refs.handRef.current;
+                const handContainer = isBottom ? refs.handRef.current : refs.cpuHandRef.current;
                 const handCard = currentState.players[activePlayerId].hand.find((c: any) => c.id === currentState.selectedCardId);
+                
                 if (handCard && handCardEl && resCardEl && handContainer) {
                     const p1 = effects.triggerFlyer(handCard, handCardEl.getBoundingClientRect(), resCardEl.getBoundingClientRect());
                     const p2 = effects.triggerFlyer(card, resCardEl.getBoundingClientRect(), handContainer.getBoundingClientRect());
@@ -91,9 +97,12 @@ export const useGameInteractions = (
                 const resIdx = p.resources.findIndex((c: any) => c.card.id === card.id);
                 if(handIdx > -1 && resIdx > -1) {
                     const handCard = p.hand[handIdx]; const resFieldCard = p.resources[resIdx];
+                    
+                    const logMsg = `Swapped [${handCard.rank}${handCard.suit}] from hand with [${resFieldCard.card.rank}${resFieldCard.card.suit}] from resources.`;
+
                     p.hand[handIdx] = resFieldCard.card; p.resources[resIdx] = createFieldCard(handCard, p.id); 
                     if(ui.autoSort) p.hand = sortHand(p.hand);
-                    return { ...prev, selectedCardId: null, phase: Phase.MAIN, logs: addLog(prev, `Swapped resource.`) };
+                    return { ...prev, selectedCardId: null, phase: Phase.MAIN, logs: addLog(prev, logMsg) };
                 }
                 return { ...prev, selectedCardId: null, phase: Phase.MAIN };
             });

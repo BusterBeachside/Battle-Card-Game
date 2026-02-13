@@ -1,0 +1,7 @@
+# Force mp3 files to be treated as standard binary files
+# This prevents Git LFS from turning them into text pointers
+*.mp3 binary
+*.mp3 -text
+*.mp3 !filter
+*.mp3 !diff
+*.mp3 !merge
