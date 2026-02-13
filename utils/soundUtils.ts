@@ -19,7 +19,8 @@ export type SoundName =
 
 class AudioManager {
     private static instance: AudioManager;
-    private sounds: Map<SoundName, HTMLAudioElement> = new Map();
+    private context: AudioContext | null = null;
+    private buffers: Map<SoundName, AudioBuffer> = new Map();
     private sfxVolume = 0.5;
     private musicVolume = 0.5;
     private initialized = false;
@@ -39,76 +40,83 @@ class AudioManager {
 
     public init() {
         if (this.initialized) return;
-        this.initialized = true;
+        
+        try {
+            // Support for standard and webkit audio contexts
+            // @ts-ignore
+            const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+            this.context = new AudioContextClass();
+            this.initialized = true;
 
-        const soundFiles: SoundName[] = [
-            'attack_phase', 'conscript_mag', 'conscript_phy', 'damage_sm',
-            'damage_md', 'damage_lg', 'destroy', 'draw', 'game_over',
-            'king', 'menu_click', 'play_resource', 'queen',
-            'swap_resource', 'tactic', 'turn_start'
-        ];
+            const soundFiles: SoundName[] = [
+                'attack_phase', 'conscript_mag', 'conscript_phy', 'damage_sm',
+                'damage_md', 'damage_lg', 'destroy', 'draw', 'game_over',
+                'king', 'menu_click', 'play_resource', 'queen',
+                'swap_resource', 'tactic', 'turn_start'
+            ];
 
-        // Detection for Itch.io environment to enable CORS only where needed/supported.
-        // Itch CDN (hwcdn.net) often requires CORS or behaves better with it, 
-        // while local previews fail with it.
-        const isItchEnvironment = window.location.hostname.includes('itch.io') || window.location.hostname.includes('hwcdn.net');
-        console.log(`[Audio] Initializing. Environment: ${isItchEnvironment ? 'Itch/Prod' : 'Dev/Preview'}`);
+            console.log("[Audio] Initializing Web Audio API Manager...");
 
-        soundFiles.forEach(name => {
-            const url = this.getSoundUrl(name);
-            const audio = new Audio(url);
-            
-            if (isItchEnvironment) {
-                audio.crossOrigin = "anonymous";
+            soundFiles.forEach(name => {
+                this.loadSound(name);
+            });
+        } catch (e) {
+            console.warn("[Audio] Web Audio API is not supported in this browser.", e);
+        }
+    }
+
+    private async loadSound(name: SoundName) {
+        if (!this.context) return;
+        
+        const url = this.getSoundUrl(name);
+        try {
+            const response = await fetch(url);
+            if (!response.ok) {
+                console.warn(`[Audio] Failed to fetch sound: ${name} (${response.status})`);
+                return;
             }
-            
-            audio.preload = 'auto';
-            
-            // Optional: attach error handlers to debug specific files
-            audio.onerror = (e) => {
-                if (typeof e === 'string') {
-                    console.warn(`[Audio] Error loading ${name}:`, e);
-                } else {
-                    const target = e.target as HTMLAudioElement;
-                    console.warn(`[Audio] Error loading ${name}:`, target.error);
-                }
-            };
-
-            this.sounds.set(name, audio);
-        });
+            const arrayBuffer = await response.arrayBuffer();
+            const audioBuffer = await this.context.decodeAudioData(arrayBuffer);
+            this.buffers.set(name, audioBuffer);
+        } catch (error) {
+            console.warn(`[Audio] Error decoding sound: ${name}`, error);
+        }
     }
 
     public prime() {
         this.init();
+        if (this.context && this.context.state === 'suspended') {
+            this.context.resume().catch(e => console.warn("[Audio] Failed to resume context:", e));
+        }
     }
 
     public play(name: SoundName) {
         if (!this.initialized) this.init();
+        if (!this.context) return;
 
-        const original = this.sounds.get(name);
-        if (original) {
-            // We clone the node to allow overlapping sounds
-            // cloneNode(true) copies attributes like src and crossOrigin
-            const sound = original.cloneNode(true) as HTMLAudioElement;
-            sound.volume = this.sfxVolume;
-            
-            // Explicitly set crossOrigin on clone if original had it, just to be safe
-            if (original.crossOrigin) {
-                sound.crossOrigin = original.crossOrigin;
-            }
+        // Auto-resume context if suspended (common browser policy)
+        if (this.context.state === 'suspended') {
+            this.context.resume().catch(() => {});
+        }
 
-            const playPromise = sound.play();
-            if (playPromise !== undefined) {
-                playPromise.catch(error => {
-                    // Ignore "NotAllowedError" (user hasn't interacted yet)
-                    // and "AbortError" (sound stopped before finishing)
-                    if (error.name !== 'NotAllowedError' && error.name !== 'AbortError') {
-                        console.warn(`[Audio] Playback failed for ${name}:`, error);
-                    }
-                });
+        const buffer = this.buffers.get(name);
+        if (buffer) {
+            try {
+                const source = this.context.createBufferSource();
+                source.buffer = buffer;
+                
+                const gainNode = this.context.createGain();
+                gainNode.gain.value = this.sfxVolume;
+                
+                source.connect(gainNode);
+                gainNode.connect(this.context.destination);
+                
+                source.start(0);
+            } catch (e) {
+                console.warn(`[Audio] Playback failed for ${name}:`, e);
             }
         } else {
-            console.warn(`[Audio] Sound not found: ${name}`);
+            // Sound hasn't loaded yet or failed to load
         }
     }
 
