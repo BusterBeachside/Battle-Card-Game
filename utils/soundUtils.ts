@@ -19,13 +19,15 @@ export type SoundName =
 
 class NativeAudioManager {
     private static instance: NativeAudioManager;
-    private soundTemplates: Map<SoundName, HTMLAudioElement> = new Map();
+    private audioContext: AudioContext | null = null;
+    private sfxGainNode: GainNode | null = null;
+    private buffers: Map<SoundName, AudioBuffer> = new Map();
     private isInitialized = false;
     private sfxVolume = 0.5;
-    private musicVolume = 0.5; // Placeholder for future music
+    private musicVolume = 0.5;
 
     private constructor() {
-        this.init();
+        // Lazy init
     }
 
     public static getInstance(): NativeAudioManager {
@@ -35,16 +37,30 @@ class NativeAudioManager {
         return NativeAudioManager.instance;
     }
 
-    private getSoundUrl(name: string): string {
-        // Use simple relative path. This resolves relative to the index.html location.
-        // This is robust for Itch.io (where index.html is in a subfolder) and Preview.
-        return `./sounds/${name}.mp3`;
+    private getContext(): AudioContext {
+        if (!this.audioContext) {
+            const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+            this.audioContext = new AudioContextClass();
+            this.sfxGainNode = this.audioContext.createGain();
+            this.sfxGainNode.gain.value = this.sfxVolume;
+            this.sfxGainNode.connect(this.audioContext.destination);
+        }
+        return this.audioContext;
     }
 
-    private init() {
+    private getSoundUrl(name: string): string {
+        // Simple relative path is the most robust for Vite + Public folder.
+        // This resolves relative to index.html location.
+        // We remove the leading ./ to be cleaner, though ./sounds works too.
+        return `sounds/${name}.mp3`;
+    }
+
+    public async init() {
         if (this.isInitialized) return;
         this.isInitialized = true;
         
+        const ctx = this.getContext();
+
         const soundFiles: SoundName[] = [
             'attack_phase', 'conscript_mag', 'conscript_phy', 'damage_sm',
             'damage_md', 'damage_lg', 'destroy', 'draw', 'game_over',
@@ -52,52 +68,80 @@ class NativeAudioManager {
             'swap_resource', 'tactic', 'turn_start'
         ];
 
-        soundFiles.forEach((name) => {
-            const url = this.getSoundUrl(name);
-            const audio = new Audio();
-            audio.src = url;
-            audio.preload = 'auto'; // Hint to browser to download immediately
-            
-            // Error handling for debugging
-            audio.onerror = (e) => {
-                console.warn(`[Audio] Failed to load ${name} at ${url}`, e);
-            };
+        // Load all sounds
+        await Promise.all(soundFiles.map(name => this.loadSound(name, ctx)));
+    }
 
-            this.soundTemplates.set(name, audio);
-        });
+    private async loadSound(name: SoundName, ctx: AudioContext) {
+        const url = this.getSoundUrl(name);
+
+        try {
+            const response = await fetch(url);
+            
+            if (!response.ok) {
+                // Determine if it's a 404 or other network error
+                throw new Error(`HTTP ${response.status} fetching ${url}`);
+            }
+
+            // SAFETY CHECK: Verify we didn't get an HTML 404 page (Soft 404)
+            // Itch.io often serves a generic HTML 404 page with status 200 or 404
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('text/html')) {
+                throw new Error(`Server returned HTML (Soft 404) instead of Audio for ${url}`);
+            }
+
+            const arrayBuffer = await response.arrayBuffer();
+            
+            // Decode the audio
+            // This is where "EncodingError" usually happens if the data is corrupt or HTML
+            try {
+                const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+                this.buffers.set(name, audioBuffer);
+            } catch (decodeError) {
+                console.error(`[Audio] Decode error for ${name}:`, decodeError);
+            }
+
+        } catch (error) {
+            console.warn(`[Audio] Failed to load '${name}':`, error);
+        }
     }
 
     public prime() {
-        // user interaction unlock
-        this.soundTemplates.forEach(audio => {
-            // We just access the object to ensure it's "alive"
-            // Some browsers require a play() call within a user gesture to unlock audio
-            // We can try playing and immediately pausing/resetting silent volume
-            // But usually just initializing them is enough for sound effects later.
-        });
+        // Initialize context and resume if suspended (browser autoplay policy)
+        const ctx = this.getContext();
+        if (ctx.state === 'suspended') {
+            ctx.resume().catch(e => console.error("Audio Context resume failed", e));
+        }
+        // Start loading sounds if not already doing so
+        this.init();
     }
 
     public play(name: SoundName) {
-        const template = this.soundTemplates.get(name);
-        if (template) {
-            // Clone the node to allow overlapping sounds (polyphony)
-            // If the template hasn't loaded yet, the clone will try to load from the same src.
-            const sound = template.cloneNode() as HTMLAudioElement;
-            sound.volume = this.sfxVolume;
-            
-            const playPromise = sound.play();
-            if (playPromise !== undefined) {
-                playPromise.catch(error => {
-                    // This catches "user didn't interact with document first" errors
-                    // or 404s if the file is truly missing
-                    // console.warn(`[Audio] Playback failed for ${name}:`, error);
-                });
+        if (!this.audioContext || !this.sfxGainNode) return;
+        
+        // Ensure context is running
+        if (this.audioContext.state === 'suspended') {
+            this.audioContext.resume().catch(() => {});
+        }
+
+        const buffer = this.buffers.get(name);
+        if (buffer) {
+            try {
+                const source = this.audioContext.createBufferSource();
+                source.buffer = buffer;
+                source.connect(this.sfxGainNode);
+                source.start(0);
+            } catch (e) {
+                console.warn(`Error playing sound ${name}`, e);
             }
         }
     }
 
     public setSfxVolume(v: number) {
         this.sfxVolume = Math.max(0, Math.min(1, v));
+        if (this.sfxGainNode) {
+            this.sfxGainNode.gain.value = this.sfxVolume;
+        }
     }
 
     public setMusicVolume(v: number) {
@@ -105,6 +149,7 @@ class NativeAudioManager {
     }
 }
 
+// Export singleton wrappers
 export const playSound = (name: SoundName) => {
     NativeAudioManager.getInstance().play(name);
 };
