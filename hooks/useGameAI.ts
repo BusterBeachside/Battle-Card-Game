@@ -1,5 +1,5 @@
 
-import { useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { GameState, Phase } from '../types';
 import { getCpuInitSelection, getCpuResourceDecision, getBestMainPhaseAction, getCpuAttackers, getCpuBlocks } from '../utils/ai';
 

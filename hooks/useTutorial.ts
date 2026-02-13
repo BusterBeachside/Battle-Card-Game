@@ -1,5 +1,5 @@
 
-import { useCallback } from 'react';
+import React, { useCallback } from 'react';
 import { GameState, Phase, TutorialStep } from '../types';
 import { addLog } from '../utils/core';
 import { playSound } from '../utils/soundUtils';

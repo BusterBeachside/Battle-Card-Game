@@ -1,5 +1,5 @@
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { GameState, Phase, GameMode, PlayerState, Card, FieldCard, Rank, Color } from '../types';
 import { createDeck, createTutorialDeck, sortHand } from '../utils/cards';
 import { createFieldCard, getEffectiveColor } from '../utils/rules';

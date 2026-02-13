@@ -1,4 +1,5 @@
 
+import React from 'react';
 import { GameState, PlayerState, Card, DragState, Phase } from '../../types';
 
 export interface GameHandlers {

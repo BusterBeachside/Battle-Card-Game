@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Card, Phase, DragState } from '../types';
 import { createFieldCard, canBlock, getEffectiveColor } from '../utils/rules';
 import { addLog } from '../utils/core';

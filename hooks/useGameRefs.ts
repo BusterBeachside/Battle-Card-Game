@@ -1,5 +1,5 @@
 
-import { useRef } from 'react';
+import React, { useRef } from 'react';
 import { GameRefs } from '../components/game/types';
 
 export const useGameRefs = (): GameRefs & { containerRef: React.RefObject<HTMLDivElement> } => {

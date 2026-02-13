@@ -180,33 +180,38 @@ export const App: React.FC = () => {
     }
   }, [gameState?.phase, ui.isCoinFlipping, gameState?.mode]);
 
-  // --- AUDIO PRIMING OVERLAY ---
+  // --- AUDIO PRIMING OVERLAY (TITLE SCREEN) ---
   if (!audioPrimed) {
       return (
-          <div className="fixed inset-0 z-[9999] bg-slate-950 flex flex-col items-center justify-center p-6 space-y-8 animate-in fade-in duration-500">
-              <div className="text-center space-y-4">
-                  <h1 className="text-6xl md:text-8xl font-black font-title text-transparent bg-clip-text bg-gradient-to-b from-indigo-300 via-indigo-500 to-indigo-800 drop-shadow-[0_0_20px_rgba(99,102,241,0.5)]">
-                      BATTLE
-                  </h1>
-                  <p className="text-slate-400 text-lg uppercase tracking-widest font-bold">Tactical Card Warfare</p>
-              </div>
+          <div 
+              className="fixed inset-0 z-[9999] bg-slate-950 flex flex-col items-center justify-center cursor-pointer select-none"
+              onClick={() => {
+                  primeAudio();
+                  setAudioPrimed(true);
+              }}
+          >
+              <MainMenuBackground />
               
-              <button 
-                  onClick={() => {
-                      primeAudio();
-                      setAudioPrimed(true);
-                  }}
-                  className="group relative px-12 py-6 bg-slate-900 border-2 border-indigo-500 rounded-2xl hover:bg-indigo-950 transition-all duration-300 hover:scale-105 shadow-[0_0_30px_rgba(99,102,241,0.2)] hover:shadow-[0_0_50px_rgba(99,102,241,0.6)]"
-              >
-                  <div className="flex items-center gap-4">
-                      <Volume2 size={32} className="text-indigo-400 group-hover:text-white animate-pulse" />
-                      <span className="text-2xl font-black text-white tracking-wider">ENTER GAME</span>
+              <div className="relative z-10 flex flex-col items-center animate-in fade-in zoom-in duration-1000 space-y-12 p-4">
+                  
+                  {/* Title Section */}
+                  <div className="text-center space-y-6">
+                      <div className="flex items-center justify-center gap-4 opacity-80">
+                              <div className="h-px w-16 md:w-32 bg-gradient-to-r from-transparent via-indigo-500 to-transparent"></div>
+                              <span className="text-indigo-400 text-xs md:text-sm font-bold tracking-[0.4em] uppercase font-title text-shadow-sm">Tactical Card Warfare</span>
+                              <div className="h-px w-16 md:w-32 bg-gradient-to-r from-transparent via-indigo-500 to-transparent"></div>
+                      </div>
+                      <h1 className="text-7xl md:text-9xl font-black font-title tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-slate-100 via-slate-300 to-slate-500 drop-shadow-[0_4px_10px_rgba(0,0,0,0.5)]">
+                          BATTLE
+                      </h1>
                   </div>
-                  <div className="absolute inset-0 border-2 border-white/10 rounded-2xl"></div>
-              </button>
-              
-              <div className="text-slate-600 text-sm font-mono mt-8">
-                  Click to initialize audio engine
+
+                  {/* Start Prompt */}
+                  <div className="animate-pulse mt-8">
+                      <span className="text-white/80 font-bold tracking-[0.2em] text-lg md:text-xl border-b-2 border-transparent group-hover:border-indigo-500 transition-all">
+                          CLICK TO START
+                      </span>
+                  </div>
               </div>
           </div>
       );

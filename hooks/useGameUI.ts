@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { GameMode, GameState, Card } from '../types';
 import { sortHand } from '../utils/cards';
 import { setGlobalSfxVolume, setGlobalMusicVolume } from '../utils/soundUtils';
