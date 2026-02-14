@@ -13,7 +13,7 @@ interface GameModalProps {
 export const EndTurnModal: React.FC<GameModalProps> = ({ show, onCancel, onConfirm }) => {
     if (!show) return null;
     return (
-        <div className="absolute inset-0 z-[160] flex items-center justify-center bg-black/80 backdrop-blur-sm">
+        <div className="absolute inset-0 z-[170] flex items-center justify-center bg-black/80 backdrop-blur-sm">
             <div className="bg-slate-900 p-6 rounded-xl border border-slate-700 shadow-2xl max-w-sm w-full animate-in zoom-in duration-200">
                 <h3 className="text-xl font-bold font-title text-amber-500 mb-2">End Turn?</h3>
                 <p className="text-slate-400 mb-6">Are you sure you want to pass the turn?</p>
@@ -29,7 +29,7 @@ export const EndTurnModal: React.FC<GameModalProps> = ({ show, onCancel, onConfi
 export const ResignModal: React.FC<GameModalProps> = ({ show, onCancel, onConfirm }) => {
     if (!show) return null;
     return (
-        <div className="absolute inset-0 z-[160] flex items-center justify-center bg-black/80 backdrop-blur-sm">
+        <div className="absolute inset-0 z-[170] flex items-center justify-center bg-black/80 backdrop-blur-sm">
             <div className="bg-slate-900 p-6 rounded-xl border border-slate-700 shadow-2xl max-w-sm w-full animate-in zoom-in duration-200 border-red-900/50">
                 <h3 className="text-xl font-bold font-title text-red-500 mb-2">Resign Game?</h3>
                 <p className="text-slate-400 mb-6">You will forfeit the match. Are you sure?</p>
@@ -45,7 +45,7 @@ export const ResignModal: React.FC<GameModalProps> = ({ show, onCancel, onConfir
 export const QuitModal: React.FC<GameModalProps> = ({ show, onCancel, onConfirm }) => {
     if (!show) return null;
     return (
-        <div className="absolute inset-0 z-[160] flex items-center justify-center bg-black/80 backdrop-blur-sm">
+        <div className="absolute inset-0 z-[170] flex items-center justify-center bg-black/80 backdrop-blur-sm">
             <div className="bg-slate-900 p-6 rounded-xl border border-slate-700 shadow-2xl max-w-sm w-full animate-in zoom-in duration-200">
                 <h3 className="text-xl font-bold font-title text-amber-500 mb-2">Quit to Title?</h3>
                 <p className="text-slate-400 mb-6">Current game progress will be lost.</p>

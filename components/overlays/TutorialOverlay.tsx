@@ -18,6 +18,7 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ step, onNext }
 
     const updateHighlight = () => {
         const mode = step.highlightMode || 'MASK';
+        const isMobile = window.innerWidth < 768;
 
         // 1. Highlight Box Calculation
         if (step.highlightElementId && mode !== 'NONE') {
@@ -55,8 +56,6 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ step, onNext }
                 }
                 
                 // 2. Text Positioning Logic
-                // Heuristic: If target is on Left half of screen, put text on Right.
-                // If target is on Right half, put text on Left.
                 const centerX = rect.left + rect.width / 2;
                 const centerY = rect.top + rect.height / 2;
                 const screenW = window.innerWidth;
@@ -65,44 +64,52 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ step, onNext }
                 const newTextStyle: React.CSSProperties = {
                     position: 'fixed',
                     zIndex: 150,
-                    maxWidth: '350px',
-                    width: '90%',
+                    maxWidth: isMobile ? 'none' : '350px',
+                    width: isMobile ? '90%' : '90%',
                     transition: 'all 0.5s ease-out',
                     maxHeight: '60vh',
                     overflowY: 'auto'
                 };
 
-                // Vertical safe zone & Anchoring
-                // If target is in the bottom 40% of screen, anchor text to bottom to ensure it fits.
-                // Otherwise, anchor to top or align with element.
                 const isTargetLow = centerY > screenH * 0.6;
 
-                if (isTargetLow) {
-                    newTextStyle.bottom = '5%';
-                    newTextStyle.top = 'auto'; 
-                } else {
-                    let topPos = Math.max(100, centerY - 100);
-                    // Clamp top pos if it pushes box too low even if not in "Low" zone
-                    if (topPos > screenH - 300) topPos = screenH - 300;
-                    newTextStyle.top = `${topPos}px`;
-                    newTextStyle.bottom = 'auto';
-                }
-
-                if (centerX < screenW / 2) {
-                    // Left side target -> Right side text
-                    const idealLeft = rect.right + 20;
-                    if (idealLeft + 350 < screenW) {
-                         newTextStyle.left = `${idealLeft}px`;
+                if (isMobile) {
+                    newTextStyle.left = '5%';
+                    newTextStyle.right = 'auto';
+                    // Mobile docking: If target is Low, dock Top. If target is High, dock Bottom.
+                    if (isTargetLow) {
+                        newTextStyle.top = '70px'; // Clear of header
+                        newTextStyle.bottom = 'auto';
                     } else {
-                         newTextStyle.right = '5%';
+                        newTextStyle.bottom = '20px'; // Clear of bottom interactions
+                        newTextStyle.top = 'auto';
                     }
                 } else {
-                    // Right side target -> Left side text
-                    const idealRight = screenW - rect.left + 20;
-                    if (screenW - idealRight - 350 > 0) {
-                         newTextStyle.right = `${idealRight}px`;
+                    // Desktop Logic: Float near element
+                    if (isTargetLow) {
+                        newTextStyle.bottom = '5%';
+                        newTextStyle.top = 'auto'; 
                     } else {
-                         newTextStyle.left = '5%';
+                        let topPos = Math.max(100, centerY - 100);
+                        if (topPos > screenH - 300) topPos = screenH - 300;
+                        newTextStyle.top = `${topPos}px`;
+                        newTextStyle.bottom = 'auto';
+                    }
+
+                    if (centerX < screenW / 2) {
+                        const idealLeft = rect.right + 20;
+                        if (idealLeft + 350 < screenW) {
+                             newTextStyle.left = `${idealLeft}px`;
+                        } else {
+                             newTextStyle.right = '5%';
+                        }
+                    } else {
+                        const idealRight = screenW - rect.left + 20;
+                        if (screenW - idealRight - 350 > 0) {
+                             newTextStyle.right = `${idealRight}px`;
+                        } else {
+                             newTextStyle.left = '5%';
+                        }
                     }
                 }
                 setTextStyle(newTextStyle);
@@ -119,12 +126,14 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ step, onNext }
                 } else {
                     setHighlightStyle(null);
                 }
-                setTextStyle({ right: '5%', top: '20%', position: 'fixed', zIndex: 150, maxWidth: '350px', maxHeight: '60vh', overflowY: 'auto' });
+                setTextStyle({ 
+                    right: 'auto', left: '5%', top: '20%', bottom: 'auto',
+                    position: 'fixed', zIndex: 150, width: '90%', maxWidth: isMobile ? 'none' : '350px' 
+                });
             }
         } else {
-            // No highlight
+            // No highlight (general phase)
             if (mode === 'MASK' && !step.highlightElementId) {
-                // Mask everything if explicit mask requested but no ID (general phase)
                 setHighlightStyle({
                     position: 'fixed',
                     inset: 0,
@@ -134,8 +143,10 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ step, onNext }
             } else {
                 setHighlightStyle(null);
             }
-            // Default Text Position
-            setTextStyle({ right: '5%', top: '20%', position: 'fixed', zIndex: 150, maxWidth: '350px', maxHeight: '60vh', overflowY: 'auto' });
+            setTextStyle({ 
+                right: 'auto', left: '5%', top: isMobile ? '70px' : '20%', bottom: 'auto',
+                position: 'fixed', zIndex: 150, width: '90%', maxWidth: isMobile ? 'none' : '350px' 
+            });
         }
         rafRef.current = requestAnimationFrame(updateHighlight);
     };
@@ -160,30 +171,30 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ step, onNext }
 
             {/* Instruction Text */}
             <div style={textStyle} className="animate-in fade-in zoom-in duration-300 pointer-events-auto">
-                <div className="bg-slate-900/95 backdrop-blur border-2 border-amber-500 rounded-xl p-6 shadow-[0_0_30px_rgba(245,158,11,0.3)] text-center relative overflow-hidden">
+                <div className="bg-slate-900/95 backdrop-blur border-2 border-amber-500 rounded-xl p-3 md:p-6 shadow-[0_0_30px_rgba(245,158,11,0.3)] text-center relative overflow-hidden">
                     <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-amber-500 to-transparent"></div>
-                    <h3 className="text-amber-500 font-bold font-title uppercase tracking-widest text-sm mb-2">Tutorial</h3>
-                    <p className="text-white text-lg font-medium leading-relaxed">{step.instructionText}</p>
+                    <h3 className="text-amber-500 font-bold font-title uppercase tracking-widest text-[10px] md:text-sm mb-1 md:mb-2">Tutorial</h3>
+                    <p className="text-white text-xs md:text-lg font-medium leading-relaxed">{step.instructionText}</p>
                     
                     {step.requiredAction !== 'NONE' && step.targetId !== 'btn-tutorial-next' && (
-                        <div className="mt-4 text-xs text-slate-400 font-bold uppercase tracking-wider animate-pulse">
+                        <div className="mt-2 md:mt-4 text-[9px] md:text-xs text-slate-400 font-bold uppercase tracking-wider animate-pulse">
                             Action Required: {step.requiredAction.replace('CLICK_', 'Select ').replace('UI_BUTTON', 'Button')}
                         </div>
                     )}
                     
                     {step.requiredAction === 'CLICK_UI_BUTTON' && step.targetId === 'btn-tutorial-next' && onNext && (
-                         <div className="mt-4 flex justify-center">
+                         <div className="mt-2 md:mt-4 flex justify-center">
                             <button 
                                 onClick={onNext}
-                                className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2 rounded-lg font-bold shadow-lg flex items-center gap-2 transform transition-all active:scale-95 animate-pulse"
+                                className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1 md:px-6 md:py-2 text-xs md:text-base rounded-lg font-bold shadow-lg flex items-center gap-2 transform transition-all active:scale-95 animate-pulse"
                             >
-                                Continue <ArrowRight size={16} />
+                                Continue <ArrowRight size={14} className="md:w-4 md:h-4" />
                             </button>
                          </div>
                     )}
                     
                     {step.requiredAction === 'NONE' && (
-                        <div className="mt-4 text-xs text-slate-400 font-bold uppercase tracking-wider">
+                        <div className="mt-2 md:mt-4 text-[9px] md:text-xs text-slate-400 font-bold uppercase tracking-wider">
                             Watch closely...
                         </div>
                     )}
