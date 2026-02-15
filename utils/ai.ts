@@ -383,8 +383,6 @@ export const getCpuAttackers = (gameState: GameState): string[] => {
         
         if (!pulled) {
              // Mismatch, remaining candidates can't help with defense colors.
-             // Pull weakest anyway to see if it helps later (unlikely but safe) or break?
-             // If we can't find a candidate to help defense, we are dead anyway. 
              // Just break to preserve whatever offense we have.
              break;
         }
@@ -393,6 +391,42 @@ export const getCpuAttackers = (gameState: GameState): string[] => {
     }
 
     return candidates.map(c => c.instanceId);
+};
+
+// Helper: Find best combination of blockers to kill a target with minimized cost
+const findMultiBlockCombination = (targetVal: number, blockers: FieldCard[]): FieldCard[] | null => {
+    let bestCombination: FieldCard[] | null = null;
+    let bestSum = Infinity;
+
+    // Basic recursive subset sum search
+    const search = (index: number, currentSum: number, currentCards: FieldCard[]) => {
+        // Pruning: if current sum already exceeds best found sum, stop (we want min cost)
+        if (currentSum >= bestSum) return;
+
+        // Success: we killed it
+        if (currentSum >= targetVal) {
+            bestSum = currentSum;
+            bestCombination = [...currentCards];
+            return;
+        }
+
+        // Run out of cards
+        if (index >= blockers.length) return;
+
+        // Include card at index
+        const card = blockers[index];
+        const val = card.card.rank === 'A' ? 1 : card.card.numericValue;
+        
+        search(index + 1, currentSum + val, [...currentCards, card]);
+
+        // Exclude card at index
+        search(index + 1, currentSum, currentCards);
+    };
+
+    // Sort blockers by value descending to potentially hit target faster in DFS?
+    // Actually, heuristic sort isn't strictly necessary for small N, but helps.
+    search(0, 0, []);
+    return bestCombination;
 };
 
 export const getCpuBlocks = (gameState: GameState, defendingPlayerId: number): Record<string, string> => {
@@ -405,67 +439,82 @@ export const getCpuBlocks = (gameState: GameState, defendingPlayerId: number): R
     const myBlockers = cpu.field.filter(f => !f.isTapped);
     const usedBlockers = new Set<string>();
     
-    // Sort attackers high to low
+    // Sort attackers high to low (Prioritize blocking biggest threats)
     attackers.sort((a, b) => b.card.numericValue - a.card.numericValue);
 
-    // Calculate Potential Damage
+    // Calculate Potential Damage for Lethal Check
     let potentialDamage = 0;
     for(const atk of attackers) {
         potentialDamage += (atk.card.rank === Rank.Ace ? 1 : atk.card.numericValue);
     }
-
     const isLethal = potentialDamage >= cpu.life;
 
     for (const atk of attackers) {
         const validBlockers = myBlockers.filter(b => !usedBlockers.has(b.instanceId) && canBlock(atk, b));
         
         if (validBlockers.length > 0) {
-            let chosen: FieldCard | undefined;
+            let chosen: FieldCard[] = [];
 
-            if (isLethal) {
-                // CHUMP BLOCK MODE: Use weakest blocker to survive
-                validBlockers.sort((a, b) => a.card.numericValue - b.card.numericValue);
-                chosen = validBlockers[0];
-            } else {
-                // VALUE MODE: 
-                // 1. Try to kill Attacker (Blocker > Atk)
-                chosen = validBlockers.find(b => b.card.numericValue > atk.card.numericValue && b.card.rank !== 'A');
+            // --- 1. SINGLE BLOCK STRATEGY ---
+            // A. Kill Attacker (Blocker > Atk)
+            const killer = validBlockers.find(b => b.card.numericValue > atk.card.numericValue && b.card.rank !== 'A');
+            
+            // B. Trade Equal (Blocker == Atk)
+            const trader = !killer ? validBlockers.find(b => b.card.numericValue === atk.card.numericValue) : undefined;
+            
+            // C. Trade Up (Blocker < Atk, but Blocker is Ace)
+            const aceTrader = (!killer && !trader && atk.card.rank !== 'A') 
+                ? validBlockers.find(b => b.card.rank === 'A') 
+                : undefined;
+
+            if (killer) chosen = [killer];
+            else if (trader) chosen = [trader];
+            else if (aceTrader) chosen = [aceTrader];
+
+            // --- 2. MULTI-BLOCK STRATEGY (If enabled & no single good block found) ---
+            if (chosen.length === 0 && gameState.isMultiBlockingEnabled) {
+                // We couldn't single block effectively. Can we gang up?
+                const atkVal = atk.card.rank === 'A' ? 1 : atk.card.numericValue;
+                const combo = findMultiBlockCombination(atkVal, validBlockers);
                 
-                // 2. Try to trade Equal (Blocker == Atk)
-                if (!chosen) chosen = validBlockers.find(b => b.card.numericValue === atk.card.numericValue);
-                
-                // 3. Trade Up (Blocker < Atk, but Blocker is an Ace or Deathtouch equivalent - not in this game, but Ace vs Ace fits here)
-                if (!chosen && atk.card.rank === Rank.Ace) {
-                     validBlockers.sort((a,b) => a.card.numericValue - b.card.numericValue);
-                     chosen = validBlockers[0];
-                }
-
-                // 4. Strategic Chump Block (Save Life if damage is high relative to blocker cost)
-                if (!chosen) {
-                    // Sort valid blockers by value (lowest first)
-                    validBlockers.sort((a, b) => a.card.numericValue - b.card.numericValue);
-                    const weakest = validBlockers[0];
+                if (combo) {
+                    const comboCost = combo.reduce((sum, c) => sum + (c.card.rank === 'A' ? 1 : c.card.numericValue), 0);
                     
-                    const damageIfUnblocked = atk.card.rank === 'A' ? 1 : atk.card.numericValue;
-                    const valueLost = weakest.card.rank === 'A' ? 10 : weakest.card.numericValue; // Ace is valuable, treat as 10
+                    // Evaluate Trade:
+                    // We lose all blockers involved (Cost). We kill Attacker (Value).
+                    // Accept if Cost <= Attacker Value (Fair Trade) OR if we are about to die.
+                    // Note: We count Ace blocker as value 1 here, but Ace blocker would have been picked by single block logic usually.
                     
-                    // Threshold: If incoming damage is significantly higher than the value we lose.
-                    // e.g. Incoming 9, losing a 2. Diff = 7. Block.
-                    // e.g. Incoming 4, losing a 3. Diff = 1. Don't Block.
-                    
-                    let blockThreshold = 4;
-                    if (cpu.life < 10) blockThreshold = 2; // Be more defensive if life low
-                    if (cpu.life < 5) blockThreshold = 0; // Desperate
-
-                    if ((damageIfUnblocked - valueLost) >= blockThreshold) {
-                        chosen = weakest;
+                    if (isLethal || comboCost <= atkVal) {
+                        chosen = combo;
                     }
                 }
             }
 
-            if (chosen) {
-                blocks[chosen.instanceId] = atk.instanceId;
-                usedBlockers.add(chosen.instanceId);
+            // --- 3. CHUMP BLOCK STRATEGY (Last Resort) ---
+            // If we still haven't picked a block, but we are dying or taking huge damage...
+            if (chosen.length === 0) {
+                validBlockers.sort((a, b) => a.card.numericValue - b.card.numericValue);
+                const weakest = validBlockers[0];
+                
+                const damageIfUnblocked = atk.card.rank === 'A' ? 1 : atk.card.numericValue;
+                const valueLost = weakest.card.rank === 'A' ? 10 : weakest.card.numericValue; 
+                
+                let blockThreshold = 4;
+                if (cpu.life < 10) blockThreshold = 2;
+                if (isLethal) blockThreshold = -999; // Block everything if lethal
+
+                if ((damageIfUnblocked - valueLost) >= blockThreshold) {
+                    chosen = [weakest];
+                }
+            }
+
+            // Apply Blocks
+            if (chosen.length > 0) {
+                for (const b of chosen) {
+                    blocks[b.instanceId] = atk.instanceId;
+                    usedBlockers.add(b.instanceId);
+                }
             }
         }
     }

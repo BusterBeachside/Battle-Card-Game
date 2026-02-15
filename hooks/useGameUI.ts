@@ -11,6 +11,7 @@ export const useGameUI = () => {
     const [isCoinFlipping, setIsCoinFlipping] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
     const [showOptions, setShowOptions] = useState(false);
+    const [enableMultiBlocking, setEnableMultiBlocking] = useState(false);
 
     // Persistent Settings
     const [autoSort, setAutoSort] = useState(() => {
@@ -108,6 +109,7 @@ export const useGameUI = () => {
         autoSort, toggleAutoSort, setAutoSort,
         isMobile,
         showOptions, setShowOptions,
+        enableMultiBlocking, setEnableMultiBlocking,
         sfxVolume, setSfxVolume,
         musicVolume, setMusicVolume,
         showEndTurnModal, setShowEndTurnModal,

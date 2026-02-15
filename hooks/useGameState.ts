@@ -41,7 +41,7 @@ export const useGameState = ({ effects, refs, autoSort }: GameStateProps) => {
         return state.turnPlayer;
     };
 
-    const startGame = useCallback((mode: GameMode, cpuConfig: { p1: boolean, p2: boolean }, lessonId?: string) => {
+    const startGame = useCallback((mode: GameMode, cpuConfig: { p1: boolean, p2: boolean }, lessonId?: string, isMultiBlockingEnabled?: boolean) => {
         let tutorialConfig = null;
         let initialPhase = mode === 'SANDBOX' ? Phase.MAIN : Phase.INIT_SELECT;
         let startingPlayerId = 0;
@@ -154,6 +154,7 @@ export const useGameState = ({ effects, refs, autoSort }: GameStateProps) => {
 
         const initialState: GameState = {
             mode,
+            isMultiBlockingEnabled: isMultiBlockingEnabled || false,
             deck: sharedDeck,
             players: [p1, p2],
             turnPlayer: initialPhase === Phase.INIT_SELECT ? 0 : startingPlayerId, 
@@ -542,6 +543,8 @@ export const useGameState = ({ effects, refs, autoSort }: GameStateProps) => {
                 const attackerPlayer = state.players[state.turnPlayer];
                 const defenderPlayer = state.players[state.turnPlayer === 0 ? 1 : 0];
                 const attackers = attackerPlayer.field.filter(f => state.pendingAttackers.includes(f.instanceId));
+                
+                // Attackers that have NO blockers targeting them
                 const directAttackers = attackers.filter(atk => !Object.values(state.pendingBlocks).includes(atk.instanceId));
                 
                 // Helper to trigger death effects
@@ -560,31 +563,39 @@ export const useGameState = ({ effects, refs, autoSort }: GameStateProps) => {
                     effects.triggerExplosion(cardInstanceId);
                 };
 
-                // Blocked Combats
-                for (const atk of attackers) {
-                    const blockerId = Object.keys(state.pendingBlocks).find(k => state.pendingBlocks[k] === atk.instanceId);
-                    if (blockerId) {
-                        setGameState(prev => prev ? { ...prev, activeCombatCardId: atk.instanceId } : null);
-                        playSound('menu_click'); // Lunge sound
-                        
-                        await new Promise(r => setTimeout(r, 400));
-                        setGameState(prev => {
-                            if (!prev) return null;
-                            const blk = defenderPlayer.field.find(f => f.instanceId === blockerId);
-                            if (!blk) return prev;
-                            const nextRecentDamage = { ...prev.recentDamage };
-                            nextRecentDamage[atk.instanceId] = blk.card.numericValue;
-                            nextRecentDamage[blk.instanceId] = atk.card.numericValue;
-                            const logMsg = `⚔️ Battle: ${formatCardLog(atk.card)} (${atk.card.numericValue}) vs ${formatCardLog(blk.card)} (${blk.card.numericValue})`;
-                            return { ...prev, recentDamage: nextRecentDamage, logs: addLog(prev, logMsg) };
-                        });
-                        await new Promise(r => setTimeout(r, 600)); 
-                        setGameState(prev => prev ? { ...prev, activeCombatCardId: null } : null);
-                        await new Promise(r => setTimeout(r, 100));
+                // Blocked Combats Loop
+                // Note: Logic updated to support Multi-Blocking if enabled, but works for single blocking too.
+                const blockedAttackers = attackers.filter(atk => Object.values(state.pendingBlocks).includes(atk.instanceId));
+                
+                for (const atk of blockedAttackers) {
+                    // Find all blockers for this attacker
+                    const blockerIds = Object.keys(state.pendingBlocks).filter(k => state.pendingBlocks[k] === atk.instanceId);
+                    const blockers = defenderPlayer.field.filter(f => blockerIds.includes(f.instanceId));
+                    
+                    if (blockers.length > 0) {
+                        // Play animations sequentially for each blocker
+                        for (const blk of blockers) {
+                            setGameState(prev => prev ? { ...prev, activeCombatCardId: atk.instanceId } : null);
+                            playSound('menu_click'); // Lunge sound
+                            
+                            await new Promise(r => setTimeout(r, 400));
+                            setGameState(prev => {
+                                if (!prev) return null;
+                                const nextRecentDamage = { ...prev.recentDamage };
+                                // Show "damage taken" visually
+                                nextRecentDamage[atk.instanceId] = (nextRecentDamage[atk.instanceId] || 0) + blk.card.numericValue;
+                                nextRecentDamage[blk.instanceId] = atk.card.numericValue;
+                                const logMsg = `⚔️ Battle: ${formatCardLog(atk.card)} vs ${formatCardLog(blk.card)}`;
+                                return { ...prev, recentDamage: nextRecentDamage, logs: addLog(prev, logMsg) };
+                            });
+                            await new Promise(r => setTimeout(r, 600)); 
+                            setGameState(prev => prev ? { ...prev, activeCombatCardId: null } : null);
+                            await new Promise(r => setTimeout(r, 100));
+                        }
                     }
                 }
                 
-                // Direct Attacks
+                // Direct Attacks Loop
                 for (const atk of directAttackers) {
                     setGameState(prev => prev ? { ...prev, activeCombatCardId: atk.instanceId } : null);
                     
@@ -627,39 +638,58 @@ export const useGameState = ({ effects, refs, autoSort }: GameStateProps) => {
                 const dyingData: { instanceId: string, ownerId: number }[] = [];
 
                 // 1. Identify Deaths (Read-Only)
-                // Need to re-calculate based on current field state (which hasn't changed structure yet, just values in React state possibly)
-                // We use the same logic as before but store it first.
+                // We calculate accumulated damage here.
                 const fAtkP = finalState.players[finalState.turnPlayer];
                 const fDefP = finalState.players[finalState.turnPlayer === 0 ? 1 : 0];
                 
+                // Get all attackers that were involved in combat this turn
                 const activeAtk = fAtkP.field.filter(f => activeAtkIds.includes(f.instanceId));
 
                 for (const atk of activeAtk) {
-                     const blockerId = Object.keys(finalState.pendingBlocks).find(k => finalState.pendingBlocks[k] === atk.instanceId);
-                     if (blockerId) {
-                         const blk = fDefP.field.find(f => f.instanceId === blockerId);
-                         if (blk) {
-                             const atkVal = atk.card.numericValue; 
-                             const blkVal = blk.card.numericValue;
-                             const atkIsAce = atk.card.rank === 'A'; 
+                     // Find all blockers for this attacker
+                     const blockerIds = Object.keys(finalState.pendingBlocks).filter(k => finalState.pendingBlocks[k] === atk.instanceId);
+                     const blockers = fDefP.field.filter(f => blockerIds.includes(f.instanceId));
+
+                     if (blockers.length > 0) {
+                         const atkVal = atk.card.rank === 'A' ? 1 : atk.card.numericValue;
+                         const atkIsAce = atk.card.rank === 'A';
+                         let accumulatedDamageToAtk = 0;
+                         let anyBlockerIsAce = false;
+
+                         // Calculate outcomes for each blocker
+                         for (const blk of blockers) {
+                             const blkVal = blk.card.rank === 'A' ? 1 : blk.card.numericValue;
                              const blkIsAce = blk.card.rank === 'A';
                              
-                             let atkDies = false; let blkDies = false;
-                             
-                             if (atkIsAce) blkDies = true; 
-                             if (blkIsAce) atkDies = true;
-                             
-                             if (!atkIsAce && !blkIsAce) {
-                                 if (atkVal > blkVal) blkDies = true; 
-                                 else if (blkVal > atkVal) atkDies = true; 
-                                 else { atkDies = true; blkDies = true; }
-                             } else { 
-                                 if(atkIsAce && !blkIsAce) atkDies = true; 
-                                 if(blkIsAce && !atkIsAce) blkDies = true; 
-                             }
+                             if (blkIsAce) anyBlockerIsAce = true;
+                             accumulatedDamageToAtk += blkVal;
 
-                             if (atkDies) { dyingData.push({ instanceId: atk.instanceId, ownerId: fAtkP.id }); }
-                             if (blkDies) { dyingData.push({ instanceId: blk.instanceId, ownerId: fDefP.id }); }
+                             // Does Blocker die?
+                             // Blocker dies if Attacker is Ace OR Attacker Value >= Blocker Value
+                             let blkDies = false;
+                             if (atkIsAce) blkDies = true;
+                             else if (atkVal >= blkVal) blkDies = true; // Tie or Win for Attacker kills Blocker
+                             // Note: Standard rules say "Higher value wins". Ties = both die.
+                             // 7 vs 4. 7 kills 4. 4 deals 4 to 7.
+                             // 4 vs 4. Both die.
+                             // So yes, if atkVal >= blkVal, blkDies.
+                             
+                             if (blkDies) {
+                                 // Check if already marked (unlikely in this loop but good practice)
+                                 if (!dyingData.some(d => d.instanceId === blk.instanceId)) {
+                                     dyingData.push({ instanceId: blk.instanceId, ownerId: fDefP.id });
+                                 }
+                             }
+                         }
+
+                         // Does Attacker die?
+                         // Attacker dies if any blocker is Ace OR Accumulated Damage >= Attacker Value
+                         // Special logic for Ace Attacker: It has 1 HP. So if it takes ANY damage (>=1), it dies.
+                         // Accumulated damage >= 1 for Ace means it dies, which fits the logic.
+                         if (anyBlockerIsAce || accumulatedDamageToAtk >= atkVal) {
+                             if (!dyingData.some(d => d.instanceId === atk.instanceId)) {
+                                 dyingData.push({ instanceId: atk.instanceId, ownerId: fAtkP.id });
+                             }
                          }
                      }
                 }

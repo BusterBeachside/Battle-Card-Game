@@ -2,7 +2,7 @@
 import React from 'react';
 import { GameMode } from '../../types';
 import { TUTORIAL_LESSONS } from '../../data/tutorials';
-import { Coins, Sword, Edit3, RotateCcw, Cpu, Users, Tv, ArrowRight, GraduationCap, ChevronLeft, BookOpen, CheckCircle, Settings } from 'lucide-react';
+import { Coins, Sword, Edit3, RotateCcw, Cpu, Users, Tv, ArrowRight, GraduationCap, ChevronLeft, BookOpen, CheckCircle, Settings, Shield } from 'lucide-react';
 import { playSound } from '../../utils/soundUtils';
 
 interface MainMenuProps {
@@ -13,6 +13,8 @@ interface MainMenuProps {
     handleSpectateClick: () => void;
     startLesson: (lessonId: string) => void;
     onOpenOptions: () => void;
+    enableMultiBlocking: boolean;
+    setEnableMultiBlocking: (val: boolean) => void;
 }
 
 export const MainMenu: React.FC<MainMenuProps> = ({ 
@@ -22,7 +24,9 @@ export const MainMenu: React.FC<MainMenuProps> = ({
     handleStartGameClick, 
     handleSpectateClick,
     startLesson,
-    onOpenOptions
+    onOpenOptions,
+    enableMultiBlocking,
+    setEnableMultiBlocking
 }) => {
     const isLessonCompleted = (lessonId: string) => {
         return localStorage.getItem(`battle_lesson_complete_${lessonId}`) === 'true';
@@ -218,6 +222,24 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                         </div>
                         <ArrowRight className="text-slate-600 group-hover:text-purple-400 transition-transform group-hover:translate-x-1" />
                     </button>
+
+                    <div className="pt-2">
+                        <label className="flex items-center gap-3 p-3 rounded-xl bg-slate-800/50 border border-slate-700 cursor-pointer hover:bg-slate-800 transition-colors group">
+                            <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${enableMultiBlocking ? 'bg-indigo-600 border-indigo-500' : 'bg-slate-900 border-slate-600'}`}>
+                                {enableMultiBlocking && <Shield size={12} className="text-white" />}
+                            </div>
+                            <input 
+                                type="checkbox" 
+                                className="hidden" 
+                                checked={enableMultiBlocking} 
+                                onChange={(e) => setEnableMultiBlocking(e.target.checked)} 
+                            />
+                            <div className="flex flex-col">
+                                <span className={`text-sm font-bold transition-colors ${enableMultiBlocking ? 'text-indigo-400' : 'text-slate-400'}`}>EXPERIMENTAL: Multi-Blocking Test</span>
+                                <span className="text-[10px] text-slate-500">Allow multiple defenders to block a single attacker.</span>
+                            </div>
+                        </label>
+                    </div>
                 </div>
             )}
         </div>

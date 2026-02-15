@@ -105,7 +105,7 @@ export const App: React.FC = () => {
   
   const handleStartGameClick = (isCpu: boolean) => { 
       if (ui.selectedMode) {
-          startGame(ui.selectedMode, { p1: false, p2: isCpu });
+          startGame(ui.selectedMode, { p1: false, p2: isCpu }, undefined, ui.enableMultiBlocking);
           if (ui.selectedMode === 'STREET' || ui.selectedMode === 'PRO') {
               ui.setIsCoinFlipping(true);
           }
@@ -114,7 +114,7 @@ export const App: React.FC = () => {
 
   const handleSpectateClick = () => { 
       if (ui.selectedMode) {
-          startGame(ui.selectedMode, { p1: true, p2: true });
+          startGame(ui.selectedMode, { p1: true, p2: true }, undefined, ui.enableMultiBlocking);
           if (ui.selectedMode === 'STREET' || ui.selectedMode === 'PRO') {
               ui.setIsCoinFlipping(true);
           }
@@ -250,6 +250,8 @@ export const App: React.FC = () => {
                 handleSpectateClick={handleSpectateClick}
                 startLesson={startLesson}
                 onOpenOptions={() => ui.setShowOptions(true)}
+                enableMultiBlocking={ui.enableMultiBlocking}
+                setEnableMultiBlocking={ui.setEnableMultiBlocking}
             />
             {ui.showOptions && (
                 <OptionsMenu 

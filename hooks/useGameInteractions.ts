@@ -227,7 +227,20 @@ export const useGameInteractions = (
                     const attacker = prev.players[prev.turnPlayer].field.find((f: any) => f.instanceId === attackerInstanceId);
                     if (!blocker || !attacker || blocker.isTapped) return prev;
                     if (!canBlock(attacker, blocker)) return { ...prev, logs: addLog(prev, "Invalid Block: Wrong Spectrum!") };
-                    const newBlocks = { ...prev.pendingBlocks };
+                    
+                    let newBlocks = { ...prev.pendingBlocks };
+                    
+                    // IF Multi-blocking disabled, ensure 1-to-1 by removing any previous block on this attacker
+                    const isAlreadyBlocked = Object.values(newBlocks).includes(attackerInstanceId);
+                    if (!prev.isMultiBlockingEnabled && isAlreadyBlocked) {
+                         // Find and remove the existing blocker for this attacker
+                         for (const [key, value] of Object.entries(newBlocks)) {
+                             if (value === attackerInstanceId) {
+                                 delete newBlocks[key];
+                             }
+                         }
+                    }
+
                     newBlocks[blockerInstanceId] = attackerInstanceId;
                     return { ...prev, pendingBlocks: newBlocks };
                 });
