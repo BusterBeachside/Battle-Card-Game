@@ -198,6 +198,7 @@ export const DesktopLayout: React.FC<LayoutProps> = ({
                                             attachedCards={fc.attachedCards}
                                             onClick={() => handlers.onCardClick(fc.card, 'FIELD', bottomPlayer.id, fc.instanceId)}
                                             onMouseDown={(e) => handlers.onDragStart(e, fc.card, 'FIELD', bottomPlayer.id, fc.instanceId)}
+                                            onTouchStart={(e) => handlers.onDragStart(e, fc.card, 'FIELD', bottomPlayer.id, fc.instanceId)}
                                             isPlayable={gameState.phase === Phase.ATTACK_DECLARE && !fc.isTapped && !fc.isSummoningSick}
                                             orientation="bottom"
                                         />
@@ -220,6 +221,7 @@ export const DesktopLayout: React.FC<LayoutProps> = ({
                                             attachedCards={fc.attachedCards}
                                             onClick={() => handlers.onCardClick(fc.card, 'FIELD', bottomPlayer.id, fc.instanceId)}
                                             onMouseDown={(e) => handlers.onDragStart(e, fc.card, 'FIELD', bottomPlayer.id, fc.instanceId)}
+                                            onTouchStart={(e) => handlers.onDragStart(e, fc.card, 'FIELD', bottomPlayer.id, fc.instanceId)}
                                             isPlayable={gameState.phase === Phase.ATTACK_DECLARE && !fc.isTapped && !fc.isSummoningSick}
                                             orientation="bottom"
                                         />
@@ -320,6 +322,7 @@ export const DesktopLayout: React.FC<LayoutProps> = ({
                                         card={c} 
                                         onClick={() => handlers.onCardClick(c, 'HAND', bottomPlayer.id)}
                                         onMouseDown={(e) => handlers.onDragStart(e, c, 'HAND', bottomPlayer.id)}
+                                        onTouchStart={(e) => handlers.onDragStart(e, c, 'HAND', bottomPlayer.id)}
                                         isPlayable={isPlayable}
                                         isSelected={isSelected}
                                         isDragging={dragState?.cardId === c.id}

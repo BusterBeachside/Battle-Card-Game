@@ -38,9 +38,12 @@ export const MobileLayout: React.FC<LayoutProps> = ({
     };
 
     // Dynamic scale helper for crowded lanes
-    // Default to larger size (scale-90) for visibility, shrink only when crowded
+    // Shrink cards as count increases to fit them in
     const getLaneScaleClass = (count: number) => {
-        return count > 6 ? 'scale-75 -m-4' : 'scale-90 -mx-1';
+        if (count > 8) return 'scale-[0.60] -m-3';
+        if (count > 6) return 'scale-[0.70] -m-2';
+        if (count > 4) return 'scale-[0.80] -m-1';
+        return 'scale-90';
     };
 
     const isMainPhase = gameState.phase === Phase.MAIN;
@@ -58,7 +61,7 @@ export const MobileLayout: React.FC<LayoutProps> = ({
     const bottomRed = bottomPlayer.field.filter(c => getEffectiveColor(c) === Color.Red);
 
     return (
-        <div className="flex flex-col h-full bg-slate-950 select-none">
+        <div className="flex flex-col h-full bg-slate-950 select-none overflow-hidden">
             {/* Mobile Top Bar: CPU Info */}
             <div className="h-14 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-3 shadow-md z-30 shrink-0">
                 <div className="flex items-center gap-3">
@@ -118,34 +121,20 @@ export const MobileLayout: React.FC<LayoutProps> = ({
                     </div>
                 )}
 
-                {/* Top Player Zone */}
-                <div className="flex-1 flex flex-col items-center justify-start py-2 space-y-2 relative w-full">
+                {/* Top Player Zone - Flex layout to prevent overlap */}
+                <div className="flex-1 flex flex-col items-center justify-start py-2 w-full min-h-0">
                     {/* CPU Hand */}
-                    <div className="flex -space-x-6 scale-75 opacity-90 h-12" ref={refs.cpuHandRef}>
+                    <div className="flex -space-x-6 scale-75 opacity-90 h-12 shrink-0" ref={refs.cpuHandRef}>
                         {topPlayer.hand.map(c => <CardDisplay key={c.id} domId={c.id} card={c} showBack={gameState.mode !== 'SANDBOX'} size="sm" onClick={() => handlers.onCardClick(c, 'HAND', topPlayer.id)} />)}
                     </div>
 
-                    {/* CPU Field & Resources - Lanes Centered, Resources Absolute */}
-                    <div className="relative w-full flex-1 min-h-[120px]">
+                    {/* CPU Field & Resources */}
+                    <div className="flex w-full items-start justify-between px-2 mt-2 flex-1 min-h-0">
                         
-                        {/* Resources (Absolute Right) */}
-                        <div className="absolute right-1 top-0 z-20 flex flex-col items-center gap-1 scale-85 origin-top-right">
-                            <div className="text-[12px] font-bold text-slate-500 bg-slate-900/80 px-1.5 py-0.5 rounded border border-slate-700">
-                                {topPlayer.resources.length}
-                            </div>
-                            <div id={`resource-container-${topPlayer.id}`} className="flex flex-col items-center -space-y-10 pointer-events-auto">
-                                {topPlayer.resources.map((r, i) => (
-                                    <div key={r.instanceId} style={{ zIndex: i }} className="transition-all hover:z-50 hover:scale-110" onClick={() => handlers.onCardClick(r.card, 'RESOURCE', topPlayer.id, r.instanceId)}>
-                                        <CardDisplay card={r.card} isTapped={r.isTapped} size="sm" isSummoningSick={false} />
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Field Lanes (Centered) - Padding horizontal to prevent overlap with resources */}
-                        <div className="absolute inset-0 flex justify-center items-start gap-1 px-12 pointer-events-none">
+                        {/* Field Lanes (Center/Left) */}
+                        <div className="flex-1 flex justify-center gap-2 min-w-0 pr-2">
                             {/* Black Lane */}
-                            <div className="bg-slate-900/40 lane-physical p-1 rounded border border-slate-700/50 flex flex-wrap gap-1 min-w-[50px] items-start content-start justify-center pointer-events-auto">
+                            <div className="bg-slate-900/40 lane-physical p-1 rounded border border-slate-700/50 flex flex-wrap gap-1 min-w-[40px] items-start content-start justify-center">
                                 {topBlack.map(fc => (
                                     <div key={fc.instanceId} className={`${getLaneScaleClass(topBlack.length)} origin-top`}>
                                         <CardDisplay 
@@ -165,7 +154,7 @@ export const MobileLayout: React.FC<LayoutProps> = ({
                                 ))}
                             </div>
                             {/* Red Lane */}
-                            <div className="bg-red-900/20 lane-magical p-1 rounded border border-red-900/30 flex flex-wrap gap-1 min-w-[50px] items-start content-start justify-center pointer-events-auto">
+                            <div className="bg-red-900/20 lane-magical p-1 rounded border border-red-900/30 flex flex-wrap gap-1 min-w-[40px] items-start content-start justify-center">
                                 {topRed.map(fc => (
                                     <div key={fc.instanceId} className={`${getLaneScaleClass(topRed.length)} origin-top`}>
                                         <CardDisplay 
@@ -185,42 +174,47 @@ export const MobileLayout: React.FC<LayoutProps> = ({
                                 ))}
                             </div>
                         </div>
+
+                        {/* Resources (Right) - Static, no overlap */}
+                        <div className="flex-none flex flex-col items-center gap-1 scale-90 origin-top-right z-20">
+                            <div className="text-[10px] font-bold text-slate-500 bg-slate-900/80 px-1.5 py-0.5 rounded border border-slate-700">
+                                {topPlayer.resources.length}
+                            </div>
+                            <div id={`resource-container-${topPlayer.id}`} className="flex flex-col items-center -space-y-12">
+                                {topPlayer.resources.map((r, i) => (
+                                    <div key={r.instanceId} style={{ zIndex: i }} className="transition-all" onClick={() => handlers.onCardClick(r.card, 'RESOURCE', topPlayer.id, r.instanceId)}>
+                                        <CardDisplay card={r.card} isTapped={r.isTapped} size="sm" isSummoningSick={false} />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                {/* Bottom Player Zone */}
-                <div className="flex-1 flex flex-col justify-end py-2 space-y-2 relative border-t border-slate-800/30 w-full">
+                {/* Bottom Player Zone - Flex layout to prevent overlap */}
+                <div className="flex-1 flex flex-col justify-end py-2 w-full min-h-0 border-t border-slate-800/30">
                     
                     {/* Bottom Field & Resources */}
-                    <div className="relative w-full flex-1 min-h-[120px] mb-2">
+                    <div className="flex w-full items-end justify-between px-2 mb-2 flex-1 min-h-0">
                         
-                        {/* Resources (Absolute Left) */}
-                        <div className="absolute left-1 bottom-0 z-20 flex flex-col items-center gap-1 scale-85 origin-bottom-left">
-                            <div id={`resource-container-${bottomPlayer.id}`} className="grid grid-cols-2 gap-4 pointer-events-auto pb-4 px-1">
-                                <div className="flex flex-col -space-y-20 relative z-10 pt-20">
-                                    {bottomPlayer.resources.slice(0, 5).map((r, i) => (
-                                        <div key={r.instanceId} id={r.instanceId} style={{ zIndex: i }} className="transition-all hover:z-50 hover:scale-110" onClick={() => handlers.onCardClick(r.card, 'RESOURCE', bottomPlayer.id, r.instanceId)}>
-                                            <CardDisplay card={r.card} isTapped={r.isTapped} size="sm" isSummoningSick={false} />
-                                        </div>
-                                    ))}
-                                </div>
-                                <div className="flex flex-col -space-y-20 relative z-0 pt-20">
-                                    {bottomPlayer.resources.slice(5, 10).map((r, i) => (
-                                        <div key={r.instanceId} id={r.instanceId} style={{ zIndex: i }} className="transition-all hover:z-50 hover:scale-110" onClick={() => handlers.onCardClick(r.card, 'RESOURCE', bottomPlayer.id, r.instanceId)}>
-                                            <CardDisplay card={r.card} isTapped={r.isTapped} size="sm" isSummoningSick={false} />
-                                        </div>
-                                    ))}
-                                </div>
+                        {/* Resources (Left) - Single Row/Column Stack */}
+                        <div className="flex-none flex flex-col items-center gap-1 scale-90 origin-bottom-left z-20">
+                            <div id={`resource-container-${bottomPlayer.id}`} className="flex flex-col-reverse items-center -space-y-12 space-y-reverse pb-8">
+                                {bottomPlayer.resources.map((r, i) => (
+                                    <div key={r.instanceId} id={r.instanceId} style={{ zIndex: i }} className="transition-all active:scale-110" onClick={() => handlers.onCardClick(r.card, 'RESOURCE', bottomPlayer.id, r.instanceId)}>
+                                        <CardDisplay card={r.card} isTapped={r.isTapped} size="sm" isSummoningSick={false} />
+                                    </div>
+                                ))}
                             </div>
-                            <div className="text-[12px] font-bold text-indigo-400 bg-slate-900/80 px-1.5 py-0.5 rounded border border-slate-700 h-fit self-end">
+                            <div className="text-[10px] font-bold text-indigo-400 bg-slate-900/80 px-1.5 py-0.5 rounded border border-slate-700 h-fit">
                                 {bottomPlayer.resources.filter(r => !r.isTapped).length}/{bottomPlayer.resources.length}
                             </div>
                         </div>
 
-                        {/* Field Lanes (Centered) - Padding horizontal to prevent overlap with resources and FABs */}
-                        <div className="absolute inset-0 flex justify-center items-end gap-1 px-12 pointer-events-none">
+                        {/* Field Lanes (Center/Right) - Flex-1 to take remaining space */}
+                        <div className="flex-1 flex justify-center gap-2 min-w-0 pl-2">
                             {/* Black Lane */}
-                            <div id={`lane-black-${bottomPlayer.id}`} className="bg-slate-900/40 lane-physical p-1 rounded border border-slate-700/50 flex flex-wrap gap-1 min-w-[50px] items-start content-start justify-center pointer-events-auto">
+                            <div id={`lane-black-${bottomPlayer.id}`} className="bg-slate-900/40 lane-physical p-1 rounded border border-slate-700/50 flex flex-wrap gap-1 min-w-[40px] items-end content-end justify-center">
                                 {bottomBlack.map(fc => (
                                     <div key={fc.instanceId} className={`${getLaneScaleClass(bottomBlack.length)} origin-bottom`}>
                                         <CardDisplay 
@@ -237,6 +231,7 @@ export const MobileLayout: React.FC<LayoutProps> = ({
                                             attachedCards={fc.attachedCards}
                                             onClick={() => handlers.onCardClick(fc.card, 'FIELD', bottomPlayer.id, fc.instanceId)}
                                             onMouseDown={(e) => handlers.onDragStart(e, fc.card, 'FIELD', bottomPlayer.id, fc.instanceId)}
+                                            onTouchStart={(e) => handlers.onDragStart(e, fc.card, 'FIELD', bottomPlayer.id, fc.instanceId)}
                                             isPlayable={gameState.phase === Phase.ATTACK_DECLARE && !fc.isTapped && !fc.isSummoningSick}
                                             orientation="bottom"
                                         />
@@ -244,7 +239,7 @@ export const MobileLayout: React.FC<LayoutProps> = ({
                                 ))}
                             </div>
                             {/* Red Lane */}
-                            <div className="bg-red-900/20 lane-magical p-1 rounded border border-red-900/30 flex flex-wrap gap-1 min-w-[50px] items-start content-start justify-center pointer-events-auto">
+                            <div className="bg-red-900/20 lane-magical p-1 rounded border border-red-900/30 flex flex-wrap gap-1 min-w-[40px] items-end content-end justify-center">
                                 {bottomRed.map(fc => (
                                     <div key={fc.instanceId} className={`${getLaneScaleClass(bottomRed.length)} origin-bottom`}>
                                         <CardDisplay 
@@ -261,6 +256,7 @@ export const MobileLayout: React.FC<LayoutProps> = ({
                                             attachedCards={fc.attachedCards}
                                             onClick={() => handlers.onCardClick(fc.card, 'FIELD', bottomPlayer.id, fc.instanceId)}
                                             onMouseDown={(e) => handlers.onDragStart(e, fc.card, 'FIELD', bottomPlayer.id, fc.instanceId)}
+                                            onTouchStart={(e) => handlers.onDragStart(e, fc.card, 'FIELD', bottomPlayer.id, fc.instanceId)}
                                             isPlayable={gameState.phase === Phase.ATTACK_DECLARE && !fc.isTapped && !fc.isSummoningSick}
                                             orientation="bottom"
                                         />
@@ -271,8 +267,8 @@ export const MobileLayout: React.FC<LayoutProps> = ({
                     </div>
                 </div>
 
-                {/* Floating Action Buttons (Mobile) */}
-                <div className="absolute bottom-2 right-2 flex flex-col gap-2 z-30">
+                {/* Floating Action Buttons (Mobile) - Moved to Center Right */}
+                <div className="absolute top-1/2 right-2 -translate-y-1/2 flex flex-col gap-2 z-50">
                     {/* Contextual Actions */}
                     {gameState.phase === Phase.INIT_SELECT && isInteractive && (
                         <button 
@@ -381,6 +377,7 @@ export const MobileLayout: React.FC<LayoutProps> = ({
                                     card={c} 
                                     onClick={() => handlers.onCardClick(c, 'HAND', bottomPlayer.id)}
                                     onMouseDown={(e) => handlers.onDragStart(e, c, 'HAND', bottomPlayer.id)}
+                                    onTouchStart={(e) => handlers.onDragStart(e, c, 'HAND', bottomPlayer.id)}
                                     isPlayable={isPlayable}
                                     isSelected={isSelected}
                                     isDragging={dragState?.cardId === c.id}

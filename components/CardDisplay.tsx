@@ -7,6 +7,7 @@ interface CardDisplayProps extends React.HTMLAttributes<HTMLDivElement> {
   domId?: string;
   onClick?: () => void;
   onMouseDown?: (e: React.MouseEvent) => void;
+  onTouchStart?: (e: React.TouchEvent) => void; // Added Touch Handler
   isSelected?: boolean;
   isTapped?: boolean;
   isSummoningSick?: boolean; // New Prop
@@ -28,6 +29,7 @@ export const CardDisplay: React.FC<CardDisplayProps> = ({
   domId,
   onClick,
   onMouseDown,
+  onTouchStart,
   isSelected,
   isTapped,
   isSummoningSick,
@@ -107,6 +109,7 @@ export const CardDisplay: React.FC<CardDisplayProps> = ({
         id={domId}
         onClick={onClick}
         onMouseDown={onMouseDown}
+        onTouchStart={onTouchStart}
         className={`
           ${dimensions[size]} 
           relative z-10
@@ -121,7 +124,8 @@ export const CardDisplay: React.FC<CardDisplayProps> = ({
           ${isBlocking ? 'ring-4 ring-blue-500 -translate-y-4 shadow-lg' : ''}
           ${isDragging ? 'opacity-50 grayscale' : ''}
           ${lungeClass}
-          ${onClick || onMouseDown ? 'cursor-pointer' : ''}
+          ${onClick || onMouseDown || onTouchStart ? 'cursor-pointer' : ''}
+          ${onMouseDown || onTouchStart ? 'touch-none' : ''} 
         `}
         {...rest}
       >

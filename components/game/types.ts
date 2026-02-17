@@ -4,7 +4,7 @@ import { GameState, PlayerState, Card, DragState, Phase } from '../../types';
 
 export interface GameHandlers {
     onCardClick: (card: Card, location: 'HAND' | 'RESOURCE' | 'FIELD', ownerId: number, instanceId?: string) => void;
-    onDragStart: (e: React.MouseEvent, card: Card, type: 'HAND' | 'FIELD', ownerId: number, instanceId?: string) => void;
+    onDragStart: (e: React.MouseEvent | React.TouchEvent, card: Card, type: 'HAND' | 'FIELD', ownerId: number, instanceId?: string) => void;
     onPhaseAction: (action: 'ATTACK_PHASE' | 'END_TURN' | 'CONFIRM_ATTACK' | 'CONFIRM_BLOCK' | 'ADD_RESOURCE' | 'SWAP_RESOURCE' | 'CANCEL_RESOURCE' | 'CONFIRM_INIT') => void;
     setViewingDiscard: (view: 'SHARED' | number | null) => void;
     setShowMenu: (show: boolean) => void;

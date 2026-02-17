@@ -321,7 +321,14 @@ export const App: React.FC = () => {
       onMouseMove={(e) => {
           if (interactions.dragState) interactions.setDragState(prev => prev ? { ...prev, currentX: e.clientX, currentY: e.clientY } : null);
       }}
+      onTouchMove={(e) => {
+          if (interactions.dragState) {
+              const touch = e.touches[0];
+              interactions.setDragState(prev => prev ? { ...prev, currentX: touch.clientX, currentY: touch.clientY } : null);
+          }
+      }}
       onMouseUp={(e) => interactions.handleDrop(e.nativeEvent)}
+      onTouchEnd={(e) => interactions.handleDrop(e.nativeEvent)}
       onClick={handleAppInteraction}
     >
       {ui.isCoinFlipping && (

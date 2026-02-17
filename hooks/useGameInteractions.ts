@@ -158,7 +158,7 @@ export const useGameInteractions = (
         }
     };
 
-    const handleDragStart = (e: React.MouseEvent, card: Card, type: 'HAND' | 'FIELD', ownerId: number, instanceId?: string) => {
+    const handleDragStart = (e: React.MouseEvent | React.TouchEvent, card: Card, type: 'HAND' | 'FIELD', ownerId: number, instanceId?: string) => {
         if (!gameState) return;
         if (gameState.mode === 'TUTORIAL') {
             const id = instanceId || card.id;
@@ -166,7 +166,15 @@ export const useGameInteractions = (
         }
 
         if (gameState.mode === 'SANDBOX' && !gameState.isSandboxRun) {
-             setDragState({ cardId: card.id, sourceType: type, ownerId, startX: e.clientX, startY: e.clientY, currentX: e.clientX, currentY: e.clientY, cardObj: card, instanceId });
+             let clientX, clientY;
+             if ('touches' in e) {
+                 clientX = e.touches[0].clientX;
+                 clientY = e.touches[0].clientY;
+             } else {
+                 clientX = (e as React.MouseEvent).clientX;
+                 clientY = (e as React.MouseEvent).clientY;
+             }
+             setDragState({ cardId: card.id, sourceType: type, ownerId, startX: clientX, startY: clientY, currentX: clientX, currentY: clientY, cardObj: card, instanceId });
              return;
         }
         const activePid = actions.getActiveDecisionPlayerId(gameState);
@@ -177,13 +185,39 @@ export const useGameInteractions = (
         if (gameState.phase === Phase.BLOCK_DECLARE && type === 'FIELD') { /* Allow */ } 
         else if (gameState.phase === Phase.MAIN && type === 'HAND') { /* Allow */ }
         else { return; }
-        setDragState({ cardId: card.id, sourceType: type, ownerId, startX: e.clientX, startY: e.clientY, currentX: e.clientX, currentY: e.clientY, cardObj: card, instanceId });
+        
+        let clientX, clientY;
+        if ('touches' in e) {
+            clientX = e.touches[0].clientX;
+            clientY = e.touches[0].clientY;
+        } else {
+            clientX = (e as React.MouseEvent).clientX;
+            clientY = (e as React.MouseEvent).clientY;
+        }
+
+        setDragState({ cardId: card.id, sourceType: type, ownerId, startX: clientX, startY: clientY, currentX: clientX, currentY: clientY, cardObj: card, instanceId });
         e.stopPropagation();
     };
 
-    const handleDrop = (e: MouseEvent) => {
+    const handleDrop = (e: MouseEvent | TouchEvent | React.TouchEvent | React.MouseEvent) => {
         if (!dragState || !gameState) return;
-        const elements = document.elementsFromPoint(e.clientX, e.clientY);
+        
+        let clientX: number, clientY: number;
+
+        // Handle Native and React events
+        if ('changedTouches' in e && e.changedTouches.length > 0) {
+             // TouchEvent (Native or React)
+             clientX = e.changedTouches[0].clientX;
+             clientY = e.changedTouches[0].clientY;
+        } else if ('clientX' in e) {
+             // MouseEvent
+             clientX = (e as MouseEvent).clientX;
+             clientY = (e as MouseEvent).clientY;
+        } else {
+            return;
+        }
+
+        const elements = document.elementsFromPoint(clientX, clientY);
         const targetElement = elements.find(el => el.getAttribute('data-instance-id') || el.id === 'field-area');
         if (!targetElement) {
              setDragState(null);
