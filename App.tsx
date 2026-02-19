@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { Phase, GameMode } from './types';
 import { addLog } from './utils/core';
-import { createFieldCard } from './utils/rules';
+import { createFieldCard, getEffectiveColor } from './utils/rules';
 import { RotateCcw, Play, Edit3, Trash2, GraduationCap, Volume2 } from 'lucide-react';
 import { sortHand } from './utils/cards';
 import { primeAudio, playSound } from './utils/soundUtils';
@@ -12,7 +12,7 @@ import { CoinFlipOverlay } from './components/overlays/CoinFlipOverlay';
 import { TurnChangeOverlay } from './components/overlays/TurnChangeOverlay';
 import { TutorialOverlay } from './components/overlays/TutorialOverlay';
 import { Confetti, Explosion, DamageOverlay } from './components/effects/VisualEffects';
-import { Flyer, SpecialCardAnimation, SoulOrb } from './components/effects/GameAnimations';
+import { Flyer, SpecialCardAnimation, SoulOrb, Summoner } from './components/effects/GameAnimations';
 import { MainMenu } from './components/screens/MainMenu';
 import { MainMenuBackground } from './components/effects/MainMenuBackground';
 import { SandboxTools } from './components/tools/SandboxTools';
@@ -198,6 +198,44 @@ export const App: React.FC = () => {
     }
   }, [gameState?.phase, ui.isCoinFlipping, gameState?.mode]);
 
+  // --- AUTO END TURN LOGIC ---
+  useEffect(() => {
+    if (effects.hasActiveAnimations) return;
+
+    if (ui.autoEndTurn && gameState && gameState.phase === Phase.MAIN) {
+        const activePid = getActiveDecisionPlayerId(gameState);
+        const player = gameState.players[activePid];
+        const opponent = gameState.players[activePid === 0 ? 1 : 0];
+        
+        // Only run for non-CPU players (or if we are watching CPU vs CPU in Spectate, logic handles turn anyway)
+        // But useGameAI handles CPU turns. We only want this for the interactive player.
+        const isActivePlayerCpu = player.isCpu;
+        if (isActivePlayerCpu) return;
+
+        const availableRes = player.resources.filter(r => !r.isTapped).length;
+        
+        const canPlayCard = player.hand.some(c => {
+            if (c.cost > availableRes) return false;
+            // Additional checks for tactics
+            if (c.rank === 'K') return opponent.field.some(f => getEffectiveColor(f) === c.baseColor);
+            if (c.rank === 'Q') return opponent.field.length > 0 || player.field.length > 0;
+            return true;
+        });
+
+        const canAttack = !player.hasAttackedThisTurn && player.field.some(c => !c.isTapped && !c.isSummoningSick);
+
+        if (!canPlayCard && !canAttack) {
+            const timer = setTimeout(() => {
+                // Double check state hasn't changed
+                if (gameState.phase === Phase.MAIN && gameState.turnPlayer === activePid && !effects.hasActiveAnimations) {
+                    performEndTurn();
+                }
+            }, 1000); // 1s delay for better UX
+            return () => clearTimeout(timer);
+        }
+    }
+  }, [gameState?.phase, gameState?.turnPlayer, gameState?.players, ui.autoEndTurn, effects.hasActiveAnimations]);
+
   // --- AUDIO PRIMING OVERLAY (TITLE SCREEN) ---
   if (!audioPrimed) {
       return (
@@ -258,10 +296,10 @@ export const App: React.FC = () => {
                     onClose={() => ui.setShowOptions(false)}
                     autoSort={ui.autoSort}
                     toggleAutoSort={() => ui.toggleAutoSort(setGameState, getActiveDecisionPlayerId)}
+                    autoEndTurn={ui.autoEndTurn}
+                    toggleAutoEndTurn={ui.toggleAutoEndTurn}
                     sfxVolume={ui.sfxVolume}
                     setSfxVolume={ui.setSfxVolume}
-                    musicVolume={ui.musicVolume}
-                    setMusicVolume={ui.setMusicVolume}
                 />
             )}
         </div>
@@ -479,10 +517,10 @@ export const App: React.FC = () => {
         onQuit={() => ui.setShowQuitModal(true)} 
         autoSort={ui.autoSort} 
         onToggleSort={() => ui.toggleAutoSort(setGameState, getActiveDecisionPlayerId)}
+        autoEndTurn={ui.autoEndTurn}
+        onToggleAutoEndTurn={ui.toggleAutoEndTurn}
         sfxVolume={ui.sfxVolume}
         setSfxVolume={ui.setSfxVolume}
-        musicVolume={ui.musicVolume}
-        setMusicVolume={ui.setMusicVolume}
       />
 
       <DiscardModal 
@@ -496,6 +534,10 @@ export const App: React.FC = () => {
 
       {effects.flyingCards.map(fc => (
           <Flyer key={fc.id} fc={fc} />
+      ))}
+
+      {effects.summoningCards.map(sc => (
+          <Summoner key={sc.id} sc={sc} />
       ))}
       
       {effects.soulTrails.map(st => (

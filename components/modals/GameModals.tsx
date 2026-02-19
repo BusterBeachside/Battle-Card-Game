@@ -65,10 +65,10 @@ interface PauseMenuProps {
     onQuit: () => void;
     autoSort: boolean;
     onToggleSort: () => void;
+    autoEndTurn: boolean;
+    onToggleAutoEndTurn: () => void;
     sfxVolume: number;
     setSfxVolume: (v: number) => void;
-    musicVolume: number;
-    setMusicVolume: (v: number) => void;
 }
 
 export const PauseMenu: React.FC<PauseMenuProps> = ({ 
@@ -78,10 +78,10 @@ export const PauseMenu: React.FC<PauseMenuProps> = ({
     onQuit, 
     autoSort, 
     onToggleSort,
+    autoEndTurn,
+    onToggleAutoEndTurn,
     sfxVolume,
-    setSfxVolume,
-    musicVolume,
-    setMusicVolume
+    setSfxVolume
 }) => {
     if (!show) return null;
     return (
@@ -98,10 +98,10 @@ export const PauseMenu: React.FC<PauseMenuProps> = ({
                         embedded 
                         autoSort={autoSort} 
                         toggleAutoSort={onToggleSort}
+                        autoEndTurn={autoEndTurn}
+                        toggleAutoEndTurn={onToggleAutoEndTurn}
                         sfxVolume={sfxVolume}
                         setSfxVolume={setSfxVolume}
-                        musicVolume={musicVolume}
-                        setMusicVolume={setMusicVolume}
                     />
                 </div>
 

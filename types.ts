@@ -42,6 +42,7 @@ export interface FieldCard {
   ownerId: number;
   isTapped: boolean;
   isSummoningSick: boolean;
+  isBeingSummoned?: boolean; // New: For animation reservation
   attachedCards: Card[]; // For Queens
   currentHealth?: number;
 }
@@ -121,6 +122,19 @@ export interface FlyingCard {
   startY: number;
   targetX: number;
   targetY: number;
+  showFace: boolean;
+  pauseDuration?: number;
+  onComplete?: () => void;
+}
+
+export interface SummoningCard {
+  id: string;
+  card: Card;
+  startX: number;
+  startY: number;
+  targetElementId: string;
+  ownerId: number;
+  onComplete: () => void;
 }
 
 export interface FlyingText {

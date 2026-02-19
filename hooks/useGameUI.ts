@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { GameMode, GameState, Card } from '../types';
 import { sortHand } from '../utils/cards';
-import { setGlobalSfxVolume, setGlobalMusicVolume } from '../utils/soundUtils';
+import { setGlobalSfxVolume } from '../utils/soundUtils';
 
 export const useGameUI = () => {
     // Meta State
@@ -20,15 +20,15 @@ export const useGameUI = () => {
             return saved !== null ? JSON.parse(saved) : true;
         } catch { return true; }
     });
+    const [autoEndTurn, setAutoEndTurn] = useState(() => {
+        try {
+            const saved = localStorage.getItem('battle_auto_end_turn');
+            return saved !== null ? JSON.parse(saved) : false;
+        } catch { return false; }
+    });
     const [sfxVolume, setSfxVolumeState] = useState(() => {
         try {
             const saved = localStorage.getItem('battle_sfx_volume');
-            return saved !== null ? parseFloat(saved) : 0.5;
-        } catch { return 0.5; }
-    });
-    const [musicVolume, setMusicVolumeState] = useState(() => {
-        try {
-            const saved = localStorage.getItem('battle_music_volume');
             return saved !== null ? parseFloat(saved) : 0.5;
         } catch { return 0.5; }
     });
@@ -52,7 +52,6 @@ export const useGameUI = () => {
     // Initialize Audio Engine with stored values on mount
     useEffect(() => {
         setGlobalSfxVolume(sfxVolume);
-        setGlobalMusicVolume(musicVolume);
     }, []);
 
     useEffect(() => {
@@ -81,16 +80,18 @@ export const useGameUI = () => {
         });
     }, []);
 
+    const toggleAutoEndTurn = useCallback(() => {
+        setAutoEndTurn(prev => {
+            const next = !prev;
+            localStorage.setItem('battle_auto_end_turn', JSON.stringify(next));
+            return next;
+        });
+    }, []);
+
     const setSfxVolume = useCallback((v: number) => {
         setSfxVolumeState(v);
         setGlobalSfxVolume(v);
         localStorage.setItem('battle_sfx_volume', v.toString());
-    }, []);
-
-    const setMusicVolume = useCallback((v: number) => {
-        setMusicVolumeState(v);
-        setGlobalMusicVolume(v);
-        localStorage.setItem('battle_music_volume', v.toString());
     }, []);
 
     const resetModals = useCallback(() => {
@@ -107,11 +108,11 @@ export const useGameUI = () => {
         selectedMode, setSelectedMode,
         isCoinFlipping, setIsCoinFlipping,
         autoSort, toggleAutoSort, setAutoSort,
+        autoEndTurn, toggleAutoEndTurn,
         isMobile,
         showOptions, setShowOptions,
         enableMultiBlocking, setEnableMultiBlocking,
         sfxVolume, setSfxVolume,
-        musicVolume, setMusicVolume,
         showEndTurnModal, setShowEndTurnModal,
         showResignModal, setShowResignModal,
         showQuitModal, setShowQuitModal,

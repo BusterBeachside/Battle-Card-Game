@@ -73,9 +73,20 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ step, onNext }
 
                 const isTargetLow = centerY > screenH * 0.6;
 
-                if (isMobile) {
+                // Special overrides for Lesson 4 interaction steps on Mobile to prevent obscuring the field
+                const forceCenterSteps = ['l4-p2-attack', 'l4-play-queen', 'l4-play-king', 'l4-attack-8'];
+                const shouldCenter = isMobile && forceCenterSteps.includes(step.id);
+
+                if (shouldCenter) {
+                    newTextStyle.top = '50%';
+                    newTextStyle.left = '50%';
+                    newTextStyle.transform = 'translate(-50%, -50%)';
+                    newTextStyle.bottom = 'auto';
+                    newTextStyle.right = 'auto';
+                } else if (isMobile) {
                     newTextStyle.left = '5%';
                     newTextStyle.right = 'auto';
+                    newTextStyle.transform = 'none';
                     // Mobile docking: If target is Low, dock Top. If target is High, dock Bottom.
                     if (isTargetLow) {
                         newTextStyle.top = '70px'; // Clear of header
@@ -86,6 +97,7 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ step, onNext }
                     }
                 } else {
                     // Desktop Logic: Float near element
+                    newTextStyle.transform = 'none';
                     if (isTargetLow) {
                         newTextStyle.bottom = '5%';
                         newTextStyle.top = 'auto'; 
@@ -154,7 +166,7 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ step, onNext }
     useEffect(() => {
         updateHighlight();
         return () => cancelAnimationFrame(rafRef.current);
-    }, [step.highlightElementId, step.highlightMode]);
+    }, [step.highlightElementId, step.highlightMode, step.id]); // Added step.id dependency
 
     return (
         <>
@@ -178,7 +190,7 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ step, onNext }
                     
                     {step.requiredAction !== 'NONE' && step.targetId !== 'btn-tutorial-next' && (
                         <div className="mt-2 md:mt-4 text-[9px] md:text-xs text-slate-400 font-bold uppercase tracking-wider animate-pulse">
-                            Action Required: {step.requiredAction.replace('CLICK_', 'Select ').replace('UI_BUTTON', 'Button')}
+                            Action Required: {step.requiredAction.replace('CLICK_', 'Select ').replace('UI_BUTTON', 'Button').replace('DECLARE_', 'Declare ').replace('PLAY_', 'Play ')}
                         </div>
                     )}
                     

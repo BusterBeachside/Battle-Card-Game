@@ -134,8 +134,13 @@ export const DamageOverlay: React.FC<{ dmg: number, targetRef: React.RefObject<H
     }, []);
 
     return (
-        <div className="z-[100] pointer-events-none text-red-500 font-black text-8xl drop-shadow-[0_5px_5px_rgba(0,0,0,0.8)] stroke-white" 
-             style={{ ...style, WebkitTextStroke: '2px white' } as React.CSSProperties & { WebkitTextStroke?: string }}>
+        <div 
+            className="z-[100] pointer-events-none text-red-500 font-black text-8xl drop-shadow-[0_4px_6px_rgba(0,0,0,0.8)]" 
+            style={{ 
+                ...style, 
+                textShadow: '-2px -2px 0 #fff, 2px -2px 0 #fff, -2px 2px 0 #fff, 2px 2px 0 #fff' 
+            }}
+        >
             -{dmg}
         </div>
     );

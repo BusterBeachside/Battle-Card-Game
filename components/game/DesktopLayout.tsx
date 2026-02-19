@@ -37,6 +37,8 @@ export const DesktopLayout: React.FC<LayoutProps> = ({
         }
     };
 
+    const isSpectate = gameState.players[0].isCpu && gameState.players[1].isCpu;
+
     // Dynamic scale helper for crowded lanes
     const getLaneScaleClass = (count: number) => {
         return count > 8 ? 'scale-[0.65] -m-3' : '';
@@ -57,6 +59,12 @@ export const DesktopLayout: React.FC<LayoutProps> = ({
 
     return (
         <div className="flex flex-col h-full bg-slate-950 select-none">
+            <style>{`
+                .custom-scrollbar::-webkit-scrollbar { width: 8px; }
+                .custom-scrollbar::-webkit-scrollbar-track { background: rgba(30, 41, 59, 0.5); border-radius: 4px; }
+                .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(71, 85, 105, 0.8); border-radius: 4px; }
+                .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(99, 102, 241, 0.6); }
+            `}</style>
             <div className="flex justify-between items-center px-4 py-2 bg-slate-900 border-b border-slate-800 shadow-lg z-20 flex-none h-14">
                 <div className="flex items-center gap-4">
                     <span className="font-title font-bold text-xl">BATTLE</span>
@@ -99,7 +107,7 @@ export const DesktopLayout: React.FC<LayoutProps> = ({
                 <div className="flex-1 flex flex-col justify-center p-4 border-b border-slate-800/30 relative">
                     
                     <div className="absolute top-[-40px] left-1/2 -translate-x-1/2 flex -space-x-4 scale-75 opacity-90 transition-all hover:-space-x-2" ref={refs.cpuHandRef}>
-                        {topPlayer.hand.map(c => <CardDisplay key={c.id} domId={c.id} card={c} showBack={gameState.mode !== 'SANDBOX'} size="sm" onClick={() => handlers.onCardClick(c, 'HAND', topPlayer.id)} />)}
+                        {topPlayer.hand.map(c => <CardDisplay key={c.id} domId={c.id} card={c} showBack={gameState.mode !== 'SANDBOX' && !isSpectate} size="sm" onClick={() => handlers.onCardClick(c, 'HAND', topPlayer.id)} />)}
                     </div>
                     <div className="absolute top-4 left-1/2 -translate-x-1/2 text-[10px] font-bold text-slate-500 bg-slate-900/80 px-2 py-1 rounded">
                         Cards: {topPlayer.hand.length}
@@ -111,7 +119,7 @@ export const DesktopLayout: React.FC<LayoutProps> = ({
                         <div className="flex gap-8 items-start">
                             <div className="bg-slate-900/40 lane-physical p-4 rounded-xl border border-slate-700/50 flex flex-wrap gap-2 min-w-[100px] min-h-[120px] justify-center items-start content-start shadow-inner max-w-[200px] md:max-w-[300px] overflow-visible">
                                 {topBlack.map(fc => (
-                                    <div key={fc.instanceId} className={getLaneScaleClass(topBlack.length)}>
+                                    <div key={fc.instanceId} className={`${getLaneScaleClass(topBlack.length)} ${fc.isBeingSummoned ? 'opacity-0' : ''}`}>
                                         <CardDisplay 
                                             domId={fc.instanceId}
                                             data-instance-id={fc.instanceId}
@@ -129,7 +137,7 @@ export const DesktopLayout: React.FC<LayoutProps> = ({
                             </div>
                             <div className="bg-red-900/20 lane-magical p-4 rounded-xl border border-red-900/30 flex flex-wrap gap-2 min-w-[100px] min-h-[120px] justify-center items-start content-start shadow-inner max-w-[200px] md:max-w-[300px] overflow-visible">
                                 {topRed.map(fc => (
-                                    <div key={fc.instanceId} className={getLaneScaleClass(topRed.length)}>
+                                    <div key={fc.instanceId} className={`${getLaneScaleClass(topRed.length)} ${fc.isBeingSummoned ? 'opacity-0' : ''}`}>
                                         <CardDisplay 
                                             domId={fc.instanceId}
                                             data-instance-id={fc.instanceId}
@@ -184,7 +192,7 @@ export const DesktopLayout: React.FC<LayoutProps> = ({
                         <div className="flex gap-8 items-end">
                             <div id={`lane-black-${bottomPlayer.id}`} className="bg-slate-900/40 lane-physical p-4 rounded-xl border border-slate-700/50 flex flex-wrap gap-2 min-w-[100px] min-h-[120px] justify-center items-start content-start shadow-inner max-w-[200px] md:max-w-[300px] overflow-visible">
                                 {bottomBlack.map(fc => (
-                                    <div key={fc.instanceId} className={getLaneScaleClass(bottomBlack.length)}>
+                                    <div key={fc.instanceId} className={`${getLaneScaleClass(bottomBlack.length)} ${fc.isBeingSummoned ? 'opacity-0' : ''}`}>
                                         <CardDisplay 
                                             domId={fc.instanceId}
                                             data-instance-id={fc.instanceId}
@@ -207,7 +215,7 @@ export const DesktopLayout: React.FC<LayoutProps> = ({
                             </div>
                             <div className="bg-red-900/20 lane-magical p-4 rounded-xl border border-red-900/30 flex flex-wrap gap-2 min-w-[100px] min-h-[120px] justify-center items-start content-start shadow-inner max-w-[200px] md:max-w-[300px] overflow-visible">
                                 {bottomRed.map(fc => (
-                                    <div key={fc.instanceId} className={getLaneScaleClass(bottomRed.length)}>
+                                    <div key={fc.instanceId} className={`${getLaneScaleClass(bottomRed.length)} ${fc.isBeingSummoned ? 'opacity-0' : ''}`}>
                                         <CardDisplay 
                                             domId={fc.instanceId}
                                             data-instance-id={fc.instanceId}
@@ -408,7 +416,7 @@ export const DesktopLayout: React.FC<LayoutProps> = ({
                 </div>
             </div>
             
-            <div className="absolute top-20 left-4 w-72 z-40 bottom-60 overflow-y-auto space-y-1 pointer-events-auto pr-2 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent flex flex-col-reverse">
+            <div className="absolute top-20 left-4 w-72 z-40 bottom-60 overflow-y-auto space-y-1 pointer-events-auto pr-2 custom-scrollbar flex flex-col-reverse">
                 {gameState.logs.map((log) => (
                     <LogEntryComponent key={log.id} text={`${log.text}`} />
                 ))}

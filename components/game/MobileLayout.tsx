@@ -37,6 +37,8 @@ export const MobileLayout: React.FC<LayoutProps> = ({
         }
     };
 
+    const isSpectate = gameState.players[0].isCpu && gameState.players[1].isCpu;
+
     // Dynamic scale helper for crowded lanes
     // Shrink cards as count increases to fit them in
     const getLaneScaleClass = (count: number) => {
@@ -125,7 +127,7 @@ export const MobileLayout: React.FC<LayoutProps> = ({
                 <div className="flex-1 flex flex-col items-center justify-start py-2 w-full min-h-0">
                     {/* CPU Hand */}
                     <div className="flex -space-x-6 scale-75 opacity-90 h-12 shrink-0" ref={refs.cpuHandRef}>
-                        {topPlayer.hand.map(c => <CardDisplay key={c.id} domId={c.id} card={c} showBack={gameState.mode !== 'SANDBOX'} size="sm" onClick={() => handlers.onCardClick(c, 'HAND', topPlayer.id)} />)}
+                        {topPlayer.hand.map(c => <CardDisplay key={c.id} domId={c.id} card={c} showBack={gameState.mode !== 'SANDBOX' && !isSpectate} size="sm" onClick={() => handlers.onCardClick(c, 'HAND', topPlayer.id)} />)}
                     </div>
 
                     {/* CPU Field & Resources */}
@@ -136,7 +138,7 @@ export const MobileLayout: React.FC<LayoutProps> = ({
                             {/* Black Lane */}
                             <div className="bg-slate-900/40 lane-physical p-1 rounded border border-slate-700/50 flex flex-wrap gap-1 min-w-[40px] items-start content-start justify-center">
                                 {topBlack.map(fc => (
-                                    <div key={fc.instanceId} className={`${getLaneScaleClass(topBlack.length)} origin-top`}>
+                                    <div key={fc.instanceId} className={`${getLaneScaleClass(topBlack.length)} origin-top ${fc.isBeingSummoned ? 'opacity-0' : ''}`}>
                                         <CardDisplay 
                                             domId={fc.instanceId}
                                             data-instance-id={fc.instanceId}
@@ -156,7 +158,7 @@ export const MobileLayout: React.FC<LayoutProps> = ({
                             {/* Red Lane */}
                             <div className="bg-red-900/20 lane-magical p-1 rounded border border-red-900/30 flex flex-wrap gap-1 min-w-[40px] items-start content-start justify-center">
                                 {topRed.map(fc => (
-                                    <div key={fc.instanceId} className={`${getLaneScaleClass(topRed.length)} origin-top`}>
+                                    <div key={fc.instanceId} className={`${getLaneScaleClass(topRed.length)} origin-top ${fc.isBeingSummoned ? 'opacity-0' : ''}`}>
                                         <CardDisplay 
                                             domId={fc.instanceId}
                                             data-instance-id={fc.instanceId}
@@ -197,11 +199,17 @@ export const MobileLayout: React.FC<LayoutProps> = ({
                     {/* Bottom Field & Resources */}
                     <div className="flex w-full items-end justify-between px-2 mb-2 flex-1 min-h-0">
                         
-                        {/* Resources (Left) - Single Row/Column Stack */}
+                        {/* Resources (Left) - Single Row/Column Stack with Hover Effect Restored */}
                         <div className="flex-none flex flex-col items-center gap-1 scale-90 origin-bottom-left z-20">
-                            <div id={`resource-container-${bottomPlayer.id}`} className="flex flex-col-reverse items-center -space-y-12 space-y-reverse pb-8">
+                            <div id={`resource-container-${bottomPlayer.id}`} className="flex flex-col-reverse items-center -space-y-12 space-y-reverse pb-8 pointer-events-auto">
                                 {bottomPlayer.resources.map((r, i) => (
-                                    <div key={r.instanceId} id={r.instanceId} style={{ zIndex: i }} className="transition-all active:scale-110" onClick={() => handlers.onCardClick(r.card, 'RESOURCE', bottomPlayer.id, r.instanceId)}>
+                                    <div 
+                                        key={r.instanceId} 
+                                        id={r.instanceId} 
+                                        style={{ zIndex: i }} 
+                                        className="transition-all duration-200 hover:scale-110 hover:z-50 hover:mb-4" 
+                                        onClick={() => handlers.onCardClick(r.card, 'RESOURCE', bottomPlayer.id, r.instanceId)}
+                                    >
                                         <CardDisplay card={r.card} isTapped={r.isTapped} size="sm" isSummoningSick={false} />
                                     </div>
                                 ))}
@@ -216,7 +224,7 @@ export const MobileLayout: React.FC<LayoutProps> = ({
                             {/* Black Lane */}
                             <div id={`lane-black-${bottomPlayer.id}`} className="bg-slate-900/40 lane-physical p-1 rounded border border-slate-700/50 flex flex-wrap gap-1 min-w-[40px] items-end content-end justify-center">
                                 {bottomBlack.map(fc => (
-                                    <div key={fc.instanceId} className={`${getLaneScaleClass(bottomBlack.length)} origin-bottom`}>
+                                    <div key={fc.instanceId} className={`${getLaneScaleClass(bottomBlack.length)} origin-bottom ${fc.isBeingSummoned ? 'opacity-0' : ''}`}>
                                         <CardDisplay 
                                             domId={fc.instanceId}
                                             data-instance-id={fc.instanceId}
@@ -241,7 +249,7 @@ export const MobileLayout: React.FC<LayoutProps> = ({
                             {/* Red Lane */}
                             <div className="bg-red-900/20 lane-magical p-1 rounded border border-red-900/30 flex flex-wrap gap-1 min-w-[40px] items-end content-end justify-center">
                                 {bottomRed.map(fc => (
-                                    <div key={fc.instanceId} className={`${getLaneScaleClass(bottomRed.length)} origin-bottom`}>
+                                    <div key={fc.instanceId} className={`${getLaneScaleClass(bottomRed.length)} origin-bottom ${fc.isBeingSummoned ? 'opacity-0' : ''}`}>
                                         <CardDisplay 
                                             domId={fc.instanceId}
                                             data-instance-id={fc.instanceId}
@@ -375,7 +383,7 @@ export const MobileLayout: React.FC<LayoutProps> = ({
                             >
                                 <CardDisplay 
                                     card={c} 
-                                    onClick={() => handlers.onCardClick(c, 'HAND', bottomPlayer.id)}
+                                    onClick={gameState.phase === Phase.MAIN ? undefined : () => handlers.onCardClick(c, 'HAND', bottomPlayer.id)}
                                     onMouseDown={(e) => handlers.onDragStart(e, c, 'HAND', bottomPlayer.id)}
                                     onTouchStart={(e) => handlers.onDragStart(e, c, 'HAND', bottomPlayer.id)}
                                     isPlayable={isPlayable}

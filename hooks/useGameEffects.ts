@@ -1,6 +1,6 @@
 
 import { useState, useCallback } from 'react';
-import { Card, FlyingCard, FlyingText, SoulTrail } from '../types';
+import { Card, FlyingCard, FlyingText, SoulTrail, SummoningCard } from '../types';
 import { generateId } from '../utils/core';
 
 interface DamageAnimInstance {
@@ -13,6 +13,7 @@ interface DamageAnimInstance {
 export const useGameEffects = () => {
     const [flyingTexts, setFlyingTexts] = useState<FlyingText[]>([]);
     const [flyingCards, setFlyingCards] = useState<FlyingCard[]>([]);
+    const [summoningCards, setSummoningCards] = useState<SummoningCard[]>([]);
     const [soulTrails, setSoulTrails] = useState<SoulTrail[]>([]);
     const [explosions, setExplosions] = useState<{ id: string, x: number, y: number }[]>([]);
     const [damageAnims, setDamageAnims] = useState<DamageAnimInstance[]>([]);
@@ -20,21 +21,61 @@ export const useGameEffects = () => {
     const [showTurnAnim, setShowTurnAnim] = useState(false);
     const [screenShake, setScreenShake] = useState<{ intensity: number } | null>(null);
 
-    const triggerFlyer = useCallback(async (card: Card, startRect: DOMRect, targetRect: DOMRect): Promise<void> => {
+    const triggerFlyer = useCallback(async (
+        card: Card, 
+        startRect: DOMRect, 
+        targetRect: DOMRect, 
+        showFace: boolean = false, 
+        onComplete?: () => void,
+        pauseDuration?: number
+    ): Promise<void> => {
         return new Promise(resolve => {
             const id = generateId();
+            
+            const handleComplete = () => {
+                setFlyingCards(prev => prev.filter(f => f.id !== id));
+                if (onComplete) onComplete();
+                resolve();
+            };
+
             const newFly: FlyingCard = {
                 id, card, 
                 startX: startRect.left, 
                 startY: startRect.top, 
-                targetX: targetRect.left + targetRect.width / 2 - 20, 
-                targetY: targetRect.top + targetRect.height / 2 - 30
+                targetX: targetRect.left + targetRect.width / 2 - 40, // Centering for md card (80px width)
+                targetY: targetRect.top + targetRect.height / 2 - 56, // Centering for md card (112px height)
+                showFace,
+                pauseDuration,
+                onComplete: handleComplete
             };
             setFlyingCards(prev => [...prev, newFly]);
-            setTimeout(() => { 
-                setFlyingCards(prev => prev.filter(f => f.id !== id)); 
-                resolve(); 
-            }, 600);
+        });
+    }, []);
+
+    const triggerSummon = useCallback(async (
+        card: Card,
+        startRect: DOMRect,
+        targetElementId: string,
+        ownerId: number
+    ): Promise<void> => {
+        return new Promise(resolve => {
+            const id = generateId();
+            
+            const handleComplete = () => {
+                setSummoningCards(prev => prev.filter(s => s.id !== id));
+                resolve();
+            };
+
+            const newSummon: SummoningCard = {
+                id,
+                card,
+                startX: startRect.left,
+                startY: startRect.top,
+                targetElementId,
+                ownerId,
+                onComplete: handleComplete
+            };
+            setSummoningCards(prev => [...prev, newSummon]);
         });
     }, []);
 
@@ -78,14 +119,24 @@ export const useGameEffects = () => {
         setTimeout(() => setScreenShake(null), 300);
     }, []);
 
+    const hasActiveAnimations = flyingTexts.length > 0 || 
+                                flyingCards.length > 0 || 
+                                summoningCards.length > 0 || 
+                                soulTrails.length > 0 || 
+                                explosions.length > 0 || 
+                                damageAnims.length > 0 || 
+                                specialAnim !== null;
+
     return {
         flyingTexts, setFlyingTexts,
         flyingCards, triggerFlyer,
+        summoningCards, triggerSummon,
         soulTrails, triggerSoulTrail,
         explosions, triggerExplosion, removeExplosion,
         damageAnims, setDamageAnims, addDamageAnim,
         specialAnim, setSpecialAnim,
         showTurnAnim, setShowTurnAnim,
-        screenShake, triggerScreenShake
+        screenShake, triggerScreenShake,
+        hasActiveAnimations
     };
 };

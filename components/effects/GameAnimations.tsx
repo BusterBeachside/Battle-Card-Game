@@ -1,7 +1,7 @@
 
-import React, { useState, useLayoutEffect, useEffect } from 'react';
+import React, { useState, useLayoutEffect, useEffect, useRef } from 'react';
 import { CardDisplay } from '../CardDisplay';
-import { Card, FlyingCard, Rank, SoulTrail } from '../../types';
+import { Card, FlyingCard, Rank, SoulTrail, SummoningCard, Color } from '../../types';
 
 export const Flyer: React.FC<{ fc: FlyingCard }> = ({ fc }) => {
     const [style, setStyle] = useState<React.CSSProperties>({
@@ -9,26 +9,154 @@ export const Flyer: React.FC<{ fc: FlyingCard }> = ({ fc }) => {
         top: fc.startY,
         position: 'fixed',
         zIndex: 100,
-        transform: 'translate(0px, 0px) scale(1) rotate(0deg)',
-        transition: 'transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1)',
+        transform: 'translate(0px, 0px) scale(0.6) rotate(0deg)',
+        transition: 'transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1)',
         pointerEvents: 'none'
     });
 
-    useLayoutEffect(() => {
-        const deltaX = fc.targetX - fc.startX;
-        const deltaY = fc.targetY - fc.startY;
+    useEffect(() => {
+        const centerX = window.innerWidth / 2 - 40; // 40 = half of w-20 (80px)
+        const centerY = window.innerHeight / 2 - 56; // 56 = half of h-28 (112px)
+        const targetDX = fc.targetX - fc.startX;
+        const targetDY = fc.targetY - fc.startY;
         
-        requestAnimationFrame(() => {
-            setStyle(prev => ({
-                ...prev,
-                transform: `translate(${deltaX}px, ${deltaY}px) scale(0.6) rotate(360deg)`
-            }));
-        });
-    }, [fc]);
+        let timeout1: number, timeout2: number;
+
+        if (fc.pauseDuration && fc.pauseDuration > 0) {
+            // STEP 1: Move to Center
+            requestAnimationFrame(() => {
+                setStyle(prev => ({
+                    ...prev,
+                    left: centerX, 
+                    top: centerY,
+                    transform: 'scale(1.5) rotate(360deg)', 
+                    transition: 'all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+                }));
+            });
+
+            // STEP 2: Wait then Move to Target
+            timeout1 = setTimeout(() => {
+                setStyle(prev => ({
+                    ...prev,
+                    left: fc.targetX,
+                    top: fc.targetY,
+                    transform: 'scale(0.8) rotate(0deg)', // Approx hand scale
+                    transition: 'all 0.5s ease-in-out'
+                }));
+            }, 500 + fc.pauseDuration); // Fly time + pause
+
+            // Finish
+            timeout2 = setTimeout(() => {
+                if (fc.onComplete) fc.onComplete();
+            }, 500 + fc.pauseDuration + 500);
+
+        } else {
+            // Standard Direct Flight
+            requestAnimationFrame(() => {
+                setStyle(prev => ({
+                    ...prev,
+                    transform: `translate(${targetDX}px, ${targetDY}px) scale(0.6) rotate(360deg)`
+                }));
+            });
+            
+            timeout1 = setTimeout(() => {
+                if (fc.onComplete) fc.onComplete();
+            }, 600);
+        }
+
+        return () => {
+            clearTimeout(timeout1);
+            clearTimeout(timeout2);
+        };
+    }, []);
 
     return (
         <div style={style}>
-            <CardDisplay card={fc.card} showBack={true} size="md" />
+            <CardDisplay card={fc.card} showBack={!fc.showFace} size="md" />
+        </div>
+    );
+};
+
+export const Summoner: React.FC<{ sc: SummoningCard }> = ({ sc }) => {
+    const [style, setStyle] = useState<React.CSSProperties>({
+        left: sc.startX,
+        top: sc.startY,
+        position: 'fixed',
+        zIndex: 200,
+        transform: 'translate(-50%, -50%) scale(0.8) rotate(0deg)',
+        transition: 'all 0.4s ease-out',
+        pointerEvents: 'none',
+        opacity: 1
+    });
+    
+    const [phase, setPhase] = useState<'LIFT' | 'HOVER' | 'SLAM'>('LIFT');
+
+    useEffect(() => {
+        // Calculate Target Coordinates using exact element ID
+        const targetEl = document.getElementById(sc.targetElementId);
+        let targetX = window.innerWidth / 2;
+        let targetY = window.innerHeight / 2;
+
+        if (targetEl) {
+            const rect = targetEl.getBoundingClientRect();
+            targetX = rect.left + rect.width / 2;
+            targetY = rect.top + rect.height / 2;
+        }
+
+        // Phase 1: Lift & Reveal (Immediate)
+        // We move it to slightly above the target zone, larger scale
+        const isRed = sc.card.baseColor === Color.Red;
+        const liftY = targetY + (sc.ownerId === 0 ? 50 : -50); // Slightly offset from lane center towards player
+
+        requestAnimationFrame(() => {
+            setStyle({
+                left: targetX,
+                top: liftY,
+                position: 'fixed',
+                zIndex: 300,
+                transform: 'translate(-50%, -50%) scale(1.4) rotate(0deg)',
+                transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)', // Spring out
+                pointerEvents: 'none',
+                boxShadow: isRed ? '0 0 30px rgba(220, 38, 38, 0.6)' : '0 0 30px rgba(99, 102, 241, 0.6)'
+            });
+        });
+
+        // Phase 2: Hover (Pause for recognition)
+        const hoverTimer = setTimeout(() => {
+            setPhase('HOVER');
+        }, 400);
+
+        // Phase 3: Slam (Down to board)
+        const slamTimer = setTimeout(() => {
+            setPhase('SLAM');
+            setStyle(prev => ({
+                ...prev,
+                left: targetX,
+                top: targetY, // Precise lane center
+                transform: 'translate(-50%, -50%) scale(1.0)',
+                transition: 'all 0.2s cubic-bezier(0.6, -0.28, 0.735, 0.045)', // Hard impact ease
+                zIndex: 200
+            }));
+        }, 900); // 400ms lift + 500ms hover
+
+        // Complete
+        const doneTimer = setTimeout(() => {
+            if (sc.onComplete) sc.onComplete();
+        }, 1150); // 900 + 250ms slam
+
+        return () => {
+            clearTimeout(hoverTimer);
+            clearTimeout(slamTimer);
+            clearTimeout(doneTimer);
+        };
+    }, []);
+
+    return (
+        <div style={style}>
+            <CardDisplay card={sc.card} showBack={false} size="md" />
+            {phase === 'SLAM' && (
+                <div className="absolute inset-0 -m-8 z-[-1] animate-ping opacity-50 bg-white rounded-full" />
+            )}
         </div>
     );
 };

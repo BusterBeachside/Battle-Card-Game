@@ -1,15 +1,15 @@
 
 import React from 'react';
-import { X, Volume2, Music, CheckSquare, Square } from 'lucide-react';
+import { X, Volume2, CheckSquare, Square, FastForward } from 'lucide-react';
 
 interface OptionsMenuProps {
     onClose?: () => void;
     autoSort: boolean;
     toggleAutoSort: () => void;
+    autoEndTurn: boolean;
+    toggleAutoEndTurn: () => void;
     sfxVolume: number;
     setSfxVolume: (v: number) => void;
-    musicVolume: number;
-    setMusicVolume: (v: number) => void;
     embedded?: boolean;
 }
 
@@ -17,10 +17,10 @@ export const OptionsMenu: React.FC<OptionsMenuProps> = ({
     onClose, 
     autoSort, 
     toggleAutoSort, 
+    autoEndTurn,
+    toggleAutoEndTurn,
     sfxVolume, 
     setSfxVolume, 
-    musicVolume, 
-    setMusicVolume, 
     embedded = false 
 }) => {
     const containerClasses = embedded 
@@ -54,6 +54,18 @@ export const OptionsMenu: React.FC<OptionsMenuProps> = ({
                     {autoSort ? <CheckSquare className="text-emerald-500" size={20} /> : <Square className="text-slate-600" size={20} />}
                 </div>
 
+                {/* Auto End Turn Toggle */}
+                <div 
+                    onClick={toggleAutoEndTurn}
+                    className="flex items-center justify-between cursor-pointer group bg-slate-950/50 p-3 rounded-lg border border-slate-800 hover:border-indigo-500/50 transition-colors"
+                >
+                    <div className="flex items-center gap-2">
+                        <FastForward className="text-indigo-400" size={16} />
+                        <span className="font-bold text-slate-300 group-hover:text-white transition-colors">Auto End Turn</span>
+                    </div>
+                    {autoEndTurn ? <CheckSquare className="text-emerald-500" size={20} /> : <Square className="text-slate-600" size={20} />}
+                </div>
+
                 {/* SFX Volume */}
                 <div className="space-y-2">
                     <div className="flex items-center justify-between text-slate-300 text-sm font-bold">
@@ -67,23 +79,6 @@ export const OptionsMenu: React.FC<OptionsMenuProps> = ({
                         min="0" max="1" step="0.05" 
                         value={sfxVolume} 
                         onChange={(e) => setSfxVolume(parseFloat(e.target.value))}
-                        className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500"
-                    />
-                </div>
-
-                {/* Music Volume */}
-                <div className="space-y-2">
-                    <div className="flex items-center justify-between text-slate-300 text-sm font-bold">
-                        <div className="flex items-center gap-2">
-                            <Music size={16} /> Music Volume
-                        </div>
-                        <span>{Math.round(musicVolume * 100)}%</span>
-                    </div>
-                    <input 
-                        type="range" 
-                        min="0" max="1" step="0.05" 
-                        value={musicVolume} 
-                        onChange={(e) => setMusicVolume(parseFloat(e.target.value))}
                         className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500"
                     />
                 </div>
