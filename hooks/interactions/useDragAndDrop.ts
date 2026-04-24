@@ -55,58 +55,32 @@ export const useDragAndDrop = ({ gameState, actions, tutorial, ui }: UseDragAndD
         e.stopPropagation();
     };
 
-    const handleDrop = (e: MouseEvent | TouchEvent | React.TouchEvent | React.MouseEvent) => {
-        if (!dragState || !gameState) return;
-        
-        let clientX: number, clientY: number;
-
-        // Handle Native and React events
-        if ('changedTouches' in e && (e as TouchEvent).changedTouches.length > 0) {
-             // TouchEvent (Native or React)
-             clientX = (e as TouchEvent).changedTouches[0].clientX;
-             clientY = (e as TouchEvent).changedTouches[0].clientY;
-        } else if ('clientX' in e) {
-             // MouseEvent
-             clientX = (e as MouseEvent).clientX;
-             clientY = (e as MouseEvent).clientY;
-        } else {
-            return;
-        }
-
-        const elements = document.elementsFromPoint(clientX, clientY);
-        const targetElement = elements.find(el => el.getAttribute('data-instance-id') || el.id === 'field-area');
-        if (!targetElement) {
-             setDragState(null);
-             return;
-        }
-        
-        if (dragState.sourceType === 'HAND' && gameState.phase === Phase.MAIN) {
-            const targetInstanceId = targetElement.getAttribute('data-instance-id');
-            if (targetElement.id === 'field-area' || targetInstanceId) { 
-                const player = gameState.players[gameState.turnPlayer];
+    const performDropAction = (cardObj: any, targetInstanceId: string | null, targetElementId: string | null, sourceType: string, instanceId?: string) => {
+        if (sourceType === 'HAND' && gameState!.phase === Phase.MAIN) {
+            if (targetElementId === 'field-area' || targetInstanceId) { 
+                const player = gameState!.players[gameState!.turnPlayer];
                 const untappedRes = player.resources.filter((r: any) => !r.isTapped).length;
-                if (untappedRes < dragState.cardObj.cost) { 
+                if (untappedRes < cardObj.cost) { 
                     actions.setGameState((prev: any) => ({ ...prev!, logs: addLog(prev!, "Not enough resources!") })); 
                 } else {
-                    if (dragState.cardObj.rank === 'Q' || dragState.cardObj.rank === 'K') {
+                    if (cardObj.rank === 'Q' || cardObj.rank === 'K') {
                         if (targetInstanceId) {
                             let targetOwnerId = -1;
-                            gameState.players.forEach((p: any) => { if (p.field.some((f: any) => f.instanceId === targetInstanceId)) targetOwnerId = p.id; });
-                            if (targetOwnerId !== -1) actions.playCard(dragState.cardObj, targetInstanceId, targetOwnerId);
+                            gameState!.players.forEach((p: any) => { if (p.field.some((f: any) => f.instanceId === targetInstanceId)) targetOwnerId = p.id; });
+                            if (targetOwnerId !== -1) actions.playCard(cardObj, targetInstanceId, targetOwnerId);
                         }
                     } else { 
-                        actions.playCard(dragState.cardObj); 
+                        actions.playCard(cardObj); 
                     }
-                    if (gameState.mode === 'TUTORIAL') {
-                         tutorial.advanceTutorialStep('PLAY_CARD', dragState.cardObj.id);
+                    if (gameState!.mode === 'TUTORIAL') {
+                         tutorial.advanceTutorialStep('PLAY_CARD', cardObj.id);
                     }
                 }
             }
         }
-        else if (dragState.sourceType === 'FIELD' && gameState.phase === Phase.BLOCK_DECLARE) {
-            const targetInstanceId = targetElement.getAttribute('data-instance-id');
-            if (targetInstanceId && dragState.instanceId) { 
-                 const blockerInstanceId = dragState.instanceId;
+        else if (sourceType === 'FIELD' && gameState!.phase === Phase.BLOCK_DECLARE) {
+            if (targetInstanceId && instanceId) { 
+                 const blockerInstanceId = instanceId;
                  const attackerInstanceId = targetInstanceId;
                  
                  actions.setGameState((prev: any) => {
@@ -120,10 +94,8 @@ export const useDragAndDrop = ({ gameState, actions, tutorial, ui }: UseDragAndD
                     
                     let newBlocks = { ...prev.pendingBlocks };
                     
-                    // IF Multi-blocking disabled, ensure 1-to-1 by removing any previous block on this attacker
                     const isAlreadyBlocked = Object.values(newBlocks).includes(attackerInstanceId);
                     if (!prev.isMultiBlockingEnabled && isAlreadyBlocked) {
-                         // Find and remove the existing blocker for this attacker
                          for (const [key, value] of Object.entries(newBlocks)) {
                              if (value === attackerInstanceId) {
                                  delete newBlocks[key];
@@ -135,11 +107,53 @@ export const useDragAndDrop = ({ gameState, actions, tutorial, ui }: UseDragAndD
                     return { ...prev, pendingBlocks: newBlocks };
                 });
                 
-                if (gameState.mode === 'TUTORIAL') tutorial.advanceTutorialStep('DECLARE_BLOCK', blockerInstanceId);
+                if (gameState!.mode === 'TUTORIAL') tutorial.advanceTutorialStep('DECLARE_BLOCK', blockerInstanceId);
             }
         }
+    };
+
+    const handleRemoteDrop = (cardObj: any, targetInstanceId: string | null, targetElementId: string | null, sourceType: string, instanceId?: string) => {
+         performDropAction(cardObj, targetInstanceId, targetElementId, sourceType, instanceId);
+    };
+
+    const handleDrop = (e: MouseEvent | TouchEvent | React.TouchEvent | React.MouseEvent) => {
+        if (!dragState || !gameState) return;
+        
+        let clientX: number, clientY: number;
+
+        if ('changedTouches' in e && (e as TouchEvent).changedTouches.length > 0) {
+             clientX = (e as TouchEvent).changedTouches[0].clientX;
+             clientY = (e as TouchEvent).changedTouches[0].clientY;
+        } else if ('clientX' in e) {
+             clientX = (e as MouseEvent).clientX;
+             clientY = (e as MouseEvent).clientY;
+        } else {
+             setDragState(null);
+             return;
+        }
+
+        const elements = document.elementsFromPoint(clientX, clientY);
+        const targetElement = elements.find(el => el.getAttribute('data-instance-id') || el.id === 'field-area');
+        
+        if (!targetElement) {
+             setDragState(null);
+             return;
+        }
+        
+        const targetInstanceId = targetElement.getAttribute('data-instance-id');
+        const targetElementId = targetElement.id;
+
+        // Broadcast here via App.tsx wrapper logic? Wait, hook doesn't have access to broadcast.
+        // We can expose `onDropResult` or we can trigger `dragDrop` event to `App.tsx` via callback!
+        // We'll pass `onDragDropData` via props.
+        if (actions.onDragDropData) {
+            actions.onDragDropData(dragState.cardObj, targetInstanceId, targetElementId, dragState.sourceType, dragState.instanceId);
+        }
+
+        performDropAction(dragState.cardObj, targetInstanceId, targetElementId, dragState.sourceType, dragState.instanceId);
+        
         setDragState(null);
     };
 
-    return { dragState, setDragState, handleDragStart, handleDrop };
+    return { dragState, setDragState, handleDragStart, handleDrop, handleRemoteDrop };
 };

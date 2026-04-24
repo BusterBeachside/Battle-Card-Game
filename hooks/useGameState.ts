@@ -23,9 +23,10 @@ interface GameStateProps {
     effects: any;
     refs: GameStateRefs;
     autoSort: boolean;
+    localPlayerId: number;
 }
 
-export const useGameState = ({ effects, refs, autoSort }: GameStateProps) => {
+export const useGameState = ({ effects, refs, autoSort, localPlayerId }: GameStateProps) => {
     const [gameState, setGameState] = useState<GameState | null>(null);
     const gameStateRef = useRef<GameState | null>(null);
     const isDrawingInitialRef = useRef(false);
@@ -34,7 +35,7 @@ export const useGameState = ({ effects, refs, autoSort }: GameStateProps) => {
 
     // --- SUB-HOOKS ---
     const { drawCards, advancePhase, performEndTurn, checkGameOver } = useTurnManager({ 
-        gameStateRef, setGameState, effects, refs, autoSort 
+        gameStateRef, setGameState, effects, refs, autoSort, localPlayerId 
     });
 
     const { playCard } = useCardActions({ 

@@ -4,13 +4,14 @@ import Peer, { DataConnection } from 'peerjs';
 import { GameState } from '../types';
 
 export type MultiplayerAction = 
-  | { type: 'START_GAME', state: GameState }
+  | { type: 'START_GAME', state: GameState, coinFlipWinner?: number | null }
   | { type: 'SYNC_STATE', state: GameState }
   | { type: 'CARD_CLICK', card: any, location: string, ownerId: number, instanceId?: string }
   | { type: 'CONFIRM_INIT' }
   | { type: 'PHASE_ACTION', action: string }
-  | { type: 'DRAG_DROP', cardId: string, targetId: string, sourceType: string, ownerId: number, instanceId?: string }
-  | { type: 'CHAT', message: string };
+  | { type: 'DRAG_DROP', cardObj: any, targetInstanceId: string | null, targetElementId: string | null, sourceType: string, instanceId?: string }
+  | { type: 'CHAT', message: string }
+  | { type: 'RESIGN', playerId: number };
 
 export const useMultiplayer = (
     onActionReceived: (action: MultiplayerAction) => void
@@ -93,6 +94,20 @@ export const useMultiplayer = (
         }
     }, [connection]);
 
+    const disconnect = useCallback(() => {
+        if (connection) {
+            connection.close();
+        }
+        if (peer) {
+            peer.destroy();
+        }
+        setStatus('DISCONNECTED');
+        setConnection(null);
+        setPeer(null);
+        setPeerId('');
+        setIsHost(false);
+    }, [connection, peer]);
+
     return {
         peerId,
         status,
@@ -100,6 +115,7 @@ export const useMultiplayer = (
         isHost,
         connectToPeer,
         broadcast,
+        disconnect,
         connection
     };
 };

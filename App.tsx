@@ -40,14 +40,15 @@ export const App: React.FC = () => {
   // Audio Priming State
   const [audioPrimed, setAudioPrimed] = useState(false);
 
+  const [localPlayerId, setLocalPlayerId] = useState(0);
+  const [coinFlipWinner, setCoinFlipWinner] = useState<number | null>(null);
+
     const { 
         gameState, setGameState, gameStateRef,
         startGame, drawCards, playCard, advancePhase, 
         performEndTurn, confirmAttack, confirmBlocks, 
         isDrawingInitialRef, getActiveDecisionPlayerId 
-    } = useGameState({ effects, refs, autoSort: ui.autoSort });
-
-    const localPlayerId = useRef(0);
+    } = useGameState({ effects, refs, autoSort: ui.autoSort, localPlayerId });
 
     const { advanceTutorialStep, handleTutorialNext, isInteractionAllowed, handleGlobalClick } = useTutorial({
         gameState,
@@ -59,6 +60,12 @@ export const App: React.FC = () => {
         effects
     });
 
+    const handleDragDropData = (cardObj: any, targetInstanceId: string | null, targetElementId: string | null, sourceType: string, instanceId?: string) => {
+        if (gameState?.isOnline && getActiveDecisionPlayerId(gameState) === localPlayerId) {
+            broadcast({ type: 'DRAG_DROP', cardObj, targetInstanceId, targetElementId, sourceType, instanceId });
+        }
+    };
+
     const interactions = useGameInteractions(gameState, {
         setGameState,
         gameStateRef,
@@ -66,8 +73,10 @@ export const App: React.FC = () => {
         drawCards,
         playCard,
         advancePhase,
+        performEndTurn,
         confirmAttack,
-        confirmBlocks
+        confirmBlocks,
+        onDragDropData: handleDragDropData
     }, effects, {
         isInteractionAllowed,
         advanceTutorialStep
@@ -79,8 +88,12 @@ export const App: React.FC = () => {
 
         switch (action.type) {
             case 'START_GAME':
-                localPlayerId.current = 1; // You are the guest
+                setLocalPlayerId(1); // You are the guest
                 setGameState(action.state);
+                if (action.coinFlipWinner !== undefined) {
+                    setCoinFlipWinner(action.coinFlipWinner);
+                    ui.setIsCoinFlipping(true);
+                }
                 ui.setMenuStep('MODE'); // Get out of setup
                 break;
             case 'SYNC_STATE':
@@ -95,6 +108,17 @@ export const App: React.FC = () => {
             case 'PHASE_ACTION':
                 interactions.handlePhaseAction(action.action as any);
                 break;
+            case 'DRAG_DROP':
+                interactions.handleRemoteDrop(action.cardObj, action.targetInstanceId, action.targetElementId, action.sourceType, action.instanceId);
+                break;
+            case 'RESIGN':
+                playSound('game_over');
+                setGameState(prev => {
+                    if(!prev) return null;
+                    const opponentId = action.playerId === 0 ? 1 : 0;
+                    return { ...prev, winner: opponentId, phase: Phase.GAME_OVER, logs: addLog(prev, `${prev.players[action.playerId].name} resigned.`) };
+                });
+                break;
             case 'CHAT':
                 setGameState(prev => {
                     if(!prev) return null;
@@ -104,25 +128,28 @@ export const App: React.FC = () => {
         }
     }, [setGameState, ui, interactions]);
 
-    const { peerId, status, error, isHost, connectToPeer, broadcast, connection } = useMultiplayer(onActionReceived);
+    const { peerId, status, error, isHost, connectToPeer, broadcast, disconnect, connection } = useMultiplayer(onActionReceived);
 
     const handleCardClick = (card: any, location: any, ownerId: number, instanceId?: string, fromRemote: boolean = false) => {
-        if (!fromRemote && gameState?.isOnline && getActiveDecisionPlayerId(gameState) === localPlayerId.current) {
+        if (!fromRemote && gameState?.isOnline && getActiveDecisionPlayerId(gameState) === localPlayerId) {
             broadcast({ type: 'CARD_CLICK', card, location, ownerId, instanceId });
         }
         interactions.handleCardClick(card, location, ownerId, instanceId, fromRemote);
     };
 
     const handleConfirmInitSelection = (fromRemote: boolean = false) => {
-        if (!fromRemote && gameState?.isOnline && getActiveDecisionPlayerId(gameState) === localPlayerId.current) {
+        if (!fromRemote && gameState?.isOnline && getActiveDecisionPlayerId(gameState) === localPlayerId) {
             broadcast({ type: 'CONFIRM_INIT' });
         }
         interactions.handleConfirmInitSelection();
     };
 
     const handlePhaseAction = (action: any, fromRemote: boolean = false) => {
-        if (!fromRemote && gameState?.isOnline && getActiveDecisionPlayerId(gameState) === localPlayerId.current) {
-            broadcast({ type: 'PHASE_ACTION', action });
+        // Only broadcast if it's not the intent to open a local modal
+        if (!fromRemote && gameState?.isOnline && getActiveDecisionPlayerId(gameState) === localPlayerId) {
+            if (action !== 'END_TURN') {
+                broadcast({ type: 'PHASE_ACTION', action });
+            }
         }
         interactions.handlePhaseAction(action);
     };
@@ -133,12 +160,18 @@ export const App: React.FC = () => {
         }
     };
 
+    const hasBroadcastedStart = useRef(false);
+
     // Initial Start as Host
     useEffect(() => {
-        if (isHost && connection?.open && gameState && gameState.isOnline && !gameStateRef.current?.isMultiplayerStarted) {
-            broadcast({ type: 'START_GAME', state: { ...gameState, isMultiplayerStarted: true } as any });
+        const needsCoinFlip = ui.selectedMode === 'STREET' || ui.selectedMode === 'PRO';
+        const isWinnerReady = !needsCoinFlip || coinFlipWinner !== null;
+
+        if (isHost && connection?.open && gameState && gameState.isOnline && !hasBroadcastedStart.current && isWinnerReady) {
+            broadcast({ type: 'START_GAME', state: { ...gameState, isMultiplayerStarted: true } as any, coinFlipWinner });
+            hasBroadcastedStart.current = true;
         }
-    }, [isHost, connection?.open, gameState?.isOnline, broadcast, gameState, gameStateRef]);
+    }, [isHost, connection?.open, gameState?.isOnline, broadcast, gameState, coinFlipWinner, ui.selectedMode]);
 
   const gameHandlers = {
       onCardClick: handleCardClick,
@@ -186,7 +219,7 @@ export const App: React.FC = () => {
   
     const handleStartGameClick = (isCpu: boolean) => { 
         if (ui.selectedMode) {
-            localPlayerId.current = 0;
+            setLocalPlayerId(0);
             startGame(ui.selectedMode, { p1: false, p2: isCpu }, undefined, ui.enableMultiBlocking);
             if (ui.selectedMode === 'STREET' || ui.selectedMode === 'PRO') {
                 ui.setIsCoinFlipping(true);
@@ -196,9 +229,14 @@ export const App: React.FC = () => {
 
     const handleStartMultiplayer = () => {
         if (!ui.selectedMode) return;
-        localPlayerId.current = 0; // Host is Player 0
+        setLocalPlayerId(0); // Host is Player 0
+        const winner = Math.random() > 0.5 ? 0 : 1;
+        setCoinFlipWinner(winner);
         startGame(ui.selectedMode, { p1: false, p2: false }, undefined, ui.enableMultiBlocking);
         setGameState(prev => prev ? { ...prev, isOnline: true } : null);
+        if (ui.selectedMode === 'STREET' || ui.selectedMode === 'PRO') {
+            ui.setIsCoinFlipping(true);
+        }
     };
 
   const handleSpectateClick = () => { 
@@ -211,6 +249,10 @@ export const App: React.FC = () => {
   };
 
   const handleQuitToTitle = () => {
+      if (gameState?.isOnline) {
+          disconnect();
+          hasBroadcastedStart.current = false;
+      }
       const isTutorial = gameState?.mode === 'TUTORIAL';
       setGameState(null);
       ui.resetModals();
@@ -219,6 +261,9 @@ export const App: React.FC = () => {
 
   const handleResign = () => {
       if (!gameState) return;
+      if (gameState.isOnline) {
+          broadcast({ type: 'RESIGN', playerId: localPlayerId });
+      }
       playSound('game_over'); // Play sound on resign
       setGameState(prev => {
           if(!prev) return null;
@@ -317,7 +362,14 @@ export const App: React.FC = () => {
             const timer = setTimeout(() => {
                 // Double check state hasn't changed
                 if (gameState.phase === Phase.MAIN && gameState.turnPlayer === activePid && !effects.hasActiveAnimations) {
-                    performEndTurn();
+                    if (gameState.isOnline) {
+                        if (activePid === localPlayerId) {
+                            broadcast({ type: 'PHASE_ACTION', action: 'AUTO_END_TURN' });
+                            performEndTurn();
+                        }
+                    } else {
+                        performEndTurn();
+                    }
                 }
             }, 1000); // 1s delay for better UX
             return () => clearTimeout(timer);
@@ -421,7 +473,7 @@ export const App: React.FC = () => {
 
   const activeDecisionPlayerId = getActiveDecisionPlayerId(gameState);
   const isHotseat = !gameState.players[1].isCpu || gameState.mode === 'SANDBOX' || gameState.isOnline;
-  const viewPlayerId = gameState.isOnline ? localPlayerId.current : (isHotseat ? activeDecisionPlayerId : 0); 
+  const viewPlayerId = gameState.isOnline ? localPlayerId : (isHotseat ? activeDecisionPlayerId : 0); 
   const bottomPlayer = gameState.players[viewPlayerId];
   const topPlayer = gameState.players[viewPlayerId === 0 ? 1 : 0];
   const isPlayerTurn = activeDecisionPlayerId === viewPlayerId;
@@ -473,13 +525,15 @@ export const App: React.FC = () => {
       onTouchEnd={(e) => interactions.handleDrop(e.nativeEvent)}
       onClick={handleAppInteraction}
     >
-      {ui.isCoinFlipping && (
+      {ui.isCoinFlipping && gameState && (
            <CoinFlipOverlay 
-                p1Name={gameState.players[0].name} 
-                p2Name={gameState.players[1].name} 
+                p1Name={gameState.isOnline ? (localPlayerId === 0 ? "You" : "Opponent") : gameState.players[0].name} 
+                p2Name={gameState.isOnline ? (localPlayerId === 1 ? "You" : "Opponent") : gameState.players[1].name} 
+                forcedWinner={coinFlipWinner}
                 onComplete={(winner) => {
                     setGameState(prev => prev ? { ...prev, turnPlayer: winner, startingPlayerId: winner, logs: addLog(prev, `Coin Flip: ${prev.players[winner].name} goes first!`) } : null);
                     ui.setIsCoinFlipping(false);
+                    setCoinFlipWinner(null);
                 }} 
            />
       )}
@@ -608,7 +662,7 @@ export const App: React.FC = () => {
 
       <EndTurnModal show={ui.showEndTurnModal} onCancel={() => ui.setShowEndTurnModal(false)} onConfirm={() => { 
           ui.setShowEndTurnModal(false); 
-          performEndTurn(); 
+          handlePhaseAction('AUTO_END_TURN'); 
           if(gameState.mode === 'TUTORIAL') advanceTutorialStep('CLICK_UI_BUTTON', 'btn-end-turn-modal-confirm');
       }} />
       <ResignModal show={ui.showResignModal} onCancel={() => ui.setShowResignModal(false)} onConfirm={handleResign} />
@@ -634,6 +688,13 @@ export const App: React.FC = () => {
         onClose={() => ui.setViewingDiscard(null)} 
         mode={gameState.mode} 
       />
+
+      {gameState.isOnline && status === 'DISCONNECTED' && (
+          <div className="absolute top-4 inset-x-0 mx-auto w-max z-[150] bg-red-600/90 text-white px-4 py-2 rounded-full font-bold shadow-xl animate-in fade-in slide-in-from-top flex items-center justify-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-red-300 animate-ping"></span>
+              Connection Lost! P2P Peer Disconnected.
+          </div>
+      )}
 
       {effects.specialAnim && <SpecialCardAnimation type={effects.specialAnim.type} card={effects.specialAnim.card} targetRect={effects.specialAnim.targetRect} onComplete={() => effects.setSpecialAnim(null)} />}
 

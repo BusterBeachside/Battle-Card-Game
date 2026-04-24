@@ -22,7 +22,7 @@ export const canBlock = (attacker: FieldCard, blocker: FieldCard): boolean => {
 };
 
 export const createFieldCard = (card: Card, ownerId: number): FieldCard => ({
-  instanceId: generateId(),
+  instanceId: card.id,
   card,
   ownerId,
   isTapped: false,

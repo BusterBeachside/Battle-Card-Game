@@ -399,7 +399,7 @@ export const DesktopLayout: React.FC<LayoutProps> = ({
                                 Confirm Attackers
                             </button>
                         )}
-                        {gameState.phase === Phase.BLOCK_DECLARE && activeDecisionPlayerId === 0 && (
+                        {gameState.phase === Phase.BLOCK_DECLARE && activeDecisionPlayerId === bottomPlayer.id && (
                             <button id="btn-confirm-blocks" onClick={() => handlers.onPhaseAction('CONFIRM_BLOCK')} className="col-span-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded shadow-lg shadow-blue-900/50 h-12">
                                 Confirm Blocks
                             </button>

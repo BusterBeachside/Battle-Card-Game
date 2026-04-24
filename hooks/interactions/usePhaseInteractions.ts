@@ -259,7 +259,7 @@ export const usePhaseInteractions = ({ gameState, actions, effects, tutorial, ui
          });
     };
 
-    const handlePhaseAction = (action: 'ATTACK_PHASE' | 'END_TURN' | 'CONFIRM_ATTACK' | 'CONFIRM_BLOCK' | 'ADD_RESOURCE' | 'SWAP_RESOURCE' | 'CANCEL_RESOURCE' | 'CONFIRM_INIT') => {
+    const handlePhaseAction = (action: 'ATTACK_PHASE' | 'END_TURN' | 'AUTO_END_TURN' | 'CONFIRM_ATTACK' | 'CONFIRM_BLOCK' | 'ADD_RESOURCE' | 'SWAP_RESOURCE' | 'CANCEL_RESOURCE' | 'CONFIRM_INIT') => {
         if(action === 'ATTACK_PHASE') {
              if (gameState?.mode === 'TUTORIAL') {
                   if (!tutorial.isInteractionAllowed('btn-attack-phase')) return;
@@ -272,6 +272,9 @@ export const usePhaseInteractions = ({ gameState, actions, effects, tutorial, ui
              if (!tutorial.isInteractionAllowed('btn-end-turn')) return;
              ui.setShowEndTurnModal(true);
              playSound('menu_click');
+        }
+        else if (action === 'AUTO_END_TURN') {
+             actions.performEndTurn();
         }
         else if (action === 'CONFIRM_ATTACK') {
              if (gameState?.mode === 'TUTORIAL') {

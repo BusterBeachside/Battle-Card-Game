@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 
-export const CoinFlipOverlay: React.FC<{ onComplete: (winner: number) => void, p1Name: string, p2Name: string }> = ({ onComplete, p1Name, p2Name }) => {
+export const CoinFlipOverlay: React.FC<{ onComplete: (winner: number) => void, p1Name: string, p2Name: string, forcedWinner?: number | null }> = ({ onComplete, p1Name, p2Name, forcedWinner }) => {
     const [rotation, setRotation] = useState(0);
     const [resultText, setResultText] = useState("Flipping...");
 
     useEffect(() => {
-        const winner = Math.random() > 0.5 ? 0 : 1;
+        const winner = (forcedWinner !== undefined && forcedWinner !== null) ? forcedWinner : (Math.random() > 0.5 ? 0 : 1);
         const target = 1800 + (winner === 1 ? 180 : 0);
         
         requestAnimationFrame(() => {

@@ -11,7 +11,7 @@ export const useGameInteractions = (
     refs: any
 ) => {
     
-    const { dragState, setDragState, handleDragStart, handleDrop } = useDragAndDrop({ 
+    const { dragState, setDragState, handleDragStart, handleDrop, handleRemoteDrop } = useDragAndDrop({ 
         gameState, actions, tutorial, ui 
     });
 
@@ -24,6 +24,7 @@ export const useGameInteractions = (
         handleCardClick,
         handleDragStart,
         handleDrop,
+        handleRemoteDrop,
         handlePhaseAction,
         handleConfirmInitSelection
     };

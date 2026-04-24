@@ -12,9 +12,10 @@ interface UseTurnManagerProps {
     effects: any;
     refs: any;
     autoSort: boolean;
+    localPlayerId: number;
 }
 
-export const useTurnManager = ({ gameStateRef, setGameState, effects, refs, autoSort }: UseTurnManagerProps) => {
+export const useTurnManager = ({ gameStateRef, setGameState, effects, refs, autoSort, localPlayerId }: UseTurnManagerProps) => {
     
     const resolveTiebreaker = (state: GameState): GameState => {
         const p1 = state.players[0];
@@ -68,13 +69,18 @@ export const useTurnManager = ({ gameStateRef, setGameState, effects, refs, auto
         const player = startState.players[pIndex];
         
         // Setup View Logic
+        const isOnline = !!startState.isOnline;
         const isSpectate = startState.players[0].isCpu && startState.players[1].isCpu;
         const isHotseat = !startState.players[1].isCpu || startState.players[0].isCpu;
-        const viewId = (isHotseat && !isSpectate) ? startState.turnPlayer : 0;
+        
+        // In Online mode, the local player is always "bottom". In Hotseat/Solo, it depends on whose turn it is.
+        const viewId = isOnline ? localPlayerId : ((isHotseat && !isSpectate) ? startState.turnPlayer : 0);
         const isBottom = playerId === viewId;
         
-        // Show face if: It's me, OR it's spectate mode, OR it's hotseat turn
-        const shouldShowFace = (!player.isCpu) || isSpectate || (isHotseat && playerId === startState.turnPlayer);
+        // Show face if: 
+        // 1. It's the local player drawing their own card in online mode
+        // 2. It's NOT online mode AND (not a CPU OR spectate OR hotseat turn)
+        const shouldShowFace = isOnline ? (playerId === localPlayerId) : ((!player.isCpu) || isSpectate || (isHotseat && playerId === startState.turnPlayer));
 
         // Extract cards from deck model
         const deck = startState.mode === 'STREET' || startState.mode === 'TUTORIAL' ? startState.deck : player.library;
