@@ -1,9 +1,9 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { Phase, GameMode } from './types';
 import { addLog } from './utils/core';
 import { createFieldCard, getEffectiveColor } from './utils/rules';
-import { RotateCcw, Play, Edit3, Trash2, GraduationCap, Volume2 } from 'lucide-react';
+import { RotateCcw, Play, Edit3, Trash2, GraduationCap, Volume2, Users } from 'lucide-react';
 import { sortHand } from './utils/cards';
 import { primeAudio, playSound } from './utils/soundUtils';
 
@@ -30,6 +30,7 @@ import { useGameState } from './hooks/useGameState';
 import { useTutorial } from './hooks/useTutorial';
 import { useGameAI } from './hooks/useGameAI';
 import { useGameInteractions } from './hooks/useGameInteractions';
+import { useMultiplayer, MultiplayerAction } from './hooks/useMultiplayer';
 
 export const App: React.FC = () => {
   const refs = useGameRefs();
@@ -39,36 +40,116 @@ export const App: React.FC = () => {
   // Audio Priming State
   const [audioPrimed, setAudioPrimed] = useState(false);
 
-  const { 
-    gameState, setGameState, gameStateRef,
-    startGame, drawCards, playCard, advancePhase, 
-    performEndTurn, confirmAttack, confirmBlocks, 
-    isDrawingInitialRef, getActiveDecisionPlayerId 
-  } = useGameState({ effects, refs, autoSort: ui.autoSort });
+    const { 
+        gameState, setGameState, gameStateRef,
+        startGame, drawCards, playCard, advancePhase, 
+        performEndTurn, confirmAttack, confirmBlocks, 
+        isDrawingInitialRef, getActiveDecisionPlayerId 
+    } = useGameState({ effects, refs, autoSort: ui.autoSort });
 
-  const { advanceTutorialStep, handleTutorialNext, isInteractionAllowed, handleGlobalClick } = useTutorial({
-      gameState,
-      setGameState,
-      gameStateRef,
-      performEndTurn,
-      confirmBlocks,
-      refs,
-      effects
-  });
+    const localPlayerId = useRef(0);
 
-  const interactions = useGameInteractions(gameState, {
-      setGameState,
-      gameStateRef,
-      getActiveDecisionPlayerId,
-      drawCards,
-      playCard,
-      advancePhase,
-      confirmAttack,
-      confirmBlocks
-  }, effects, {
-      isInteractionAllowed,
-      advanceTutorialStep
-  }, ui, refs);
+    const { advanceTutorialStep, handleTutorialNext, isInteractionAllowed, handleGlobalClick } = useTutorial({
+        gameState,
+        setGameState,
+        gameStateRef,
+        performEndTurn,
+        confirmBlocks,
+        refs,
+        effects
+    });
+
+    const interactions = useGameInteractions(gameState, {
+        setGameState,
+        gameStateRef,
+        getActiveDecisionPlayerId,
+        drawCards,
+        playCard,
+        advancePhase,
+        confirmAttack,
+        confirmBlocks
+    }, effects, {
+        isInteractionAllowed,
+        advanceTutorialStep
+    }, ui, refs);
+
+    const onActionReceived = useCallback((action: MultiplayerAction) => {
+        const currentState = gameStateRef.current;
+        if (!currentState && action.type !== 'START_GAME') return;
+
+        switch (action.type) {
+            case 'START_GAME':
+                localPlayerId.current = 1; // You are the guest
+                setGameState(action.state);
+                ui.setMenuStep('MODE'); // Get out of setup
+                break;
+            case 'SYNC_STATE':
+                setGameState(action.state);
+                break;
+            case 'CARD_CLICK':
+                interactions.handleCardClick(action.card, action.location as any, action.ownerId, action.instanceId, true);
+                break;
+            case 'CONFIRM_INIT':
+                interactions.handleConfirmInitSelection();
+                break;
+            case 'PHASE_ACTION':
+                interactions.handlePhaseAction(action.action as any);
+                break;
+            case 'CHAT':
+                setGameState(prev => {
+                    if(!prev) return null;
+                    return { ...prev, logs: addLog(prev, `Friend: ${action.message}`) };
+                });
+                break;
+        }
+    }, [setGameState, ui, interactions]);
+
+    const { peerId, status, error, isHost, connectToPeer, broadcast, connection } = useMultiplayer(onActionReceived);
+
+    const handleCardClick = (card: any, location: any, ownerId: number, instanceId?: string, fromRemote: boolean = false) => {
+        if (!fromRemote && gameState?.isOnline && getActiveDecisionPlayerId(gameState) === localPlayerId.current) {
+            broadcast({ type: 'CARD_CLICK', card, location, ownerId, instanceId });
+        }
+        interactions.handleCardClick(card, location, ownerId, instanceId, fromRemote);
+    };
+
+    const handleConfirmInitSelection = (fromRemote: boolean = false) => {
+        if (!fromRemote && gameState?.isOnline && getActiveDecisionPlayerId(gameState) === localPlayerId.current) {
+            broadcast({ type: 'CONFIRM_INIT' });
+        }
+        interactions.handleConfirmInitSelection();
+    };
+
+    const handlePhaseAction = (action: any, fromRemote: boolean = false) => {
+        if (!fromRemote && gameState?.isOnline && getActiveDecisionPlayerId(gameState) === localPlayerId.current) {
+            broadcast({ type: 'PHASE_ACTION', action });
+        }
+        interactions.handlePhaseAction(action);
+    };
+
+    const handleSyncState = () => {
+        if (gameState?.isOnline) {
+            broadcast({ type: 'SYNC_STATE', state: gameState });
+        }
+    };
+
+    // Initial Start as Host
+    useEffect(() => {
+        if (isHost && connection?.open && gameState && gameState.isOnline && !gameStateRef.current?.isMultiplayerStarted) {
+            broadcast({ type: 'START_GAME', state: { ...gameState, isMultiplayerStarted: true } as any });
+        }
+    }, [isHost, connection?.open, gameState?.isOnline, broadcast, gameState, gameStateRef]);
+
+  const gameHandlers = {
+      onCardClick: handleCardClick,
+      handleConfirmInitSelection,
+      handlePhaseAction,
+      onDragStart: interactions.handleDragStart,
+      onPhaseAction: handlePhaseAction,
+      setViewingDiscard: ui.setViewingDiscard,
+      setShowMenu: ui.setShowMenu,
+      toggleLog: () => ui.setShowMobileLog(!ui.showMobileLog)
+  };
 
   // Initialize AI Hook
   useGameAI({
@@ -81,8 +162,8 @@ export const App: React.FC = () => {
           playCard,
           confirmAttack,
           confirmBlocks,
-          handleCardClick: interactions.handleCardClick,
-          handleConfirmInitSelection: interactions.handleConfirmInitSelection,
+          handleCardClick,
+          handleConfirmInitSelection,
           getActiveDecisionPlayerId
       },
       isCoinFlipping: ui.isCoinFlipping,
@@ -103,14 +184,22 @@ export const App: React.FC = () => {
   
   const startLesson = (lessonId: string) => { startGame('TUTORIAL', { p1: false, p2: true }, lessonId); };
   
-  const handleStartGameClick = (isCpu: boolean) => { 
-      if (ui.selectedMode) {
-          startGame(ui.selectedMode, { p1: false, p2: isCpu }, undefined, ui.enableMultiBlocking);
-          if (ui.selectedMode === 'STREET' || ui.selectedMode === 'PRO') {
-              ui.setIsCoinFlipping(true);
-          }
-      }
-  };
+    const handleStartGameClick = (isCpu: boolean) => { 
+        if (ui.selectedMode) {
+            localPlayerId.current = 0;
+            startGame(ui.selectedMode, { p1: false, p2: isCpu }, undefined, ui.enableMultiBlocking);
+            if (ui.selectedMode === 'STREET' || ui.selectedMode === 'PRO') {
+                ui.setIsCoinFlipping(true);
+            }
+        }
+    };
+
+    const handleStartMultiplayer = () => {
+        if (!ui.selectedMode) return;
+        localPlayerId.current = 0; // Host is Player 0
+        startGame(ui.selectedMode, { p1: false, p2: false }, undefined, ui.enableMultiBlocking);
+        setGameState(prev => prev ? { ...prev, isOnline: true } : null);
+    };
 
   const handleSpectateClick = () => { 
       if (ui.selectedMode) {
@@ -290,7 +379,31 @@ export const App: React.FC = () => {
                 onOpenOptions={() => ui.setShowOptions(true)}
                 enableMultiBlocking={ui.enableMultiBlocking}
                 setEnableMultiBlocking={ui.setEnableMultiBlocking}
+                multiplayer={{
+                    peerId,
+                    status,
+                    error,
+                    connect: connectToPeer
+                }}
+                selectedMode={ui.selectedMode}
             />
+            {status === 'CONNECTED' && isHost && !gameState && (
+                <div className="absolute inset-0 z-[100] bg-black/60 flex items-center justify-center backdrop-blur-sm">
+                    <div className="bg-slate-900 p-8 rounded-2xl border border-slate-700 shadow-2xl flex flex-col items-center gap-6 animate-in zoom-in duration-300">
+                        <Users className="w-16 h-16 text-indigo-400 animate-bounce" />
+                        <div className="text-center">
+                            <h2 className="text-2xl font-bold text-white mb-2 font-title">Friend Connected!</h2>
+                            <p className="text-slate-400 text-sm">Ready to start the tactical warfare?</p>
+                        </div>
+                        <button 
+                            onClick={handleStartMultiplayer}
+                            className="bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-indigo-500/20 transition-all hover:scale-105 active:scale-95"
+                        >
+                            START GAME
+                        </button>
+                    </div>
+                </div>
+            )}
             {ui.showOptions && (
                 <OptionsMenu 
                     onClose={() => ui.setShowOptions(false)}
@@ -307,23 +420,14 @@ export const App: React.FC = () => {
   }
 
   const activeDecisionPlayerId = getActiveDecisionPlayerId(gameState);
-  const isHotseat = !gameState.players[1].isCpu || gameState.mode === 'SANDBOX';
-  const viewPlayerId = isHotseat ? activeDecisionPlayerId : 0; 
+  const isHotseat = !gameState.players[1].isCpu || gameState.mode === 'SANDBOX' || gameState.isOnline;
+  const viewPlayerId = gameState.isOnline ? localPlayerId.current : (isHotseat ? activeDecisionPlayerId : 0); 
   const bottomPlayer = gameState.players[viewPlayerId];
   const topPlayer = gameState.players[viewPlayerId === 0 ? 1 : 0];
   const isPlayerTurn = activeDecisionPlayerId === viewPlayerId;
   const isActivePlayerCpu = gameState.players[activeDecisionPlayerId].isCpu;
   const isInteractive = isPlayerTurn && !isActivePlayerCpu;
   const tutorialComplete = gameState.tutorialState?.completed;
-
-  const gameHandlers = {
-      onCardClick: interactions.handleCardClick,
-      onDragStart: interactions.handleDragStart,
-      onPhaseAction: interactions.handlePhaseAction,
-      setViewingDiscard: ui.setViewingDiscard,
-      setShowMenu: ui.setShowMenu,
-      toggleLog: () => ui.setShowMobileLog(!ui.showMobileLog)
-  };
 
   return (
     <>
@@ -519,6 +623,7 @@ export const App: React.FC = () => {
         onToggleSort={() => ui.toggleAutoSort(setGameState, getActiveDecisionPlayerId)}
         autoEndTurn={ui.autoEndTurn}
         onToggleAutoEndTurn={ui.toggleAutoEndTurn}
+        onSyncState={gameState?.isOnline ? handleSyncState : undefined}
         sfxVolume={ui.sfxVolume}
         setSfxVolume={ui.setSfxVolume}
       />

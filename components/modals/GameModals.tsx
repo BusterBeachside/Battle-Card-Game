@@ -67,6 +67,7 @@ interface PauseMenuProps {
     onToggleSort: () => void;
     autoEndTurn: boolean;
     onToggleAutoEndTurn: () => void;
+    onSyncState?: () => void;
     sfxVolume: number;
     setSfxVolume: (v: number) => void;
 }
@@ -80,6 +81,7 @@ export const PauseMenu: React.FC<PauseMenuProps> = ({
     onToggleSort,
     autoEndTurn,
     onToggleAutoEndTurn,
+    onSyncState,
     sfxVolume,
     setSfxVolume
 }) => {
@@ -100,6 +102,7 @@ export const PauseMenu: React.FC<PauseMenuProps> = ({
                         toggleAutoSort={onToggleSort}
                         autoEndTurn={autoEndTurn}
                         toggleAutoEndTurn={onToggleAutoEndTurn}
+                        onSyncState={onSyncState}
                         sfxVolume={sfxVolume}
                         setSfxVolume={setSfxVolume}
                     />

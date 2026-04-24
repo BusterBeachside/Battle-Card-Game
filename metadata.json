@@ -1,5 +1,6 @@
 {
   "name": "Battle Card Game",
   "description": "A strategic React/Tailwind implementation of the 'Battle' card game featuring resource management, lane-based combat, and tactical face cards.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [],
+  "majorCapabilities": []
 }

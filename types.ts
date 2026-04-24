@@ -94,6 +94,8 @@ export interface TutorialState {
 
 export interface GameState {
   mode: GameMode;
+  isOnline?: boolean;
+  isMultiplayerStarted?: boolean;
   isSandboxRun?: boolean;
   isMultiBlockingEnabled?: boolean;
   deck: Card[]; // Shared deck for Street mode

@@ -8,6 +8,7 @@ interface OptionsMenuProps {
     toggleAutoSort: () => void;
     autoEndTurn: boolean;
     toggleAutoEndTurn: () => void;
+    onSyncState?: () => void;
     sfxVolume: number;
     setSfxVolume: (v: number) => void;
     embedded?: boolean;
@@ -19,6 +20,7 @@ export const OptionsMenu: React.FC<OptionsMenuProps> = ({
     toggleAutoSort, 
     autoEndTurn,
     toggleAutoEndTurn,
+    onSyncState,
     sfxVolume, 
     setSfxVolume, 
     embedded = false 
@@ -65,6 +67,16 @@ export const OptionsMenu: React.FC<OptionsMenuProps> = ({
                     </div>
                     {autoEndTurn ? <CheckSquare className="text-emerald-500" size={20} /> : <Square className="text-slate-600" size={20} />}
                 </div>
+
+                {/* Multiplayer Sync Button */}
+                {onSyncState && (
+                    <button 
+                        onClick={onSyncState}
+                        className="w-full bg-indigo-600/20 hover:bg-indigo-600/40 border border-indigo-500/30 hover:border-indigo-400 p-3 rounded-lg text-indigo-100 font-bold flex items-center justify-center gap-2 transition-all active:scale-95"
+                    >
+                        <Volume2 size={18} /> Forced State Sync
+                    </button>
+                )}
 
                 {/* SFX Volume */}
                 <div className="space-y-2">
