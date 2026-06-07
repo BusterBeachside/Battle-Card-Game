@@ -17,7 +17,7 @@ export const useGameEffects = () => {
     const [soulTrails, setSoulTrails] = useState<SoulTrail[]>([]);
     const [explosions, setExplosions] = useState<{ id: string, x: number, y: number }[]>([]);
     const [damageAnims, setDamageAnims] = useState<DamageAnimInstance[]>([]);
-    const [specialAnim, setSpecialAnim] = useState<{ type: 'K'|'Q'|'J', card: Card, targetRect?: DOMRect } | null>(null);
+    const [specialAnim, setSpecialAnim] = useState<{ type: 'K'|'Q'|'J', card: Card, targetRect?: DOMRect, cardFace?: string, cardBack?: string } | null>(null);
     const [showTurnAnim, setShowTurnAnim] = useState(false);
     const [screenShake, setScreenShake] = useState<{ intensity: number } | null>(null);
 
@@ -27,7 +27,9 @@ export const useGameEffects = () => {
         targetRect: DOMRect, 
         showFace: boolean = false, 
         onComplete?: () => void,
-        pauseDuration?: number
+        pauseDuration?: number,
+        cardBack?: string,
+        cardFace?: string
     ): Promise<void> => {
         return new Promise(resolve => {
             const id = generateId();
@@ -46,6 +48,8 @@ export const useGameEffects = () => {
                 targetY: targetRect.top + targetRect.height / 2 - 56, // Centering for md card (112px height)
                 showFace,
                 pauseDuration,
+                cardBack,
+                cardFace,
                 onComplete: handleComplete
             };
             setFlyingCards(prev => [...prev, newFly]);
@@ -56,7 +60,9 @@ export const useGameEffects = () => {
         card: Card,
         startRect: DOMRect,
         targetElementId: string,
-        ownerId: number
+        ownerId: number,
+        cardBack?: string,
+        cardFace?: string
     ): Promise<void> => {
         return new Promise(resolve => {
             const id = generateId();
@@ -73,6 +79,8 @@ export const useGameEffects = () => {
                 startY: startRect.top,
                 targetElementId,
                 ownerId,
+                cardBack,
+                cardFace,
                 onComplete: handleComplete
             };
             setSummoningCards(prev => [...prev, newSummon]);

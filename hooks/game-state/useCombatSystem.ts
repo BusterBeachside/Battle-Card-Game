@@ -61,6 +61,7 @@ export const useCombatSystem = ({ gameState, gameStateRef, setGameState, effects
 
     // Resolve Combat Loop
     useEffect(() => { 
+        let active = true;
         if (gameState?.phase === Phase.DAMAGE) {
             (async () => {
                 const state = gameStateRef.current!;
@@ -92,9 +93,11 @@ export const useCombatSystem = ({ gameState, gameStateRef, setGameState, effects
                     
                     if (blockers.length > 0) {
                         for (const blk of blockers) {
+                            if (!active) return;
                             setGameState(prev => prev ? { ...prev, activeCombatCardId: atk.instanceId } : null);
                             playSound('menu_click');
                             await new Promise(r => setTimeout(r, 400));
+                            if (!active) return;
                             setGameState(prev => {
                                 if (!prev) return null;
                                 const nextRecentDamage = { ...prev.recentDamage };
@@ -104,6 +107,7 @@ export const useCombatSystem = ({ gameState, gameStateRef, setGameState, effects
                                 return { ...prev, recentDamage: nextRecentDamage, logs: addLog(prev, logMsg) };
                             });
                             await new Promise(r => setTimeout(r, 600)); 
+                            if (!active) return;
                             setGameState(prev => prev ? { ...prev, activeCombatCardId: null } : null);
                             await new Promise(r => setTimeout(r, 100));
                         }
@@ -111,6 +115,7 @@ export const useCombatSystem = ({ gameState, gameStateRef, setGameState, effects
                 }
                 
                 for (const atk of directAttackers) {
+                    if (!active) return;
                     setGameState(prev => prev ? { ...prev, activeCombatCardId: atk.instanceId } : null);
                     const shakeIntensity = atk.card.rank === 'A' ? 1 : Math.min(4, Math.ceil(atk.card.numericValue / 2.5));
                     effects.triggerScreenShake(shakeIntensity);
@@ -119,6 +124,7 @@ export const useCombatSystem = ({ gameState, gameStateRef, setGameState, effects
                     else if (val <= 7) playSound('damage_md');
                     else playSound('damage_lg');
                     await new Promise(r => setTimeout(r, 200));
+                    if (!active) return;
                     const dmg = atk.card.rank === 'A' ? 1 : atk.card.numericValue;
                     const applyDamage = () => {
                         setGameState(prev => {
@@ -129,15 +135,23 @@ export const useCombatSystem = ({ gameState, gameStateRef, setGameState, effects
                                 nextPlayers[defIdx] = { ...nextPlayers[defIdx], life: Math.max(0, nextPlayers[defIdx].life - dmg) }; 
                             }
                             let nextState = { ...prev, players: nextPlayers };
+                            if (defenderPlayer.id === 1 && nextState.sessionStats) {
+                                nextState.sessionStats = {
+                                    ...nextState.sessionStats,
+                                    damageDealt: nextState.sessionStats.damageDealt + dmg
+                                };
+                            }
                             return nextState;
                         });
                     };
                     effects.addDamageAnim(dmg, defenderPlayer.id, applyDamage);
                     setGameState(prev => prev ? { ...prev, logs: addLog(prev, `🔥 Direct Hit! ${formatCardLog(atk.card)} deals ${dmg} damage.`) } : null);
                     await new Promise(r => setTimeout(r, 1250)); 
+                    if (!active) return;
                     setGameState(prev => prev ? { ...prev, activeCombatCardId: null } : null);
                 }
 
+                if (!active) return;
                 const finalState = gameStateRef.current!;
                 const activeAtkIds = finalState.pendingAttackers;
                 const dyingData: { instanceId: string, ownerId: number }[] = [];
@@ -162,9 +176,9 @@ export const useCombatSystem = ({ gameState, gameStateRef, setGameState, effects
                              if (atkIsAce) blkDies = true;
                              else if (atkVal >= blkVal) blkDies = true;
                              if (blkDies) {
-                                 if (!dyingData.some(d => d.instanceId === blk.instanceId)) {
-                                     dyingData.push({ instanceId: blk.instanceId, ownerId: fDefP.id });
-                                 }
+                                  if (!dyingData.some(d => d.instanceId === blk.instanceId)) {
+                                      dyingData.push({ instanceId: blk.instanceId, ownerId: fDefP.id });
+                                  }
                              }
                          }
                          if (anyBlockerIsAce || accumulatedDamageToAtk >= atkVal) {
@@ -177,6 +191,7 @@ export const useCombatSystem = ({ gameState, gameStateRef, setGameState, effects
 
                 if (dyingData.length > 0) {
                     for (const d of dyingData) {
+                        if (!active) return;
                         handleCardDeath(d.instanceId, d.ownerId);
                         playSound('destroy');
                         setGameState(prev => {
@@ -193,13 +208,21 @@ export const useCombatSystem = ({ gameState, gameStateRef, setGameState, effects
                                     nextPlayers[pIndex] = p;
                                 }
                             }
+                            if (d.ownerId === 1 && nextState.sessionStats) {
+                                nextState.sessionStats = {
+                                    ...nextState.sessionStats,
+                                    killsCount: nextState.sessionStats.killsCount + 1
+                                };
+                            }
                             return { ...nextState, players: nextPlayers };
                         });
                         await new Promise(r => setTimeout(r, 200));
                     }
+                    if (!active) return;
                     await new Promise(r => setTimeout(r, 600));
                 }
 
+                if (!active) return;
                 setGameState(prev => {
                     if (!prev) return null;
                     const nextState = { ...prev };
@@ -217,6 +240,9 @@ export const useCombatSystem = ({ gameState, gameStateRef, setGameState, effects
                 });
             })();
         }
+        return () => {
+            active = false;
+        };
     }, [gameState?.phase]);
 
     return { confirmAttack, confirmBlocks };

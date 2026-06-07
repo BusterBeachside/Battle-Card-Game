@@ -2,15 +2,29 @@
 import React from 'react';
 import { GameMode } from '../../types';
 import { TUTORIAL_LESSONS } from '../../data/tutorials';
-import { Coins, Sword, Edit3, RotateCcw, Cpu, Users, Tv, ArrowRight, GraduationCap, ChevronLeft, BookOpen, CheckCircle, Settings, Shield } from 'lucide-react';
+import { Coins, Sword, Edit3, RotateCcw, RefreshCw, Cpu, Users, Tv, ArrowRight, GraduationCap, ChevronLeft, BookOpen, CheckCircle, Settings, Shield, Trophy, Calendar, Award, User, ShoppingBag, Palette, Play, Lock } from 'lucide-react';
 import { playSound } from '../../utils/soundUtils';
+import { ProgressionData, rerollQuest } from '../../utils/progression';
+import { GoldCoin } from '../ui/GoldCoin';
+import { CardDisplay } from '../CardDisplay';
+import { loadCampaign, saveCampaign, generateCampaignMap, CampaignState } from '../../utils/campaign';
+
+import { CosmeticItem, COSMETIC_ITEMS } from '../../data/cosmetics';
+import { PlayerHQModal } from './main-menu/PlayerHQModal';
+import { CustomizeMenu } from './main-menu/CustomizeMenu';
+import { ShopMenu } from './main-menu/ShopMenu';
+import { TutorialMenu } from './main-menu/TutorialMenu';
+import { CampaignMenu } from './main-menu/CampaignMenu';
+import { GameSetupMenu } from './main-menu/GameSetupMenu';
+import { MultiplayerSetupMenu } from './main-menu/MultiplayerSetupMenu';
+import { ModeMenu } from './main-menu/ModeMenu';
 
 interface MainMenuProps {
-    menuStep: 'MODE' | 'PLAYERS' | 'TUTORIAL_MENU' | 'MULTIPLAYER_SETUP';
-    setMenuStep: (step: 'MODE' | 'PLAYERS' | 'TUTORIAL_MENU' | 'MULTIPLAYER_SETUP') => void;
+    menuStep: 'MODE' | 'TUTORIAL_MENU' | 'MULTIPLAYER_SETUP' | 'SHOP' | 'CUSTOMIZE' | 'CAMPAIGN_MAP' | 'GAME_SETUP';
+    setMenuStep: (step: 'MODE' | 'TUTORIAL_MENU' | 'MULTIPLAYER_SETUP' | 'SHOP' | 'CUSTOMIZE' | 'CAMPAIGN_MAP' | 'GAME_SETUP' | string) => void;
     handleModeSelect: (mode: GameMode) => void;
-    handleStartGameClick: (isCpu: boolean) => void;
-    handleSpectateClick: () => void;
+    handleStartGameClick: (isCpu: boolean, modeOverride?: GameMode) => void;
+    handleSpectateClick: (modeOverride?: GameMode) => void;
     startLesson: (lessonId: string) => void;
     onOpenOptions: () => void;
     enableMultiBlocking: boolean;
@@ -22,6 +36,12 @@ interface MainMenuProps {
         connect: (id: string) => void;
     };
     selectedMode: GameMode | null;
+    progression: ProgressionData;
+    setProgression: React.Dispatch<React.SetStateAction<ProgressionData>>;
+    cpuDifficulty: 'EASY' | 'MEDIUM' | 'HARD';
+    setCpuDifficulty: (v: 'EASY' | 'MEDIUM' | 'HARD') => void;
+    cpu2Difficulty: 'EASY' | 'MEDIUM' | 'HARD';
+    setCpu2Difficulty: (v: 'EASY' | 'MEDIUM' | 'HARD') => void;
 }
 
 export const MainMenu: React.FC<MainMenuProps> = ({ 
@@ -35,12 +55,56 @@ export const MainMenu: React.FC<MainMenuProps> = ({
     enableMultiBlocking,
     setEnableMultiBlocking,
     multiplayer,
-    selectedMode
+    selectedMode,
+    progression,
+    setProgression,
+    cpuDifficulty,
+    setCpuDifficulty,
+    cpu2Difficulty,
+    setCpu2Difficulty
 }) => {
     const [targetPeerId, setTargetPeerId] = React.useState('');
-    const isLessonCompleted = (lessonId: string) => {
-        return localStorage.getItem(`battle_lesson_complete_${lessonId}`) === 'true';
+    const [showHQModal, setShowHQModal] = React.useState(false);
+
+    const [selectedSubMode, setSelectedSubMode] = React.useState<'CAMPAIGN' | 'VERSUS_AI' | 'SPECTATE' | 'HOTSEAT' | 'ONLINE_MULTIPLAYER' | null>(null);
+    const [rulesFormatSelect, setRulesFormatSelect] = React.useState<'STREET' | 'PRO'>('STREET');
+    const [campaignState, setCampaignState] = React.useState<CampaignState | null>(null);
+
+    const handleSwitchRulesFormat = (format: 'STREET' | 'PRO') => {
+        if (!campaignState) return;
+        const updated = { ...campaignState, rulesFormat: format };
+        setCampaignState(updated);
+        saveCampaign(updated);
     };
+
+    React.useEffect(() => {
+        const handleUpdate = () => {
+            try {
+                setCampaignState(loadCampaign());
+            } catch (e) {}
+        };
+        handleUpdate();
+        window.addEventListener('campaign-updated', handleUpdate);
+        return () => window.removeEventListener('campaign-updated', handleUpdate);
+    }, [menuStep]);
+
+    React.useEffect(() => {
+        if (!campaignState && menuStep === 'CAMPAIGN_MAP') {
+            try {
+                setCampaignState(loadCampaign());
+            } catch (e) {}
+        }
+    }, [menuStep, campaignState]);
+
+
+
+
+
+
+
+
+
+
 
     const handleClick = (cb: () => void) => {
         playSound('menu_click');
@@ -48,15 +112,76 @@ export const MainMenu: React.FC<MainMenuProps> = ({
     };
 
     return (
-        <div className="relative z-10 flex flex-col items-center space-y-6 md:space-y-12 animate-in fade-in zoom-in duration-700 w-full max-w-6xl px-4 md:px-6 overflow-y-auto max-h-screen py-8 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
-            
-            {/* Top Right Settings Button */}
-            <button 
-                onClick={() => handleClick(onOpenOptions)}
-                className="absolute top-4 right-4 p-2 md:p-3 bg-slate-800/50 hover:bg-slate-700 rounded-full border border-slate-600 hover:border-indigo-500 transition-all text-slate-400 hover:text-white"
-            >
-                <Settings size={20} className="md:w-6 md:h-6" />
-            </button>
+        <div className="relative z-10 w-full h-full overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
+            {/* Top Left Deck Style & Card Shop Button Pill */}
+            <div className="absolute top-4 left-4 flex items-center gap-2 md:gap-3 z-40 bg-slate-900/80 p-1 md:p-1.5 px-3 md:px-4 rounded-full border border-slate-700 backdrop-blur-md shadow-lg">
+                <button 
+                    onClick={() => handleClick(() => setMenuStep('CUSTOMIZE'))}
+                    className="flex items-center gap-1.5 md:gap-2 transition-colors hover:text-indigo-300 text-slate-300 cursor-pointer group text-xs font-bold font-title uppercase tracking-wider"
+                    title="Open Deck Style Customization"
+                >
+                    <Palette size={14} className="text-violet-400 group-hover:scale-110 transition-transform" />
+                    <span className="hidden sm:inline">Deck Style</span>
+                </button>
+                
+                <div className="h-6 w-px bg-slate-700/80"></div>
+                
+                <button 
+                    onClick={() => handleClick(() => setMenuStep('SHOP'))}
+                    className="flex items-center gap-1.5 md:gap-2 transition-colors hover:text-amber-350 text-slate-300 cursor-pointer group text-xs font-bold font-title uppercase tracking-wider"
+                    title="Open the Card Shop"
+                >
+                    <ShoppingBag size={14} className="text-amber-400 group-hover:scale-110 transition-transform" />
+                    <span className="hidden sm:inline">Card Shop</span>
+                </button>
+            </div>
+
+            {/* Top Right Settings & Player HUD Button Pill */}
+            <div className="absolute top-4 right-4 flex items-center gap-2 md:gap-3 z-40 bg-slate-900/80 p-1 md:p-1.5 pl-3 md:pl-4 rounded-full border border-slate-700 backdrop-blur-md shadow-lg">
+                {/* HUD Profile Button */}
+                <button 
+                    onClick={() => handleClick(() => setShowHQModal(true))}
+                    className="flex items-center gap-1.5 md:gap-3 transition-colors hover:text-indigo-400 text-left cursor-pointer group"
+                    title="Click for Player details and quests"
+                >
+                    <div className="flex flex-col">
+                        <span className="font-bold text-slate-100 text-[11px] md:text-xs line-clamp-1 truncate max-w-[70px] md:max-w-[120px] group-hover:text-indigo-300 transition-colors">
+                            {progression.playerName}
+                        </span>
+                        <span className="text-[9px] text-slate-400 font-semibold font-mono tracking-tighter">
+                            Level {progression.level}
+                        </span>
+                    </div>
+                    
+                    <div className="hidden sm:block h-6 w-px bg-slate-700/80"></div>
+                    
+                    <div className="hidden sm:flex flex-col items-end pr-1 text-xs font-bold text-amber-400">
+                        <span className="flex items-center gap-1">
+                            <GoldCoin size={14} /> {progression.gold}
+                        </span>
+                        <div className="w-12 bg-slate-800 h-1 rounded-full overflow-hidden mt-0.5" title={`${progression.xp} / ${progression.level * 500} XP`}>
+                            <div className="bg-gradient-to-r from-indigo-500 to-purple-500 h-full" style={{ width: `${(progression.xp / (progression.level * 500)) * 100}%` }}></div>
+                        </div>
+                    </div>
+                    
+                    <div className="bg-indigo-600/10 p-2 rounded-full border border-indigo-500/20 text-indigo-400 hover:bg-indigo-500/20 group-hover:bg-indigo-500/30 transition-all flex items-center justify-center">
+                        <Trophy size={14} className="md:w-[16px] md:h-[16px]" fill="currentColor" />
+                    </div>
+                </button>
+
+                <div className="h-6 w-px bg-slate-700/80"></div>
+
+                {/* Top Right Options Button */}
+                <button 
+                    onClick={() => handleClick(onOpenOptions)}
+                    className="p-2 bg-slate-850/60 hover:bg-slate-700 rounded-full border border-slate-700 hover:border-indigo-500 transition-all text-slate-400 hover:text-white cursor-pointer"
+                    title="Game Options"
+                >
+                    <Settings size={14} className="md:w-[16px] md:h-[16px]" />
+                </button>
+            </div>
+
+            <div className="flex flex-col items-center space-y-6 md:space-y-12 animate-in fade-in zoom-in duration-700 w-full max-w-6xl mx-auto px-4 md:px-6 py-8">
 
             {/* Title Section */}
             <div className="text-center space-y-4 pt-4 md:pt-8 shrink-0">
@@ -71,280 +196,87 @@ export const MainMenu: React.FC<MainMenuProps> = ({
             </div>
             
             {menuStep === 'MODE' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 w-full max-w-lg md:max-w-6xl px-2 pb-8">
-                
-                {/* Street Mode Card */}
-                <button 
-                    onClick={() => handleClick(() => handleModeSelect('STREET'))} 
-                    className="group relative flex flex-col items-center text-center p-4 md:p-8 rounded-2xl bg-gradient-to-b from-slate-800 to-slate-900 border border-slate-700 hover:border-indigo-500/50 transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_0_30px_rgba(99,102,241,0.2)]"
-                >
-                    <div className="absolute inset-0 bg-indigo-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                    <div className="bg-slate-950 p-3 md:p-4 rounded-full mb-2 md:mb-6 ring-1 ring-slate-700 group-hover:ring-indigo-500/50 transition-all shadow-xl group-hover:scale-110">
-                        <Coins className="w-5 h-5 md:w-8 md:h-8 text-indigo-400 group-hover:text-indigo-300 transition-colors" />
-                    </div>
-                    <h3 className="text-lg md:text-2xl font-bold text-white mb-1 md:mb-2 font-title group-hover:text-indigo-300 transition-colors">Play Street</h3>
-                    <div className="h-px w-12 bg-slate-700 my-1 md:my-3 group-hover:bg-indigo-500/50 transition-colors"></div>
-                    <p className="text-slate-400 text-xs md:text-sm leading-relaxed">
-                        One shared 52-card deck. Luck of the draw matters more.
-                    </p>
-                </button>
+                <ModeMenu
+                    setMenuStep={setMenuStep}
+                    handleModeSelect={handleModeSelect}
+                    handleStartGameClick={handleStartGameClick}
+                    setSelectedSubMode={setSelectedSubMode}
+                    setCampaignState={setCampaignState}
+                    setRulesFormatSelect={setRulesFormatSelect}
+                />
+            )}
 
-                {/* Pro Mode Card */}
-                <button 
-                    onClick={() => handleClick(() => handleModeSelect('PRO'))} 
-                    className="group relative flex flex-col items-center text-center p-4 md:p-8 rounded-2xl bg-gradient-to-b from-slate-800 to-slate-900 border border-slate-700 hover:border-red-500/50 transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_0_30px_rgba(239,68,68,0.2)]"
-                >
-                    <div className="absolute inset-0 bg-red-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                    <div className="bg-slate-950 p-3 md:p-4 rounded-full mb-2 md:mb-6 ring-1 ring-slate-700 group-hover:ring-red-500/50 transition-all shadow-xl group-hover:scale-110">
-                        <Sword className="w-5 h-5 md:w-8 md:h-8 text-red-400 group-hover:text-red-300 transition-colors" />
-                    </div>
-                    <h3 className="text-lg md:text-2xl font-bold text-white mb-1 md:mb-2 font-title group-hover:text-red-300 transition-colors">Play Pro</h3>
-                    <div className="h-px w-12 bg-slate-700 my-1 md:my-3 group-hover:bg-red-500/50 transition-colors"></div>
-                    <p className="text-slate-400 text-xs md:text-sm leading-relaxed">
-                        Each player has their own deck. An even playing field.
-                    </p>
-                </button>
+            {menuStep === 'GAME_SETUP' && (
+                <GameSetupMenu
+                    selectedSubMode={selectedSubMode}
+                    rulesFormatSelect={rulesFormatSelect}
+                    setRulesFormatSelect={setRulesFormatSelect}
+                    cpuDifficulty={cpuDifficulty}
+                    setCpuDifficulty={setCpuDifficulty}
+                    cpu2Difficulty={cpu2Difficulty}
+                    setCpu2Difficulty={setCpu2Difficulty}
+                    setMenuStep={setMenuStep}
+                    handleModeSelect={handleModeSelect}
+                    handleStartGameClick={handleStartGameClick}
+                    handleSpectateClick={handleSpectateClick}
+                />
+            )}
 
-                {/* Sandbox Mode Card */}
-                <button 
-                    onClick={() => handleClick(() => handleModeSelect('SANDBOX'))} 
-                    className="group relative flex flex-col items-center text-center p-4 md:p-8 rounded-2xl bg-gradient-to-b from-slate-800 to-slate-900 border border-slate-700 hover:border-amber-500/50 transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_0_30px_rgba(245,158,11,0.2)]"
-                >
-                    <div className="absolute inset-0 bg-amber-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                    <div className="bg-slate-950 p-3 md:p-4 rounded-full mb-2 md:mb-6 ring-1 ring-slate-700 group-hover:ring-amber-500/50 transition-all shadow-xl group-hover:scale-110">
-                        <Edit3 className="w-5 h-5 md:w-8 md:h-8 text-amber-400 group-hover:text-amber-300 transition-colors" />
-                    </div>
-                    <h3 className="text-lg md:text-2xl font-bold text-white mb-1 md:mb-2 font-title group-hover:text-amber-300 transition-colors">Sandbox</h3>
-                    <div className="h-px w-12 bg-slate-700 my-1 md:my-3 group-hover:bg-amber-500/50 transition-colors"></div>
-                    <p className="text-slate-400 text-xs md:text-sm leading-relaxed">
-                        Freely edit the game state, spawn cards, and test interactions.
-                    </p>
-                </button>
+            {menuStep === 'CAMPAIGN_MAP' && campaignState && (
+                <CampaignMenu
+                    campaignState={campaignState}
+                    setMenuStep={setMenuStep}
+                    handleModeSelect={handleModeSelect}
+                    handleStartGameClick={handleStartGameClick}
+                    handleSwitchRulesFormat={handleSwitchRulesFormat}
+                />
+            )}
 
-                {/* Tutorial Mode Card */}
-                <button 
-                    onClick={() => handleClick(() => handleModeSelect('TUTORIAL'))} 
-                    className="group relative flex flex-col items-center text-center p-4 md:p-8 rounded-2xl bg-gradient-to-b from-slate-800 to-slate-900 border border-slate-700 hover:border-emerald-500/50 transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_0_30px_rgba(16,185,129,0.2)]"
-                >
-                    <div className="absolute inset-0 bg-emerald-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                    <div className="bg-slate-950 p-3 md:p-4 rounded-full mb-2 md:mb-6 ring-1 ring-slate-700 group-hover:ring-emerald-500/50 transition-all shadow-xl group-hover:scale-110">
-                        <GraduationCap className="w-5 h-5 md:w-8 md:h-8 text-emerald-400 group-hover:text-emerald-300 transition-colors" />
-                    </div>
-                    <h3 className="text-lg md:text-2xl font-bold text-white mb-1 md:mb-2 font-title group-hover:text-emerald-300 transition-colors">Tutorial</h3>
-                    <div className="h-px w-12 bg-slate-700 my-1 md:my-3 group-hover:bg-emerald-500/50 transition-colors"></div>
-                    <p className="text-slate-400 text-xs md:text-sm leading-relaxed">
-                        Learn the basics of combat, resources, and face cards.
-                    </p>
-                </button>
-                </div>
+            {menuStep === 'SHOP' && (
+                <ShopMenu
+                    progression={progression}
+                    setProgression={setProgression}
+                    setMenuStep={setMenuStep}
+                    handleModeSelect={handleModeSelect}
+                    handleStartGameClick={handleStartGameClick}
+                />
+            )}
+
+            {menuStep === 'CUSTOMIZE' && (
+                <CustomizeMenu 
+                    progression={progression}
+                    setProgression={setProgression}
+                    setMenuStep={setMenuStep}
+                    handleModeSelect={handleModeSelect}
+                    handleStartGameClick={handleStartGameClick}
+                />
             )}
 
             {menuStep === 'TUTORIAL_MENU' && (
-                <div className="flex flex-col gap-4 w-full max-w-lg animate-in slide-in-from-right fade-in duration-300 px-4 pb-8">
-                     <div className="flex items-center gap-3 mb-2 text-slate-300">
-                        <button 
-                        onClick={() => handleClick(() => setMenuStep('MODE'))} 
-                        className="p-2 -ml-2 hover:bg-white/10 rounded-full transition-colors text-slate-400 hover:text-white"
-                        >
-                            <ChevronLeft size={24} />
-                        </button>
-                        <span className="text-lg font-bold font-title uppercase tracking-wider text-emerald-500">Tutorial Lessons</span>
-                    </div>
-
-                    <div className="grid gap-3">
-                        {TUTORIAL_LESSONS.map((lesson) => {
-                            const isAvailable = lesson.steps.length > 0;
-                            const isCompleted = isLessonCompleted(lesson.id);
-                            
-                            return (
-                                <button 
-                                    key={lesson.id} 
-                                    onClick={() => isAvailable && handleClick(() => startLesson(lesson.id))}
-                                    disabled={!isAvailable}
-                                    className={`group relative flex items-center justify-between p-4 md:p-5 rounded-xl border transition-all hover:-translate-x-[-4px] hover:shadow-lg
-                                        ${isAvailable ? 'bg-slate-800 hover:bg-emerald-900/20 border-slate-700 hover:border-emerald-500/50' : 'bg-slate-900/50 border-slate-800 opacity-50 cursor-not-allowed'}
-                                    `}
-                                >
-                                    <div className="flex items-center gap-4">
-                                        <div className={`p-2 md:p-3 rounded-lg ring-1 transition-colors ${isCompleted ? 'bg-emerald-600 text-white ring-emerald-500' : isAvailable ? 'bg-emerald-900/20 text-emerald-400 group-hover:text-emerald-300 ring-emerald-900/50' : 'bg-slate-800 text-slate-600 ring-slate-700'}`}>
-                                            {isCompleted ? <CheckCircle size={20} className="md:w-6 md:h-6" /> : <BookOpen size={20} className="md:w-6 md:h-6" />}
-                                        </div>
-                                        <div className="text-left">
-                                            <div className={`font-bold text-base md:text-lg transition-colors ${isAvailable ? 'text-white group-hover:text-emerald-200' : 'text-slate-500'}`}>{lesson.title}</div>
-                                            <div className="text-xs text-slate-500 group-hover:text-emerald-400/70 transition-colors">{lesson.subtitle}</div>
-                                        </div>
-                                    </div>
-                                    {isAvailable && <ArrowRight className="text-slate-600 group-hover:text-emerald-400 transition-transform group-hover:translate-x-1" />}
-                                </button>
-                            );
-                        })}
-                    </div>
-                </div>
+                <TutorialMenu
+                    setMenuStep={setMenuStep}
+                    startLesson={startLesson}
+                />
             )}
 
             {menuStep === 'MULTIPLAYER_SETUP' && (
-                <div className="flex flex-col gap-6 w-full max-w-lg animate-in slide-in-from-right fade-in duration-300 px-4 pb-8">
-                    <div className="flex items-center gap-3 text-slate-300">
-                        <button 
-                            onClick={() => handleClick(() => setMenuStep('PLAYERS'))} 
-                            className="p-2 -ml-2 hover:bg-white/10 rounded-full transition-colors text-slate-400 hover:text-white"
-                        >
-                            <RotateCcw size={20} />
-                        </button>
-                        <span className="text-sm font-bold uppercase tracking-wider text-slate-500">{selectedMode} Multiplayer Lobby</span>
-                    </div>
-
-                    <div className="bg-slate-900/50 border border-slate-700 p-6 rounded-2xl space-y-6">
-                        {/* Your ID */}
-                        <div className="space-y-3">
-                            <label className="text-xs font-bold uppercase tracking-widest text-slate-400">Your Peer ID</label>
-                            <div className="flex items-center gap-2 p-3 bg-slate-950 border border-slate-800 rounded-xl">
-                                <span className="flex-1 font-mono text-sm tracking-wider text-indigo-300 break-all select-all">
-                                    {multiplayer.peerId || 'Initializing...'}
-                                </span>
-                                <button 
-                                    onClick={() => {
-                                        navigator.clipboard.writeText(multiplayer.peerId);
-                                        playSound('menu_click');
-                                    }}
-                                    className="p-2 hover:bg-indigo-500/10 rounded-lg text-indigo-400 transition-colors"
-                                    title="Copy ID"
-                                >
-                                    <CheckCircle size={18} />
-                                </button>
-                            </div>
-                            <p className="text-[10px] text-slate-500">Share this ID with your friend so they can join you.</p>
-                        </div>
-
-                        <div className="h-px bg-slate-800 w-full"></div>
-
-                        {/* Connect to Friend */}
-                        <div className="space-y-3">
-                            <label className="text-xs font-bold uppercase tracking-widest text-slate-400">Connect to Friend</label>
-                            <div className="flex flex-col gap-3">
-                                <input 
-                                    type="text"
-                                    placeholder="Enter Friend's Peer ID..."
-                                    value={targetPeerId}
-                                    onChange={(e) => setTargetPeerId(e.target.value)}
-                                    className="w-full bg-slate-950 border border-slate-800 p-4 rounded-xl font-mono text-sm tracking-wider text-white focus:border-indigo-500 outline-none transition-colors"
-                                />
-                                <button 
-                                    onClick={() => handleClick(() => multiplayer.connect(targetPeerId))}
-                                    disabled={!targetPeerId || multiplayer.status === 'CONNECTING' || multiplayer.status === 'CONNECTED'}
-                                    className={`w-full py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all
-                                        ${multiplayer.status === 'CONNECTED' ? 'bg-emerald-600 text-white' : 
-                                          multiplayer.status === 'CONNECTING' ? 'bg-slate-700 text-slate-400 cursor-wait' : 
-                                          'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-500/20 active:scale-95'}
-                                    `}
-                                >
-                                    {multiplayer.status === 'CONNECTED' ? (
-                                        <><Users size={20} /> Connected</>
-                                    ) : multiplayer.status === 'CONNECTING' ? (
-                                        <div className="h-5 w-5 border-2 border-slate-400 border-t-transparent rounded-full animate-spin"></div>
-                                    ) : (
-                                        <><Sword size={20} /> Connect & Play</>
-                                    )}
-                                </button>
-                            </div>
-                            {multiplayer.error && (
-                                <p className="text-xs text-red-500 font-medium">Error: {multiplayer.error}</p>
-                            )}
-                        </div>
-
-                        {/* Status Indicator */}
-                        <div className="flex items-center justify-center gap-4 py-2">
-                             <div className="flex items-center gap-2">
-                                <div className={`w-2 h-2 rounded-full ${multiplayer.status === 'CONNECTED' ? 'bg-emerald-500 animate-pulse' : multiplayer.status === 'CONNECTING' ? 'bg-amber-500 animate-pulse' : 'bg-slate-600'}`}></div>
-                                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">{multiplayer.status}</span>
-                             </div>
-                        </div>
-                    </div>
-                </div>
+                <MultiplayerSetupMenu
+                    setMenuStep={setMenuStep}
+                    selectedMode={selectedMode}
+                    multiplayer={multiplayer}
+                    targetPeerId={targetPeerId}
+                    setTargetPeerId={setTargetPeerId}
+                />
             )}
+            </div>
 
-            {menuStep === 'PLAYERS' && (
-                <div className="flex flex-col gap-4 w-full max-w-md animate-in slide-in-from-right fade-in duration-300 px-4 pb-8">
-                    <div className="flex items-center gap-3 mb-2 text-slate-300">
-                        <button 
-                        onClick={() => handleClick(() => setMenuStep('MODE'))} 
-                        className="p-2 -ml-2 hover:bg-white/10 rounded-full transition-colors text-slate-400 hover:text-white"
-                        >
-                            <RotateCcw size={20} />
-                        </button>
-                        <span className="text-sm font-bold uppercase tracking-wider text-slate-500">Select Opponent</span>
-                    </div>
-
-                    <button onClick={() => handleClick(() => handleStartGameClick(true))} className="group relative flex items-center justify-between bg-slate-800 hover:bg-emerald-900/20 border border-slate-700 hover:border-emerald-500/50 p-4 md:p-5 rounded-xl transition-all hover:-translate-x-[-4px] hover:shadow-lg">
-                        <div className="flex items-center gap-4">
-                            <div className="bg-emerald-900/20 p-2 md:p-3 rounded-lg text-emerald-400 group-hover:text-emerald-300 ring-1 ring-emerald-900/50 transition-colors">
-                                <Cpu size={20} className="md:w-6 md:h-6" />
-                            </div>
-                            <div className="text-left">
-                                <div className="font-bold text-base md:text-lg text-white group-hover:text-emerald-200 transition-colors">Single Player</div>
-                                <div className="text-xs text-slate-500 group-hover:text-emerald-400/70 transition-colors">Challenge the CPU</div>
-                            </div>
-                        </div>
-                        <ArrowRight className="text-slate-600 group-hover:text-emerald-400 transition-transform group-hover:translate-x-1" />
-                    </button>
-
-                    <button onClick={() => handleClick(() => handleStartGameClick(false))} className="group relative flex items-center justify-between bg-slate-800 hover:bg-amber-900/20 border border-slate-700 hover:border-amber-500/50 p-4 md:p-5 rounded-xl transition-all hover:-translate-x-[-4px] hover:shadow-lg">
-                        <div className="flex items-center gap-4">
-                            <div className="bg-amber-900/20 p-2 md:p-3 rounded-lg text-amber-400 group-hover:text-amber-300 ring-1 ring-amber-900/50 transition-colors">
-                                <Users size={20} className="md:w-6 md:h-6" />
-                            </div>
-                            <div className="text-left">
-                                <div className="font-bold text-base md:text-lg text-white group-hover:text-amber-200 transition-colors">Local Hotseat</div>
-                                <div className="text-xs text-slate-500 group-hover:text-amber-400/70 transition-colors">Play vs Friend</div>
-                            </div>
-                        </div>
-                        <ArrowRight className="text-slate-600 group-hover:text-amber-400 transition-transform group-hover:translate-x-1" />
-                    </button>
-
-                    <button onClick={() => handleClick(() => handleSpectateClick())} className="group relative flex items-center justify-between bg-slate-800 hover:bg-purple-900/20 border border-slate-700 hover:border-purple-500/50 p-4 md:p-5 rounded-xl transition-all hover:-translate-x-[-4px] hover:shadow-lg">
-                        <div className="flex items-center gap-4">
-                            <div className="bg-purple-900/20 p-2 md:p-3 rounded-lg text-purple-400 group-hover:text-purple-300 ring-1 ring-purple-900/50 transition-colors">
-                                <Tv size={20} className="md:w-6 md:h-6" />
-                            </div>
-                            <div className="text-left">
-                                <div className="font-bold text-base md:text-lg text-white group-hover:text-purple-200 transition-colors">Spectate</div>
-                                <div className="text-xs text-slate-500 group-hover:text-purple-400/70 transition-colors">CPU vs CPU</div>
-                            </div>
-                        </div>
-                        <ArrowRight className="text-slate-600 group-hover:text-purple-400 transition-transform group-hover:translate-x-1" />
-                    </button>
-
-                    <button onClick={() => handleClick(() => setMenuStep('MULTIPLAYER_SETUP'))} className="group relative flex items-center justify-between bg-slate-800 hover:bg-indigo-900/20 border border-slate-700 hover:border-indigo-500/50 p-4 md:p-5 rounded-xl transition-all hover:-translate-x-[-4px] hover:shadow-lg">
-                        <div className="flex items-center gap-4">
-                            <div className="bg-indigo-900/20 p-2 md:p-3 rounded-lg text-indigo-400 group-hover:text-indigo-300 ring-1 ring-indigo-900/50 transition-colors">
-                                <Users size={20} className="md:w-6 md:h-6" />
-                            </div>
-                            <div className="text-left">
-                                <div className="font-bold text-base md:text-lg text-white group-hover:text-indigo-200 transition-colors">Online Multiplayer</div>
-                                <div className="text-xs text-slate-500 group-hover:text-indigo-400/70 transition-colors">Play vs Friend (P2P)</div>
-                            </div>
-                        </div>
-                        <ArrowRight className="text-slate-600 group-hover:text-indigo-400 transition-transform group-hover:translate-x-1" />
-                    </button>
-
-                    <div className="pt-2">
-                        <label className="flex items-center gap-3 p-3 rounded-xl bg-slate-800/50 border border-slate-700 cursor-pointer hover:bg-slate-800 transition-colors group">
-                            <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${enableMultiBlocking ? 'bg-indigo-600 border-indigo-500' : 'bg-slate-900 border-slate-600'}`}>
-                                {enableMultiBlocking && <Shield size={12} className="text-white" />}
-                            </div>
-                            <input 
-                                type="checkbox" 
-                                className="hidden" 
-                                checked={enableMultiBlocking} 
-                                onChange={(e) => setEnableMultiBlocking(e.target.checked)} 
-                            />
-                            <div className="flex flex-col">
-                                <span className={`text-sm font-bold transition-colors ${enableMultiBlocking ? 'text-indigo-400' : 'text-slate-400'}`}>EXPERIMENTAL: Multi-Blocking Test</span>
-                                <span className="text-[10px] text-slate-500">Allow multiple defenders to block a single attacker.</span>
-                            </div>
-                        </label>
-                    </div>
-                </div>
+            {/* PLAYER PROGRESSION & LOGINS / QUESTS HQ MODAL */}
+            {showHQModal && (
+                <PlayerHQModal 
+                    progression={progression} 
+                    setProgression={setProgression} 
+                    onClose={() => setShowHQModal(false)}
+                />
             )}
         </div>
     );

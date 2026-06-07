@@ -67,6 +67,7 @@ export interface PlayerState {
   id: number;
   name: string;
   isCpu: boolean;
+  difficulty?: 'EASY' | 'MEDIUM' | 'HARD';
   life: number;
   hand: Card[];
   library: Card[]; // Deck for Pro mode
@@ -75,6 +76,8 @@ export interface PlayerState {
   discard: Card[];
   consecutiveDrawFailures: number;
   hasAttackedThisTurn: boolean;
+  cardBack?: string;
+  cardFace?: string;
 }
 
 export type GameMode = 'STREET' | 'PRO' | 'SANDBOX' | 'TUTORIAL';
@@ -98,6 +101,7 @@ export interface GameState {
   isMultiplayerStarted?: boolean;
   isSandboxRun?: boolean;
   isMultiBlockingEnabled?: boolean;
+  campaignChallenge?: string | null;
   deck: Card[]; // Shared deck for Street mode
   players: PlayerState[];
   turnPlayer: number; // 0 or 1
@@ -115,6 +119,12 @@ export interface GameState {
   recentDamage: Record<string, number>;
   activeCombatCardId: string | null;
   tutorialState?: TutorialState;
+  sessionStats?: {
+    damageDealt: number;
+    conscriptedCount: number;
+    tacticsPlayed: number;
+    killsCount: number;
+  };
 }
 
 export interface FlyingCard {
@@ -127,6 +137,8 @@ export interface FlyingCard {
   showFace: boolean;
   pauseDuration?: number;
   onComplete?: () => void;
+  cardBack?: string;
+  cardFace?: string;
 }
 
 export interface SummoningCard {
@@ -137,6 +149,8 @@ export interface SummoningCard {
   targetElementId: string;
   ownerId: number;
   onComplete: () => void;
+  cardBack?: string;
+  cardFace?: string;
 }
 
 export interface FlyingText {

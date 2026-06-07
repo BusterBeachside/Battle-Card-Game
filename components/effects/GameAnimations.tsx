@@ -72,7 +72,7 @@ export const Flyer: React.FC<{ fc: FlyingCard }> = ({ fc }) => {
 
     return (
         <div style={style}>
-            <CardDisplay card={fc.card} showBack={!fc.showFace} size="md" />
+            <CardDisplay card={fc.card} showBack={!fc.showFace} size="md" cardBack={fc.cardBack} cardFace={fc.cardFace} />
         </div>
     );
 };
@@ -153,7 +153,7 @@ export const Summoner: React.FC<{ sc: SummoningCard }> = ({ sc }) => {
 
     return (
         <div style={style}>
-            <CardDisplay card={sc.card} showBack={false} size="md" />
+            <CardDisplay card={sc.card} showBack={false} size="md" cardFace={sc.cardFace} cardBack={sc.cardBack} />
             {phase === 'SLAM' && (
                 <div className="absolute inset-0 -m-8 z-[-1] animate-ping opacity-50 bg-white rounded-full" />
             )}
@@ -244,7 +244,7 @@ export const SoulOrb: React.FC<{ trail: SoulTrail }> = ({ trail }) => {
     );
 };
 
-export const SpecialCardAnimation: React.FC<{ type: 'K' | 'Q' | 'J', card: Card, targetRect?: DOMRect, onComplete: () => void }> = ({ type, card, targetRect, onComplete }) => {
+export const SpecialCardAnimation: React.FC<{ type: 'K' | 'Q' | 'J', card: Card, targetRect?: DOMRect, cardFace?: string, cardBack?: string, onComplete: () => void }> = ({ type, card, targetRect, cardFace, cardBack, onComplete }) => {
     const [style, setStyle] = useState<React.CSSProperties>({
         position: 'fixed',
         left: '50%',
@@ -300,7 +300,7 @@ export const SpecialCardAnimation: React.FC<{ type: 'K' | 'Q' | 'J', card: Card,
     return (
         <div style={style} className="flex flex-col items-center justify-center pointer-events-none">
             <div className={`shadow-[0_0_50px_rgba(255,255,255,0.2)] rounded-lg ${type === 'Q' ? 'animate-pulse' : ''}`}>
-                <CardDisplay card={card} size="lg" showBack={false} />
+                <CardDisplay card={card} size="lg" showBack={false} cardFace={cardFace} cardBack={cardBack} />
             </div>
             <div className={`mt-4 text-4xl font-black font-title uppercase tracking-widest ${colorClass} animate-bounce`}>
                 {label}

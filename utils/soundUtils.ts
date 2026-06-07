@@ -24,6 +24,25 @@ class AudioManager {
     private sfxVolume = 0.5;
     private musicVolume = 0.5;
     private initialized = false;
+    private lastPlayed: Map<SoundName, number> = new Map();
+    private readonly COOLDOWNS: Record<SoundName, number> = {
+        menu_click: 75,
+        attack_phase: 100,
+        conscript_mag: 100,
+        conscript_phy: 100,
+        damage_sm: 80,
+        damage_md: 80,
+        damage_lg: 80,
+        destroy: 80,
+        draw: 40,
+        game_over: 200,
+        king: 100,
+        play_resource: 80,
+        queen: 100,
+        swap_resource: 80,
+        tactic: 100,
+        turn_start: 100
+    };
 
     private constructor() {}
 
@@ -99,6 +118,15 @@ class AudioManager {
     public play(name: SoundName) {
         if (!this.initialized) this.init();
         if (!this.context) return;
+
+        // Apply sound specific cooldown limits to prevent overlaying wall-of-sound stacking/clipping
+        const now = Date.now();
+        const lastPlay = this.lastPlayed.get(name) || 0;
+        const cooldown = this.COOLDOWNS[name] || 0;
+        if (now - lastPlay < cooldown) {
+            return;
+        }
+        this.lastPlayed.set(name, now);
 
         // Auto-resume context if suspended
         if (this.context.state === 'suspended') {

@@ -6,6 +6,7 @@ import { getEffectiveColor } from '../../utils/rules';
 import { Menu, Heart, X, ArrowRight, ArrowUpCircle, RotateCcw, Sword, Trash2 } from 'lucide-react';
 import { LogRenderer } from '../ui/LogRenderer';
 import { LayoutProps } from './types';
+import { GoldCoin } from '../ui/GoldCoin';
 
 export const MobileLayout: React.FC<LayoutProps> = ({
     gameState,
@@ -16,7 +17,8 @@ export const MobileLayout: React.FC<LayoutProps> = ({
     dragState,
     handlers,
     refs,
-    uiState
+    uiState,
+    progression
 }) => {
     const getPhaseName = () => {
         switch(gameState?.phase) {
@@ -127,7 +129,7 @@ export const MobileLayout: React.FC<LayoutProps> = ({
                 <div className="flex-1 flex flex-col items-center justify-start py-2 w-full min-h-0">
                     {/* CPU Hand */}
                     <div className="flex -space-x-6 scale-75 opacity-90 h-12 shrink-0" ref={refs.cpuHandRef}>
-                        {topPlayer.hand.map(c => <CardDisplay key={c.id} domId={c.id} card={c} showBack={gameState.mode !== 'SANDBOX' && !isSpectate} size="sm" onClick={() => handlers.onCardClick(c, 'HAND', topPlayer.id)} />)}
+                        {topPlayer.hand.map(c => <CardDisplay key={c.id} domId={c.id} card={c} showBack={gameState.mode !== 'SANDBOX' && !isSpectate} size="sm" onClick={() => handlers.onCardClick(c, 'HAND', topPlayer.id)} cardBack={topPlayer.cardBack} cardFace={topPlayer.cardFace} />)}
                     </div>
 
                     {/* CPU Field & Resources */}
@@ -151,6 +153,8 @@ export const MobileLayout: React.FC<LayoutProps> = ({
                                             attachedCards={fc.attachedCards}
                                             orientation="top"
                                             onClick={() => handlers.onCardClick(fc.card, 'FIELD', topPlayer.id, fc.instanceId)}
+                                            cardBack={topPlayer.cardBack}
+                                            cardFace={topPlayer.cardFace}
                                         />
                                     </div>
                                 ))}
@@ -171,6 +175,8 @@ export const MobileLayout: React.FC<LayoutProps> = ({
                                             attachedCards={fc.attachedCards}
                                             orientation="top"
                                             onClick={() => handlers.onCardClick(fc.card, 'FIELD', topPlayer.id, fc.instanceId)}
+                                            cardBack={topPlayer.cardBack}
+                                            cardFace={topPlayer.cardFace}
                                         />
                                     </div>
                                 ))}
@@ -185,7 +191,7 @@ export const MobileLayout: React.FC<LayoutProps> = ({
                             <div id={`resource-container-${topPlayer.id}`} className="flex flex-col items-center -space-y-12">
                                 {topPlayer.resources.map((r, i) => (
                                     <div key={r.instanceId} style={{ zIndex: i }} className="transition-all" onClick={() => handlers.onCardClick(r.card, 'RESOURCE', topPlayer.id, r.instanceId)}>
-                                        <CardDisplay card={r.card} isTapped={r.isTapped} size="sm" isSummoningSick={false} />
+                                        <CardDisplay card={r.card} isTapped={r.isTapped} size="sm" isSummoningSick={false} cardBack={topPlayer.cardBack} cardFace={topPlayer.cardFace} />
                                     </div>
                                 ))}
                             </div>
@@ -210,7 +216,7 @@ export const MobileLayout: React.FC<LayoutProps> = ({
                                         className="transition-all duration-200 hover:scale-110 hover:z-50 hover:mb-4" 
                                         onClick={() => handlers.onCardClick(r.card, 'RESOURCE', bottomPlayer.id, r.instanceId)}
                                     >
-                                        <CardDisplay card={r.card} isTapped={r.isTapped} size="sm" isSummoningSick={false} />
+                                        <CardDisplay card={r.card} isTapped={r.isTapped} size="sm" isSummoningSick={false} cardBack={bottomPlayer.cardBack} cardFace={bottomPlayer.cardFace} />
                                     </div>
                                 ))}
                             </div>
@@ -242,6 +248,8 @@ export const MobileLayout: React.FC<LayoutProps> = ({
                                             onTouchStart={(e) => handlers.onDragStart(e, fc.card, 'FIELD', bottomPlayer.id, fc.instanceId)}
                                             isPlayable={gameState.phase === Phase.ATTACK_DECLARE && !fc.isTapped && !fc.isSummoningSick}
                                             orientation="bottom"
+                                            cardBack={bottomPlayer.cardBack}
+                                            cardFace={bottomPlayer.cardFace}
                                         />
                                     </div>
                                 ))}
@@ -267,6 +275,8 @@ export const MobileLayout: React.FC<LayoutProps> = ({
                                             onTouchStart={(e) => handlers.onDragStart(e, fc.card, 'FIELD', bottomPlayer.id, fc.instanceId)}
                                             isPlayable={gameState.phase === Phase.ATTACK_DECLARE && !fc.isTapped && !fc.isSummoningSick}
                                             orientation="bottom"
+                                            cardBack={bottomPlayer.cardBack}
+                                            cardFace={bottomPlayer.cardFace}
                                         />
                                     </div>
                                 ))}
@@ -339,6 +349,16 @@ export const MobileLayout: React.FC<LayoutProps> = ({
                         </div>
                     </div>
                     
+                    {progression && (
+                        <div className="flex items-center gap-2 text-[10px] text-slate-400 bg-slate-900 border border-slate-800 rounded px-2 py-0.5">
+                            <span className="text-amber-400 font-extrabold flex items-center gap-1">
+                                <GoldCoin size={11} /> {progression.gold}
+                            </span>
+                            <span className="text-slate-600">•</span>
+                            <span className="text-indigo-400 font-bold">Lv.{progression.level}</span>
+                        </div>
+                    )}
+                    
                     <div className="flex items-center gap-3">
                         <div className="text-xs text-slate-500" ref={refs.bottomDeckRef}>Deck: {gameState.mode === 'STREET' ? gameState.deck.length : bottomPlayer.library.length}</div>
                         <button 
@@ -353,7 +373,7 @@ export const MobileLayout: React.FC<LayoutProps> = ({
 
                 {/* Hand Scroll */}
                 <div 
-                    className={`h-28 w-full flex items-center justify-center bg-slate-900/50 pb-2 overflow-hidden transition-all ${
+                    className={`h-28 w-full flex items-center justify-center bg-slate-900/50 pb-2 overflow-visible transition-all ${
                         bottomPlayer.hand.length > 8 ? '-space-x-[3.5rem]' : 
                         bottomPlayer.hand.length > 5 ? '-space-x-10' : 
                         bottomPlayer.hand.length > 3 ? '-space-x-6' : 
@@ -367,6 +387,9 @@ export const MobileLayout: React.FC<LayoutProps> = ({
                         let hasValidTarget = true;
                         if (c.rank === 'K') hasValidTarget = topPlayer.field.some(f => getEffectiveColor(f) === c.baseColor);
                         if (c.rank === 'Q') hasValidTarget = topPlayer.field.length > 0 || bottomPlayer.field.length > 0;
+                        if (gameState.campaignChallenge === 'UNGA_BUNGA' && ['J', 'Q', 'K'].includes(c.rank)) {
+                            hasValidTarget = false;
+                        }
 
                         const isPlayable = isMainPhase && isInteractive && bottomPlayer.resources.filter(r => !r.isTapped).length >= c.cost && hasValidTarget;
                         
@@ -390,6 +413,8 @@ export const MobileLayout: React.FC<LayoutProps> = ({
                                     isSelected={isSelected}
                                     isDragging={dragState?.cardId === c.id}
                                     size="md"
+                                    cardBack={bottomPlayer.cardBack}
+                                    cardFace={bottomPlayer.cardFace}
                                 />
                             </div>
                         );
@@ -402,7 +427,7 @@ export const MobileLayout: React.FC<LayoutProps> = ({
                     className="fixed pointer-events-none z-[100]"
                     style={{ left: dragState.currentX, top: dragState.currentY, transform: 'translate(-50%, -50%) rotate(5deg)' }}
                 >
-                    <CardDisplay card={dragState.cardObj!} size="md" isDragging />
+                    <CardDisplay card={dragState.cardObj!} size="md" isDragging cardBack={dragState.senderId === bottomPlayer.id ? bottomPlayer.cardBack : topPlayer.cardBack} cardFace={dragState.senderId === bottomPlayer.id ? bottomPlayer.cardFace : topPlayer.cardFace} />
                 </div>
             )}
         </div>

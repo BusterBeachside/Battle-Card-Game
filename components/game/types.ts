@@ -35,4 +35,10 @@ export interface LayoutProps {
         showMobileLog: boolean;
         showMenu: boolean;
     };
+    progression?: {
+        playerName: string;
+        level: number;
+        xp: number;
+        gold: number;
+    };
 }

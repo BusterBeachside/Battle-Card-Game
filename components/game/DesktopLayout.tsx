@@ -1,11 +1,12 @@
 
 import React from 'react';
 import { CardDisplay } from '../CardDisplay';
-import { Color, Phase, Rank } from '../../types';
+import { Color, Phase, Rank, Suit, Card } from '../../types';
 import { getEffectiveColor } from '../../utils/rules';
 import { Settings, Heart, Trash2, LogOut, ArrowRight, ArrowUpCircle, RotateCcw, Sword, Play } from 'lucide-react';
 import { LogEntry as LogEntryComponent } from '../ui/LogEntry';
 import { LayoutProps } from './types';
+import { GoldCoin } from '../ui/GoldCoin';
 
 export const DesktopLayout: React.FC<LayoutProps> = ({
     gameState,
@@ -16,7 +17,8 @@ export const DesktopLayout: React.FC<LayoutProps> = ({
     dragState,
     handlers,
     refs,
-    uiState
+    uiState,
+    progression
 }) => {
     const getPhaseName = () => {
         switch(gameState?.phase) {
@@ -73,6 +75,25 @@ export const DesktopLayout: React.FC<LayoutProps> = ({
                         Turn {gameState.turnCount}
                     </div>
                 </div>
+
+                {progression && (
+                    <div className="hidden lg:flex items-center gap-3 bg-slate-950/80 px-4 py-1.5 rounded-full border border-slate-830 text-xs">
+                        <span className="font-bold text-indigo-300">{progression.playerName}</span>
+                        <span className="text-slate-700">|</span>
+                        <span className="font-bold text-amber-400 flex items-center gap-1.5">
+                            <GoldCoin size={14} /> {progression.gold}
+                        </span>
+                        <span className="text-slate-700">|</span>
+                        <span className="font-bold text-slate-300 bg-slate-800/80 px-2 py-0.5 rounded">
+                            Lv.{progression.level}
+                        </span>
+                        <div className="w-24 bg-slate-800 h-1.5 rounded-full overflow-hidden" title={`${progression.xp} / ${progression.level * 500} XP`}>
+                            <div className="bg-gradient-to-r from-indigo-500 to-purple-500 h-full transition-all duration-300" style={{ width: `${(progression.xp / (progression.level * 500)) * 100}%` }}></div>
+                        </div>
+                        <span className="text-[10px] text-slate-500 font-mono">{progression.xp}/{progression.level * 500} XP</span>
+                    </div>
+                )}
+
                 <div className="flex items-center gap-6">
                     <div className="flex items-center gap-2 text-red-400 font-bold" ref={refs.lifeIconRef}>
                         <Heart size={18} fill="currentColor" /> {topPlayer.life}
@@ -107,7 +128,7 @@ export const DesktopLayout: React.FC<LayoutProps> = ({
                 <div className="flex-1 flex flex-col justify-center p-4 border-b border-slate-800/30 relative">
                     
                     <div className="absolute top-[-40px] left-1/2 -translate-x-1/2 flex -space-x-4 scale-75 opacity-90 transition-all hover:-space-x-2" ref={refs.cpuHandRef}>
-                        {topPlayer.hand.map(c => <CardDisplay key={c.id} domId={c.id} card={c} showBack={gameState.mode !== 'SANDBOX' && !isSpectate} size="sm" onClick={() => handlers.onCardClick(c, 'HAND', topPlayer.id)} />)}
+                        {topPlayer.hand.map(c => <CardDisplay key={c.id} domId={c.id} card={c} showBack={gameState.mode !== 'SANDBOX' && !isSpectate} size="sm" onClick={() => handlers.onCardClick(c, 'HAND', topPlayer.id)} cardBack={topPlayer.cardBack} cardFace={topPlayer.cardFace} />)}
                     </div>
                     <div className="absolute top-4 left-1/2 -translate-x-1/2 text-[10px] font-bold text-slate-500 bg-slate-900/80 px-2 py-1 rounded">
                         Cards: {topPlayer.hand.length}
@@ -131,6 +152,8 @@ export const DesktopLayout: React.FC<LayoutProps> = ({
                                             attachedCards={fc.attachedCards}
                                             orientation="top"
                                             onClick={() => handlers.onCardClick(fc.card, 'FIELD', topPlayer.id, fc.instanceId)}
+                                            cardBack={topPlayer.cardBack}
+                                            cardFace={topPlayer.cardFace}
                                         />
                                     </div>
                                 ))}
@@ -149,6 +172,8 @@ export const DesktopLayout: React.FC<LayoutProps> = ({
                                             attachedCards={fc.attachedCards}
                                             orientation="top"
                                             onClick={() => handlers.onCardClick(fc.card, 'FIELD', topPlayer.id, fc.instanceId)}
+                                            cardBack={topPlayer.cardBack}
+                                            cardFace={topPlayer.cardFace}
                                         />
                                     </div>
                                 ))}
@@ -166,14 +191,14 @@ export const DesktopLayout: React.FC<LayoutProps> = ({
                                     <div className="flex flex-col -space-y-20 relative z-10">
                                         {topPlayer.resources.slice(0, 5).map((r, i) => (
                                             <div key={r.instanceId} style={{ zIndex: i }} className="origin-top transition-transform hover:z-50 hover:scale-105" onClick={() => handlers.onCardClick(r.card, 'RESOURCE', topPlayer.id, r.instanceId)}>
-                                                <CardDisplay card={r.card} isTapped={r.isTapped} size="md" isSummoningSick={false} />
+                                                <CardDisplay card={r.card} isTapped={r.isTapped} size="md" isSummoningSick={false} cardBack={topPlayer.cardBack} cardFace={topPlayer.cardFace} />
                                             </div>
                                         ))}
                                     </div>
                                     <div className="flex flex-col -space-y-20 relative z-0">
                                         {topPlayer.resources.slice(5, 10).map((r, i) => (
                                             <div key={r.instanceId} style={{ zIndex: i }} className="origin-top transition-transform hover:z-50 hover:scale-105" onClick={() => handlers.onCardClick(r.card, 'RESOURCE', topPlayer.id, r.instanceId)}>
-                                                <CardDisplay card={r.card} isTapped={r.isTapped} size="md" isSummoningSick={false} />
+                                                <CardDisplay card={r.card} isTapped={r.isTapped} size="md" isSummoningSick={false} cardBack={topPlayer.cardBack} cardFace={topPlayer.cardFace} />
                                             </div>
                                         ))}
                                     </div>
@@ -209,6 +234,8 @@ export const DesktopLayout: React.FC<LayoutProps> = ({
                                             onTouchStart={(e) => handlers.onDragStart(e, fc.card, 'FIELD', bottomPlayer.id, fc.instanceId)}
                                             isPlayable={gameState.phase === Phase.ATTACK_DECLARE && !fc.isTapped && !fc.isSummoningSick}
                                             orientation="bottom"
+                                            cardBack={bottomPlayer.cardBack}
+                                            cardFace={bottomPlayer.cardFace}
                                         />
                                     </div>
                                 ))}
@@ -232,6 +259,8 @@ export const DesktopLayout: React.FC<LayoutProps> = ({
                                             onTouchStart={(e) => handlers.onDragStart(e, fc.card, 'FIELD', bottomPlayer.id, fc.instanceId)}
                                             isPlayable={gameState.phase === Phase.ATTACK_DECLARE && !fc.isTapped && !fc.isSummoningSick}
                                             orientation="bottom"
+                                            cardBack={bottomPlayer.cardBack}
+                                            cardFace={bottomPlayer.cardFace}
                                         />
                                     </div>
                                 ))}
@@ -251,14 +280,14 @@ export const DesktopLayout: React.FC<LayoutProps> = ({
                                     <div className="flex flex-col -space-y-20 relative z-10">
                                         {bottomPlayer.resources.slice(0, 5).map((r, i) => (
                                             <div key={r.instanceId} id={r.instanceId} style={{ zIndex: i }} className="transition-all cursor-pointer hover:z-50 hover:scale-105 hover:-translate-y-2" onClick={() => handlers.onCardClick(r.card, 'RESOURCE', bottomPlayer.id, r.instanceId)}>
-                                                <CardDisplay card={r.card} isTapped={r.isTapped} size="md" isSummoningSick={false} />
+                                                <CardDisplay card={r.card} isTapped={r.isTapped} size="md" isSummoningSick={false} cardBack={bottomPlayer.cardBack} cardFace={bottomPlayer.cardFace} />
                                             </div>
                                         ))}
                                     </div>
                                     <div className="flex flex-col -space-y-20 relative z-0">
                                         {bottomPlayer.resources.slice(5, 10).map((r, i) => (
                                             <div key={r.instanceId} id={r.instanceId} style={{ zIndex: i }} className="transition-all cursor-pointer hover:z-50 hover:scale-105 hover:-translate-y-2" onClick={() => handlers.onCardClick(r.card, 'RESOURCE', bottomPlayer.id, r.instanceId)}>
-                                                <CardDisplay card={r.card} isTapped={r.isTapped} size="md" isSummoningSick={false} />
+                                                <CardDisplay card={r.card} isTapped={r.isTapped} size="md" isSummoningSick={false} cardBack={bottomPlayer.cardBack} cardFace={bottomPlayer.cardFace} />
                                             </div>
                                         ))}
                                     </div>
@@ -274,35 +303,77 @@ export const DesktopLayout: React.FC<LayoutProps> = ({
                         className="fixed pointer-events-none z-[100]"
                         style={{ left: dragState.currentX, top: dragState.currentY, transform: 'translate(-50%, -50%) rotate(5deg)' }}
                     >
-                        <CardDisplay card={dragState.cardObj!} size="md" isDragging />
+                        <CardDisplay card={dragState.cardObj!} size="md" isDragging cardBack={dragState.senderId === bottomPlayer.id ? bottomPlayer.cardBack : topPlayer.cardBack} cardFace={dragState.senderId === bottomPlayer.id ? bottomPlayer.cardFace : topPlayer.cardFace} />
                     </div>
                 )}
             </div>
 
             <div className="h-56 bg-slate-900 border-t border-slate-800 flex shadow-2xl z-30 flex-none">
-                <div className="w-56 p-4 border-r border-slate-800 bg-slate-900 flex flex-col justify-between shrink-0">
-                    <div>
-                        <h2 className="text-indigo-300 font-bold truncate">{bottomPlayer.name}</h2>
-                        <div id="bottom-life-total" className="flex items-center gap-2 text-4xl font-black text-red-500 mt-2" ref={refs.bottomLifeRef}>
-                            <Heart size={32} fill="currentColor" /> {bottomPlayer.life}
+                <div className="w-56 p-4 border-r border-slate-800 bg-slate-900 flex gap-3 shrink-0">
+                    {/* Left: Stats & buttons */}
+                    <div className="flex-1 flex flex-col justify-between min-w-0">
+                        <div>
+                            <h2 className="text-indigo-300 font-extrabold truncate text-sm font-title uppercase tracking-wider">{bottomPlayer.name}</h2>
+                            <div id="bottom-life-total" className="flex items-center gap-1.5 text-3xl font-black text-red-500 mt-2" ref={refs.bottomLifeRef}>
+                                <Heart size={24} fill="currentColor" className="shrink-0" /> {bottomPlayer.life}
+                            </div>
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                            <div className="text-[11px] text-slate-400 font-bold uppercase tracking-wider">
+                                Deck: <span className="text-white font-mono text-sm ml-1">
+                                    {gameState.mode === 'STREET' ? gameState.deck.length : bottomPlayer.library.length}
+                                </span>
+                            </div>
+                            {/* Bottom Discard Button */}
+                            <button 
+                                ref={refs.bottomDiscardRef as React.RefObject<HTMLButtonElement>}
+                                onClick={() => handlers.setViewingDiscard(gameState.mode === 'STREET' ? 'SHARED' : bottomPlayer.id)}
+                                className="flex items-center justify-center gap-1 bg-slate-800 hover:bg-slate-700 py-1.5 rounded text-[10px] text-slate-400 font-bold transition-colors border border-slate-700 w-full"
+                            >
+                                <Trash2 size={12} className="shrink-0" /> 
+                                <span className="truncate">{gameState.mode === 'STREET' ? 'Shared' : 'Graveyard'}</span>
+                                <span className="ml-auto bg-slate-900 px-1 rounded text-[9px] font-mono">
+                                    {gameState.mode === 'STREET' ? gameState.players[0].discard.length + gameState.players[1].discard.length : bottomPlayer.discard.length}
+                                </span>
+                            </button>
                         </div>
                     </div>
-                    <div className="flex flex-col gap-2">
-                        <div className="text-xs text-slate-500 uppercase font-bold tracking-wider" ref={refs.bottomDeckRef}>
-                            Deck: <span className="text-white text-lg ml-1">{gameState.mode === 'STREET' ? gameState.deck.length : bottomPlayer.library.length}</span>
-                        </div>
-                        {/* Bottom Discard Button */}
-                        <button 
-                            ref={refs.bottomDiscardRef as React.RefObject<HTMLButtonElement>}
-                            onClick={() => handlers.setViewingDiscard(gameState.mode === 'STREET' ? 'SHARED' : bottomPlayer.id)}
-                            className="flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 py-1.5 rounded text-xs text-slate-400 font-bold transition-colors border border-slate-700 w-full"
-                        >
-                            <Trash2 size={14} /> 
-                            {gameState.mode === 'STREET' ? 'Shared Graveyard' : 'Graveyard'}
-                            <span className="ml-auto bg-slate-900 px-1.5 rounded">
-                                {gameState.mode === 'STREET' ? gameState.players[0].discard.length + gameState.players[1].discard.length : bottomPlayer.discard.length}
-                            </span>
-                        </button>
+
+                    {/* Right: The visual Deck Card Back */}
+                    <div className="w-18 flex items-center justify-center shrink-0">
+                        {(() => {
+                            const deckCount = gameState.mode === 'STREET' ? gameState.deck.length : bottomPlayer.library.length;
+                            const dummyCard: Card = {
+                                id: 'deck-back',
+                                suit: Suit.Spades,
+                                rank: Rank.Two,
+                                numericValue: 2,
+                                cost: 0,
+                                baseColor: Color.Black
+                            };
+                            return deckCount > 0 ? (
+                                <div ref={refs.bottomDeckRef} className="relative cursor-pointer hover:scale-105 transition-transform duration-200">
+                                    {/* Stacked card/pile effect for deck > 1 */}
+                                    {deckCount > 1 && (
+                                        <div className="absolute top-[2px] left-[2px] w-12 h-16 bg-slate-950/40 rounded-sm border border-slate-800/40 transform translate-x-[2px] translate-y-[2px]" />
+                                    )}
+                                    {deckCount > 3 && (
+                                        <div className="absolute top-0 left-0 w-12 h-16 bg-slate-950/20 rounded-sm border border-slate-800/20 transform translate-x-[1px] translate-y-[1px]" />
+                                    )}
+                                    <CardDisplay 
+                                        card={dummyCard}
+                                        showBack={true}
+                                        size="sm"
+                                        cardBack={bottomPlayer.cardBack}
+                                        cardFace={bottomPlayer.cardFace}
+                                    />
+                                </div>
+                            ) : (
+                                <div ref={refs.bottomDeckRef} className="w-12 h-16 border-2 border-dashed border-slate-800 rounded-sm flex items-center justify-center text-slate-500 text-[9px] font-bold font-mono">
+                                    EMPTY
+                                </div>
+                            );
+                        })()}
                     </div>
                 </div>
 
@@ -321,6 +392,10 @@ export const DesktopLayout: React.FC<LayoutProps> = ({
                                 // Queen Validation: Needs ANY unit on board
                                 hasValidTarget = topPlayer.field.length > 0 || bottomPlayer.field.length > 0;
                             }
+                            
+                            if (gameState.campaignChallenge === 'UNGA_BUNGA' && ['J', 'Q', 'K'].includes(c.rank)) {
+                                hasValidTarget = false;
+                            }
 
                             const isPlayable = isMainPhase && isInteractive && bottomPlayer.resources.filter(r => !r.isTapped).length >= c.cost && hasValidTarget;
                             
@@ -334,6 +409,8 @@ export const DesktopLayout: React.FC<LayoutProps> = ({
                                         isPlayable={isPlayable}
                                         isSelected={isSelected}
                                         isDragging={dragState?.cardId === c.id}
+                                        cardBack={bottomPlayer.cardBack}
+                                        cardFace={bottomPlayer.cardFace}
                                     />
                                 </div>
                             );

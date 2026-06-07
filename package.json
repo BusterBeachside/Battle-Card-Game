@@ -9,19 +9,20 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@vitejs/plugin-react": "^5.1.4",
     "fs": "^0.0.1-security",
     "lucide-react": "^0.563.0",
+    "motion": "^12.40.0",
     "path": "^0.12.7",
     "peerjs": "^1.5.5",
-    "react": "^19.2.4",
-    "react-dom": "^19.2.4",
-    "url": "^0.11.4",
-    "vite": "^7.3.1"
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "url": "^0.11.4"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
-    "@vitejs/plugin-react": "^5.0.0",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^5.1.4",
     "typescript": "~5.8.2",
     "vite": "^6.2.0"
   }

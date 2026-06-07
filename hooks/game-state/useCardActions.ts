@@ -23,6 +23,11 @@ export const useCardActions = ({ gameStateRef, setGameState, effects, refs, draw
         if (!currentState) return;
 
         // --- VALIDATION & PREP ---
+        if (currentState.campaignChallenge === 'UNGA_BUNGA' && currentState.turnPlayer === 0 && isFaceCard) {
+            setGameState(prev => prev ? ({ ...prev, logs: addLog(prev, "Unga Bunga: Cannot use Tactics!") }) : null);
+            return;
+        }
+
         if (card.rank === 'K' || card.rank === 'Q') {
             if (!targetId || targetOwnerId === undefined) return;
             const targetP = currentState.players.find(p => p.id === targetOwnerId);
@@ -72,28 +77,52 @@ export const useCardActions = ({ gameStateRef, setGameState, effects, refs, draw
                 });
                 const nextPlayers = [...prev.players];
                 nextPlayers[prev.turnPlayer] = { ...p, hand: newHand, resources: newResources };
-                return { ...prev, players: nextPlayers };
+                
+                let nextSessionStats = prev.sessionStats;
+                if (prev.turnPlayer === 0 && nextSessionStats) {
+                    nextSessionStats = {
+                        ...nextSessionStats,
+                        tacticsPlayed: nextSessionStats.tacticsPlayed + 1
+                    };
+                }
+                return { ...prev, players: nextPlayers, sessionStats: nextSessionStats };
             });
 
             playSound('tactic');
             if (card.rank === 'K') playSound('king');
             if (card.rank === 'Q') playSound('queen');
-            
-            effects.setSpecialAnim({ type: card.rank as 'K'|'Q'|'J', card, targetRect });
+
+            const playingP = currentState.players.find(p => p.id === currentState.turnPlayer);
+            effects.setSpecialAnim({ type: card.rank as 'K'|'Q'|'J', card, targetRect, cardBack: playingP?.cardBack, cardFace: playingP?.cardFace });
             await new Promise(r => setTimeout(r, card.rank === 'K' ? 1200 : card.rank === 'Q' ? 1000 : 800));
             effects.setSpecialAnim(null);
 
             setGameState(prev => {
                 if (!prev) return null;
-                const nextState = { ...prev, players: [...prev.players] };
-                const p = nextState.players[prev.turnPlayer];
+                const nextState = { ...prev };
                 
                 if (card.rank === 'J') { 
-                    p.discard.push(card); 
-                    return { ...nextState, logs: addLog(nextState, `Played Jack ${formatCardLog(card)}.`) }; 
+                    const nextPlayers = prev.players.map((pl, idx) => {
+                        if (idx === prev.turnPlayer) {
+                            return { ...pl, discard: [...pl.discard, card] };
+                        }
+                        return pl;
+                    });
+                    return { ...nextState, players: nextPlayers, logs: addLog(nextState, `Played Jack ${formatCardLog(card)}.`) }; 
                 } 
                 else if (card.rank === 'K') {
-                    const targetP = nextState.players[targetOwnerId!];
+                    const activePIdx = prev.turnPlayer;
+                    const defPIdx = targetOwnerId!;
+                    
+                    const nextPlayers = prev.players.map((pl, idx) => {
+                        if (idx === activePIdx || idx === defPIdx) {
+                            return { ...pl, field: [...pl.field], discard: [...pl.discard] };
+                        }
+                        return pl;
+                    });
+                    
+                    const p = nextPlayers[activePIdx];
+                    const targetP = nextPlayers[defPIdx];
                     const targetFIdx = targetP.field.findIndex(f => f.instanceId === targetId);
                     if (targetFIdx === -1) return prev; 
                     const targetF = targetP.field[targetFIdx];
@@ -113,10 +142,18 @@ export const useCardActions = ({ gameStateRef, setGameState, effects, refs, draw
                         effects.triggerSoulTrail(targetId, targetRef.current.getBoundingClientRect(), trailColor);
                     }
 
-                    p.discard.push(card); 
+                    p.discard = [...p.discard, card]; 
                     targetP.field.splice(targetFIdx, 1); 
-                    targetP.discard.push(targetF.card, ...targetF.attachedCards);
-                    return { ...nextState, logs: addLog(nextState, `King ${formatCardLog(card)} executed ${formatCardLog(targetF.card)}.`) };
+                    targetP.discard = [...targetP.discard, targetF.card, ...targetF.attachedCards];
+                    
+                    let nextSessionStats = nextState.sessionStats;
+                    if (targetOwnerId === 1 && nextSessionStats) {
+                        nextSessionStats = {
+                            ...nextSessionStats,
+                            killsCount: nextSessionStats.killsCount + 1
+                        };
+                    }
+                    return { ...nextState, players: nextPlayers, sessionStats: nextSessionStats, logs: addLog(nextState, `King ${formatCardLog(card)} executed ${formatCardLog(targetF.card)}.`) };
                 } 
                 else if (card.rank === 'Q') {
                     const targetP = nextState.players[targetOwnerId!];
@@ -165,7 +202,15 @@ export const useCardActions = ({ gameStateRef, setGameState, effects, refs, draw
                 nextP.field = [...nextP.field, newSoldier]; // Push phantom
                 
                 nextPlayers[prev.turnPlayer] = nextP;
-                return { ...prev, players: nextPlayers, logs: addLog(prev, `Conscripted ${formatCardLog(card)}.`) };
+                
+                let nextSessionStats = prev.sessionStats;
+                if (pId === 0 && nextSessionStats) {
+                    nextSessionStats = {
+                        ...nextSessionStats,
+                        conscriptedCount: nextSessionStats.conscriptedCount + 1
+                    };
+                }
+                return { ...prev, players: nextPlayers, sessionStats: nextSessionStats, logs: addLog(prev, `Conscripted ${formatCardLog(card)}.`) };
             });
 
             // STEP 2: Wait for DOM Reflow
@@ -174,7 +219,8 @@ export const useCardActions = ({ gameStateRef, setGameState, effects, refs, draw
             // STEP 3: Animate to the exact reserved position
             if (startRect) {
                 // Now that the invisible card is in DOM, we can target it
-                await effects.triggerSummon(card, startRect, newSoldier.instanceId, pId);
+                const playingP = currentState.players.find(p => p.id === currentState.turnPlayer);
+                await effects.triggerSummon(card, startRect, newSoldier.instanceId, pId, playingP?.cardBack, playingP?.cardFace);
             }
 
             // STEP 4: Reveal

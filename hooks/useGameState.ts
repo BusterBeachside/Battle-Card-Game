@@ -55,7 +55,7 @@ export const useGameState = ({ effects, refs, autoSort, localPlayerId }: GameSta
         return state.turnPlayer;
     };
 
-    const startGame = useCallback((mode: GameMode, cpuConfig: { p1: boolean, p2: boolean }, lessonId?: string, isMultiBlockingEnabled?: boolean) => {
+    const startGame = useCallback((mode: GameMode, cpuConfig: { p1: boolean, p2: boolean }, lessonId?: string, isMultiBlockingEnabled?: boolean, p1Difficulty: 'EASY' | 'MEDIUM' | 'HARD' = 'HARD', p2Difficulty: 'EASY' | 'MEDIUM' | 'HARD' = 'HARD') => {
         let tutorialConfig = null;
         let initialPhase = mode === 'SANDBOX' ? Phase.MAIN : Phase.INIT_SELECT;
         let startingPlayerId = 0;
@@ -113,7 +113,7 @@ export const useGameState = ({ effects, refs, autoSort, localPlayerId }: GameSta
             }
         }
 
-        const createPlayer = (id: number, name: string, isCpu: boolean): PlayerState => {
+        const createPlayer = (id: number, name: string, isCpu: boolean, difficulty: 'EASY' | 'MEDIUM' | 'HARD'): PlayerState => {
             let hand: Card[] = [];
             let resources: FieldCard[] = [];
             let field: FieldCard[] = [];
@@ -147,21 +147,116 @@ export const useGameState = ({ effects, refs, autoSort, localPlayerId }: GameSta
                 }
             }
 
+            let playerCardBack = 'battle';
+            let playerCardFace = 'classic';
+            try {
+                const raw = localStorage.getItem('battle_card_progression_v1');
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    if (parsed) {
+                        if (parsed.selectedCardBack) playerCardBack = parsed.selectedCardBack;
+                        if (parsed.selectedCardFace) playerCardFace = parsed.selectedCardFace;
+                    }
+                }
+            } catch (e) {}
+
+            const isPreview = (() => {
+                try {
+                    return sessionStorage.getItem('battle_is_preview_game') === 'true';
+                } catch(e) { return false; }
+            })();
+            const isCampaign = (() => {
+                try {
+                    return sessionStorage.getItem('battle_is_campaign_game') === 'true';
+                } catch(e) { return false; }
+            })();
+
+            let p1Back = playerCardBack;
+            let p1Face = playerCardFace;
+            let p2Back = 'battle';
+            let p2Face = 'classic';
+
+            if (isPreview) {
+                try {
+                    const previewBack = sessionStorage.getItem('battle_preview_back');
+                    const previewFace = sessionStorage.getItem('battle_preview_face');
+                    if (previewBack) {
+                        p1Back = previewBack;
+                        p2Back = previewBack;
+                    }
+                    if (previewFace) {
+                        p1Face = previewFace;
+                        p2Face = previewFace;
+                    }
+                } catch (e) {}
+            } else if (isCampaign) {
+                try {
+                    p2Back = sessionStorage.getItem('battle_campaign_ai_back') || 'battle';
+                    p2Face = sessionStorage.getItem('battle_campaign_ai_face') || 'classic';
+                } catch (e) {}
+            }
+
             return {
-                id, name, isCpu, life, hand, 
+                id, name, isCpu, 
+                difficulty: isCpu ? difficulty : undefined,
+                life, hand, 
                 library: mode === 'PRO' ? createDeck() : [],
                 resources, field, discard: [],
                 consecutiveDrawFailures: 0,
-                hasAttackedThisTurn: false
+                hasAttackedThisTurn: false,
+                cardBack: id === 0 ? p1Back : p2Back,
+                cardFace: id === 0 ? p1Face : p2Face
             };
         };
 
-        const p1 = createPlayer(0, cpuConfig.p1 ? "CPU 1" : "Player 1", cpuConfig.p1);
-        const p2 = createPlayer(1, cpuConfig.p2 ? "CPU 2" : "Player 2", cpuConfig.p2);
+        let customName = "Player 1";
+        try {
+            const raw = localStorage.getItem('battle_card_progression_v1');
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                if (parsed && parsed.playerName) {
+                    customName = parsed.playerName;
+                }
+            }
+        } catch (e) {}
+
+        const isCampaignGame = (() => {
+            try {
+                return sessionStorage.getItem('battle_is_campaign_game') === 'true';
+            } catch(e) { return false; }
+        })();
+        let campaignNameP2 = cpuConfig.p2 ? "CPU 2" : "Player 2";
+        let campaignDiffP2 = p2Difficulty;
+        let campaignChallenge: string | null = null;
+        if (isCampaignGame) {
+            try {
+                campaignNameP2 = sessionStorage.getItem('battle_campaign_ai_name') || 'Campaign Opponent';
+                campaignDiffP2 = (sessionStorage.getItem('battle_campaign_ai_difficulty') as 'EASY' | 'MEDIUM' | 'HARD') || 'EASY';
+                campaignChallenge = sessionStorage.getItem('battle_campaign_challenge');
+            } catch(e) {}
+        }
+
+        const p1 = createPlayer(0, cpuConfig.p1 ? "CPU 1" : customName, cpuConfig.p1, p1Difficulty);
+        const p2 = createPlayer(1, isCampaignGame ? campaignNameP2 : (cpuConfig.p2 ? "CPU 2" : "Player 2"), cpuConfig.p2, isCampaignGame ? campaignDiffP2 : p2Difficulty);
+
+        if (campaignChallenge === 'SUPPLY_CHAIN') {
+            p2.resources.push(createFieldCard(createTutorialCard(Rank.Ace, Suit.Spades), 1));
+            p2.resources.push(createFieldCard(createTutorialCard(Rank.Ace, Suit.Hearts), 1));
+        } else if (campaignChallenge === 'AMBUSH') {
+             const card1 = createFieldCard(createTutorialCard(Rank.Four, Suit.Spades), 1);
+             const card2 = createFieldCard(createTutorialCard(Rank.Four, Suit.Hearts), 1);
+             card1.isSummoningSick = true;
+             card2.isSummoningSick = true;
+             p2.field.push(card1);
+             p2.field.push(card2);
+        } else if (campaignChallenge === 'BIG_BOI') {
+            p2.life = 30;
+        }
 
         const initialState: GameState = {
             mode,
             isMultiBlockingEnabled: isMultiBlockingEnabled || false,
+            campaignChallenge: campaignChallenge,
             deck: sharedDeck,
             players: [p1, p2],
             turnPlayer: initialPhase === Phase.INIT_SELECT ? 0 : startingPlayerId, 
@@ -177,6 +272,12 @@ export const useGameState = ({ effects, refs, autoSort, localPlayerId }: GameSta
             sourceCardId: null,
             winner: null,
             recentDamage: {},
+            sessionStats: {
+                damageDealt: 0,
+                conscriptedCount: 0,
+                tacticsPlayed: 0,
+                killsCount: 0
+            },
             logs: [{ id: generateId(), text: `Game Started. Mode: ${mode}.` }],
             tutorialState: mode === 'TUTORIAL' && tutorialConfig ? {
                 active: true,

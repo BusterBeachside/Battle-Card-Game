@@ -8,6 +8,15 @@ export const getCpuAttackers = (gameState: GameState): string[] => {
     const potential = cpu.field.filter(f => !f.isTapped && !f.isSummoningSick);
     const blockers = opponent.field.filter(f => !f.isTapped);
     
+    const difficulty = cpu.difficulty || 'HARD';
+
+    if (difficulty === 'EASY') {
+        // EASY AI: Recklessly attack with absolutely everything that is untapped 60% of the time!
+        if (Math.random() < 0.60) {
+            return potential.map(c => c.instanceId);
+        }
+    }
+
     // --- LETHAL CHECK (Checkmate Logic) ---
     // If attacking with everything results in a win, do it. Ignore safety.
     const getPotentialDamage = (attackers: FieldCard[], currentBlockers: FieldCard[]) => {
@@ -39,30 +48,74 @@ export const getCpuAttackers = (gameState: GameState): string[] => {
             candidates.push(atk); continue;
         }
 
-        const freeKill = validBlockers.some(b => b.card.numericValue > atk.card.numericValue && b.card.rank !== 'A' && atk.card.rank !== 'A');
-        if (freeKill) continue; 
-
-        const equalTrade = validBlockers.some(b => 
-            (b.card.numericValue === atk.card.numericValue) || 
-            (b.card.rank === 'A' && atk.card.rank !== 'A') || 
-            (atk.card.rank === 'A' && b.card.rank !== 'A')
-        );
-
-        if (equalTrade) {
-            // Aggressive or desperate
-            if (atk.card.numericValue <= 8 || cpu.life < 10) {
-                candidates.push(atk);
+        // --- ACE ATTACK CONSTRAINT ---
+        // An Ace can trade with any blocker. But we only want to trade if the blocker is worth >= 5.
+        // EASY AI skips this optimization.
+        if (atk.card.rank === 'A' && difficulty !== 'EASY') {
+            const hasCheapBlocker = validBlockers.some(b => b.card.numericValue < 5 && b.card.rank !== 'A');
+            if (hasCheapBlocker) {
+                continue; // Skip attacking with Ace to preserve it
             }
-            continue;
         }
 
-        // We win combat
+        // EASY AI completely ignores enemy blockers when setting candidates!
+        if (difficulty !== 'EASY') {
+            const freeKill = validBlockers.some(b => {
+                if (atk.card.rank === 'A') {
+                    // If we attack with Ace (combat power 1), any non-Ace blocker with value >= 2 lives and kills the Ace.
+                    return b.card.numericValue >= 2 && b.card.rank !== 'A';
+                }
+                if (b.card.rank === 'A') {
+                    // Enemy Ace blocker. It trades with anything, so it's not a "free" kill for them (it's a trade).
+                    return false;
+                }
+                return b.card.numericValue > atk.card.numericValue;
+            });
+            if (freeKill) continue; 
+
+            const equalTrade = validBlockers.some(b => {
+                if (atk.card.rank === 'A' && b.card.rank === 'A') return true;
+                if (atk.card.rank === 'A') {
+                    // If we attack with Ace, treat it like at least a 5, so only count as equal/fair trade if blocker is >= 5.
+                    return b.card.numericValue >= 5;
+                }
+                if (b.card.rank === 'A') {
+                    // Opponent's Ace blocker. If we are standard unit of value <= 4, trading for their Ace is AMAZING value for us!
+                    return atk.card.numericValue <= 4;
+                }
+                return b.card.numericValue === atk.card.numericValue;
+            });
+
+            if (equalTrade) {
+                // Aggressive or desperate
+                // If the attacker is an Ace, we treat it like at least a 5, so we can trade it (Ace's numericValue is technically 1).
+                const effectiveAtkValue = atk.card.rank === 'A' ? 5 : atk.card.numericValue;
+                // MEDIUM is slightly more willing to trade than HARD
+                const tradeThreshold = difficulty === 'MEDIUM' ? 10 : 8;
+                if (effectiveAtkValue <= tradeThreshold || cpu.life < 10) {
+                    candidates.push(atk);
+                }
+                continue;
+            }
+        }
+
+        // We win combat or we are on EASY difficulty
         candidates.push(atk);
     }
 
     // 2. Safety Check: Ensure we don't die on crackback
-    // Identify Threats: All opponent units (untapped + tapped, as they will untap next turn)
+    // Identify Threats: All opponent units
     const threats = opponent.field; 
+
+    // EASY AI ignores crackback danger completely!
+    if (difficulty === 'EASY') {
+        return candidates.map(c => c.instanceId);
+    }
+
+    // MEDIUM AI 35% of the time neglects the safety check
+    if (difficulty === 'MEDIUM' && Math.random() < 0.35) {
+        return candidates.map(c => c.instanceId);
+    }
 
     // Simulation function to check damage leaking through
     const calculatePredictedDamage = (myBlockers: FieldCard[]) => {
@@ -86,7 +139,6 @@ export const getCpuAttackers = (gameState: GameState): string[] => {
     let predictedDamage = calculatePredictedDamage(cpu.field.filter(f => !candidates.includes(f)));
 
     // If danger, pull back attackers
-    // Limit loop to prevent infinite (though candidates shrinks, so it's finite)
     while (predictedDamage >= cpu.life && candidates.length > 0) {
         const currentBlockers = cpu.field.filter(f => !candidates.includes(f));
         const blackBlockers = currentBlockers.filter(b => getEffectiveColor(b) === Color.Black).length;
@@ -98,9 +150,6 @@ export const getCpuAttackers = (gameState: GameState): string[] => {
         const needBlack = blackThreats > blackBlockers;
         const needRed = redThreats > redBlockers;
         
-        // Sort candidates: We want to pull back the WEAKEST attacker that can block
-        // Actually, we want to pull back the one that contributes least to offense but helps defense.
-        // For simplicity, pull back lowest numeric value.
         candidates.sort((a, b) => a.card.numericValue - b.card.numericValue);
         
         let pulled = false;
@@ -123,8 +172,6 @@ export const getCpuAttackers = (gameState: GameState): string[] => {
         }
         
         if (!pulled) {
-             // Mismatch, remaining candidates can't help with defense colors.
-             // Just break to preserve whatever offense we have.
              break;
         }
         
@@ -141,7 +188,6 @@ const findMultiBlockCombination = (targetVal: number, blockers: FieldCard[]): Fi
 
     // Basic recursive subset sum search
     const search = (index: number, currentSum: number, currentCards: FieldCard[]) => {
-        // Pruning: if current sum already exceeds best found sum, stop (we want min cost)
         if (currentSum >= bestSum) return;
 
         // Success: we killed it
@@ -151,7 +197,6 @@ const findMultiBlockCombination = (targetVal: number, blockers: FieldCard[]): Fi
             return;
         }
 
-        // Run out of cards
         if (index >= blockers.length) return;
 
         // Include card at index
@@ -164,8 +209,6 @@ const findMultiBlockCombination = (targetVal: number, blockers: FieldCard[]): Fi
         search(index + 1, currentSum, currentCards);
     };
 
-    // Sort blockers by value descending to potentially hit target faster in DFS?
-    // Actually, heuristic sort isn't strictly necessary for small N, but helps.
     search(0, 0, []);
     return bestCombination;
 };
@@ -180,6 +223,38 @@ export const getCpuBlocks = (gameState: GameState, defendingPlayerId: number): R
     const myBlockers = cpu.field.filter(f => !f.isTapped);
     const usedBlockers = new Set<string>();
     
+    const difficulty = cpu.difficulty || 'HARD';
+
+    if (difficulty === 'EASY') {
+        // EASY AI: 25% chance of skipping blocking entirely
+        if (Math.random() < 0.25) {
+            return {};
+        }
+
+        // EASY AI: 30% chance of matching lanes completely randomly
+        if (Math.random() < 0.30) {
+            const randomBlocks: Record<string, string> = {};
+            const availableBlockers = [...myBlockers];
+            for (const atk of attackers) {
+                const valid = availableBlockers.filter(b => canBlock(atk, b));
+                if (valid.length > 0) {
+                    const picked = valid[Math.floor(Math.random() * valid.length)];
+                    randomBlocks[picked.instanceId] = atk.instanceId;
+                    const idx = availableBlockers.findIndex(b => b.instanceId === picked.instanceId);
+                    if (idx !== -1) availableBlockers.splice(idx, 1);
+                }
+            }
+            return randomBlocks;
+        }
+    }
+
+    if (difficulty === 'MEDIUM') {
+        // MEDIUM AI: 10% chance of block skip
+        if (Math.random() < 0.10) {
+            return {};
+        }
+    }
+
     // Sort attackers high to low (Prioritize blocking biggest threats)
     attackers.sort((a, b) => b.card.numericValue - a.card.numericValue);
 
@@ -191,7 +266,14 @@ export const getCpuBlocks = (gameState: GameState, defendingPlayerId: number): R
     const isLethal = potentialDamage >= cpu.life;
 
     for (const atk of attackers) {
-        const validBlockers = myBlockers.filter(b => !usedBlockers.has(b.instanceId) && canBlock(atk, b));
+        const validBlockers = myBlockers.filter(b => {
+            if (usedBlockers.has(b.instanceId)) return false;
+            if (!canBlock(atk, b)) return false;
+            // Prevent using an Ace to defend against attacking units < 5 unless it's a lethal emergency
+            // EASY AI does not preserve its Aces!
+            if (b.card.rank === 'A' && atk.card.numericValue < 5 && !isLethal && difficulty !== 'EASY') return false;
+            return true;
+        });
         
         if (validBlockers.length > 0) {
             let chosen: FieldCard[] = [];
@@ -204,7 +286,7 @@ export const getCpuBlocks = (gameState: GameState, defendingPlayerId: number): R
             const trader = !killer ? validBlockers.find(b => b.card.numericValue === atk.card.numericValue) : undefined;
             
             // C. Trade Up (Blocker < Atk, but Blocker is Ace)
-            const aceTrader = (!killer && !trader && atk.card.rank !== 'A') 
+            const aceTrader = (!killer && !trader && atk.card.rank !== 'A' && (atk.card.numericValue >= 5 || isLethal)) 
                 ? validBlockers.find(b => b.card.rank === 'A') 
                 : undefined;
 
@@ -214,18 +296,11 @@ export const getCpuBlocks = (gameState: GameState, defendingPlayerId: number): R
 
             // --- 2. MULTI-BLOCK STRATEGY (If enabled & no single good block found) ---
             if (chosen.length === 0 && gameState.isMultiBlockingEnabled) {
-                // We couldn't single block effectively. Can we gang up?
                 const atkVal = atk.card.rank === 'A' ? 1 : atk.card.numericValue;
                 const combo = findMultiBlockCombination(atkVal, validBlockers);
                 
                 if (combo) {
                     const comboCost = combo.reduce((sum, c) => sum + (c.card.rank === 'A' ? 1 : c.card.numericValue), 0);
-                    
-                    // Evaluate Trade:
-                    // We lose all blockers involved (Cost). We kill Attacker (Value).
-                    // Accept if Cost <= Attacker Value (Fair Trade) OR if we are about to die.
-                    // Note: We count Ace blocker as value 1 here, but Ace blocker would have been picked by single block logic usually.
-                    
                     if (isLethal || comboCost <= atkVal) {
                         chosen = combo;
                     }
@@ -233,7 +308,6 @@ export const getCpuBlocks = (gameState: GameState, defendingPlayerId: number): R
             }
 
             // --- 3. CHUMP BLOCK STRATEGY (Last Resort) ---
-            // If we still haven't picked a block, but we are dying or taking huge damage...
             if (chosen.length === 0) {
                 validBlockers.sort((a, b) => a.card.numericValue - b.card.numericValue);
                 const weakest = validBlockers[0];
@@ -243,7 +317,9 @@ export const getCpuBlocks = (gameState: GameState, defendingPlayerId: number): R
                 
                 let blockThreshold = 4;
                 if (cpu.life < 10) blockThreshold = 2;
-                if (isLethal) blockThreshold = -999; // Block everything if lethal
+                if (difficulty === 'EASY') blockThreshold = 0; // Extremely loose chump block criteria
+                if (difficulty === 'MEDIUM') blockThreshold = 2; // Mid-level willingness to block
+                if (isLethal) blockThreshold = -999; 
 
                 if ((damageIfUnblocked - valueLost) >= blockThreshold) {
                     chosen = [weakest];

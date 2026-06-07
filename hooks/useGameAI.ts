@@ -48,7 +48,7 @@ export const useGameAI = ({ gameState, gameStateRef, actions, isCoinFlipping, sh
         switch(state.phase) {
             case Phase.INIT_SELECT:
                 if (state.initSelectedIds.length === 0) {
-                    const cpuIds = getCpuInitSelection(cpu.hand);
+                    const cpuIds = getCpuInitSelection(cpu.hand, cpu.difficulty);
                     actions.setGameState(prev => {
                         if(!prev) return null;
                         return { ...prev, initSelectedIds: cpuIds };

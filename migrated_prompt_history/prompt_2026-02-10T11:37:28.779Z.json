@@ -1,0 +1,48 @@
+[
+  {
+    "id": 245,
+    "author": "user",
+    "payload": {
+      "type": "text",
+      "text": "CHANGE: When attacking directly, have the Life total wait to update until after the damage popup has finished its flying animation. Currently, the Life is updating at the same moment the damage popup appears.\nCHANGE: During Tutorials, try to keep the text box on-screen. For example, when it's next to a highlighted card in the Hand, it tends to go off the bottom of the screen slightly.\nADD: When a Lesson is completed, place a green checkmark on it. Store Tutorial progress locally.\nCHANGE: In the tutorial, also disable buttons that aren't explicitly \"unlocked\" by the tutorial itself. For example, in Lesson 1, the \"declare attackers\" button is able to be clicked, even when the lesson doesn't expect that to be possible.",
+      "files": [],
+      "fileUploads": [],
+      "cssBlocks": [],
+      "cMarkNode": {}
+    },
+    "createdTimestamp": {
+      "seconds": 1770723409,
+      "nanos": 503000000
+    }
+  },
+  {
+    "id": 246,
+    "author": "model",
+    "payload": {
+      "type": "thinking",
+      "text": "**Refining Damage Animation**\n\nI'm focusing on the timing of life total updates. I've pinpointed a change: the 'Battle' app should delay the life total adjustment until the damage popup animation concludes. This should enhance visual clarity during direct attacks.\n\n\n",
+      "cMarkNode": {}
+    },
+    "createdTimestamp": {
+      "seconds": 1770723409,
+      "nanos": 503000000
+    }
+  },
+  {
+    "id": 247,
+    "author": "model",
+    "payload": {
+      "type": "error",
+      "error": "The task was canceled.",
+      "isCancelError": true
+    },
+    "createdTimestamp": {
+      "seconds": 1770723416,
+      "nanos": 832000000
+    },
+    "doneTimestamp": {
+      "seconds": 1770723416,
+      "nanos": 832000000
+    }
+  }
+]

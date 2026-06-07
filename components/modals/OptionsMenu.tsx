@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { X, Volume2, CheckSquare, Square, FastForward } from 'lucide-react';
+import { X, Volume2, CheckSquare, Square, FastForward, Maximize } from 'lucide-react';
 
 interface OptionsMenuProps {
     onClose?: () => void;
@@ -66,6 +66,23 @@ export const OptionsMenu: React.FC<OptionsMenuProps> = ({
                         <span className="font-bold text-slate-300 group-hover:text-white transition-colors">Auto End Turn</span>
                     </div>
                     {autoEndTurn ? <CheckSquare className="text-emerald-500" size={20} /> : <Square className="text-slate-600" size={20} />}
+                </div>
+
+                {/* Full Screen Toggle */}
+                <div 
+                    onClick={() => {
+                        if (!document.fullscreenElement) {
+                            document.documentElement.requestFullscreen().catch(err => console.error(err));
+                        } else {
+                            document.exitFullscreen().catch(err => console.error(err));
+                        }
+                    }}
+                    className="flex items-center justify-between cursor-pointer group bg-slate-950/50 p-3 rounded-lg border border-slate-800 hover:border-indigo-500/50 transition-colors"
+                >
+                    <div className="flex items-center gap-2">
+                        <Maximize className="text-indigo-400" size={16} />
+                        <span className="font-bold text-slate-300 group-hover:text-white transition-colors">Full Screen</span>
+                    </div>
                 </div>
 
                 {/* Multiplayer Sync Button */}

@@ -14,6 +14,36 @@
       .font-title {
         font-family: 'Cinzel', serif;
       }
+
+      /* Card Glitch Animations */
+      @keyframes glitch_line {
+        0% { transform: translateY(-50px); opacity: 0; }
+        10% { opacity: 0.8; }
+        90% { opacity: 0.8; }
+        100% { transform: translateY(180px); opacity: 0; }
+      }
+      @keyframes glitch_text {
+        0% { transform: translate(0) skew(0deg); }
+        15% { transform: translate(-3px, 1px) skew(-5deg); }
+        30% { transform: translate(1px, -2px) skew(2deg); }
+        45% { transform: translate(-2px, -1px) skew(-2deg); }
+        60% { transform: translate(3px, 3px) skew(6deg); }
+        75% { transform: translate(-1px, 2px) skew(-3deg); }
+        90% { transform: translate(1px, -1px) skew(1deg); }
+        100% { transform: translate(0) skew(0deg); }
+      }
+      @keyframes glitch_flicker {
+        0% { opacity: 0.98; }
+        25% { opacity: 0.85; }
+        50% { opacity: 0.98; }
+        75% { opacity: 0.75; }
+        100% { opacity: 0.98; }
+      }
+      @keyframes glitch_blur {
+        0% { transform: translateY(-100%) scaleY(1); opacity: 0.2; }
+        50% { opacity: 0.6; }
+        100% { transform: translateY(150%) scaleY(0.5); opacity: 0.1; }
+      }
     </style>
   <script type="importmap">
 {
