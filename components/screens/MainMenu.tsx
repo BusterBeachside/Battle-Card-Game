@@ -18,6 +18,7 @@ import { CampaignMenu } from './main-menu/CampaignMenu';
 import { GameSetupMenu } from './main-menu/GameSetupMenu';
 import { MultiplayerSetupMenu } from './main-menu/MultiplayerSetupMenu';
 import { ModeMenu } from './main-menu/ModeMenu';
+import { UnderdogLoginModal } from '../modals/UnderdogLoginModal';
 
 interface MainMenuProps {
     menuStep: 'MODE' | 'TUTORIAL_MENU' | 'MULTIPLAYER_SETUP' | 'SHOP' | 'CUSTOMIZE' | 'CAMPAIGN_MAP' | 'GAME_SETUP';
@@ -42,6 +43,9 @@ interface MainMenuProps {
     setCpuDifficulty: (v: 'EASY' | 'MEDIUM' | 'HARD') => void;
     cpu2Difficulty: 'EASY' | 'MEDIUM' | 'HARD';
     setCpu2Difficulty: (v: 'EASY' | 'MEDIUM' | 'HARD') => void;
+    supabaseUser?: any;
+    onSignOut?: () => void;
+    onAuthSuccess: (user: any, syncedProg: ProgressionData, source: 'local' | 'cloud') => void;
 }
 
 export const MainMenu: React.FC<MainMenuProps> = ({ 
@@ -61,10 +65,15 @@ export const MainMenu: React.FC<MainMenuProps> = ({
     cpuDifficulty,
     setCpuDifficulty,
     cpu2Difficulty,
-    setCpu2Difficulty
+    setCpu2Difficulty,
+    supabaseUser,
+    onSignOut,
+    onAuthSuccess
 }) => {
     const [targetPeerId, setTargetPeerId] = React.useState('');
     const [showHQModal, setShowHQModal] = React.useState(false);
+    const [showLoginModal, setShowLoginModal] = React.useState(false);
+    const [showNotSignedInPrompt, setShowNotSignedInPrompt] = React.useState(false);
 
     const [selectedSubMode, setSelectedSubMode] = React.useState<'CAMPAIGN' | 'VERSUS_AI' | 'SPECTATE' | 'HOTSEAT' | 'ONLINE_MULTIPLAYER' | null>(null);
     const [rulesFormatSelect, setRulesFormatSelect] = React.useState<'STREET' | 'PRO'>('STREET');
@@ -154,9 +163,11 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                 )}
                 {/* HUD Profile Button */}
                 <button 
-                    onClick={() => handleClick(() => setShowHQModal(true))}
+                    onClick={() => handleClick(() => {
+                        setShowHQModal(true);
+                    })}
                     className="flex items-center gap-1.5 md:gap-3 transition-colors hover:text-indigo-400 text-left cursor-pointer group relative"
-                    title="Click for Player details and quests"
+                    title="Click for Player details, stats and quests"
                 >
                     <div className="flex flex-col">
                         <span className="font-bold text-slate-100 text-[11px] md:text-xs line-clamp-1 truncate max-w-[50px] sm:max-w-[70px] md:max-w-[120px] group-hover:text-indigo-300 transition-colors">
@@ -200,6 +211,19 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                     <Settings size={14} className="md:w-[16px] md:h-[16px]" />
                 </button>
             </div>
+
+            {/* "Not signed in" clickable action button below Player HQ HUD */}
+            {!supabaseUser && (
+                <button 
+                    id="not-signed-in-popup" 
+                    onClick={() => { playSound('menu_click'); setShowLoginModal(true); }}
+                    className="absolute top-18 right-4 z-40 bg-red-950/90 hover:bg-slate-900 border border-red-500/40 hover:border-indigo-500 text-red-150 hover:text-indigo-300 backdrop-blur-md shadow-xl rounded-xl py-1 px-3 flex items-center gap-2 text-[10px] font-bold cursor-pointer transition-all animate-bounce"
+                    title="Click to Sign In with Underdog ID"
+                >
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span>
+                    <span>Not signed in (Sign In / Backup Save)</span>
+                </button>
+            )}
 
             <div className="flex flex-col items-center space-y-6 md:space-y-12 animate-in fade-in zoom-in duration-700 w-full max-w-6xl mx-auto px-4 md:px-6 py-8">
 
@@ -296,6 +320,62 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                     progression={progression} 
                     setProgression={setProgression} 
                     onClose={() => setShowHQModal(false)}
+                    supabaseUser={supabaseUser}
+                    onSignOut={onSignOut}
+                    onOpenSignIn={() => {
+                        setShowHQModal(false);
+                        setShowLoginModal(true);
+                    }}
+                />
+            )}
+
+            {/* Offline user interactive prompt dialog */}
+            {showNotSignedInPrompt && (
+                <div id="not-signed-in-prompt-modal" className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="relative bg-slate-905 border border-slate-700/60 p-6 rounded-2xl w-full max-w-sm shadow-2xl space-y-5 animate-in zoom-in-95 duration-200 text-center">
+                        <button 
+                            onClick={() => { playSound('menu_click'); setShowNotSignedInPrompt(false); }}
+                            className="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-full hover:bg-slate-800 transition-colors cursor-pointer"
+                        >
+                            ✕
+                        </button>
+                        <div className="space-y-2">
+                            <div className="inline-flex items-center justify-center p-3 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 mb-1">
+                                <User size={24} />
+                            </div>
+                            <h3 className="text-lg font-bold text-white font-title">Not Signed In</h3>
+                            <p className="text-xs text-slate-350 leading-relaxed">
+                                You are currently playing offline. Sign in with Underdog ID to save your progression, levels, coin total, and combat quests to the Cloud!
+                            </p>
+                        </div>
+                        <div className="flex flex-col gap-2 pt-2">
+                            <button
+                                onClick={() => {
+                                    playSound('menu_click');
+                                    setShowNotSignedInPrompt(false);
+                                    setShowLoginModal(true);
+                                }}
+                                className="w-full bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white font-extrabold py-2.5 rounded-xl text-xs uppercase tracking-wider shadow-lg hover:shadow-indigo-500/10 transition-all cursor-pointer text-center"
+                            >
+                                Sign In / Create Account
+                            </button>
+                            <button
+                                onClick={() => { playSound('menu_click'); setShowNotSignedInPrompt(false); }}
+                                className="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-extrabold py-2 rounded-xl text-xs uppercase tracking-wider transition-colors cursor-pointer text-center"
+                            >
+                                Play Offline
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Underdog ID OTP login modal */}
+            {showLoginModal && (
+                <UnderdogLoginModal 
+                    progression={progression}
+                    onClose={() => setShowLoginModal(false)}
+                    onAuthSuccess={onAuthSuccess}
                 />
             )}
         </div>

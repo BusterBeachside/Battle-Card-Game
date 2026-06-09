@@ -8,9 +8,19 @@ interface PlayerHQModalProps {
     progression: ProgressionData;
     setProgression: React.Dispatch<React.SetStateAction<ProgressionData>>;
     onClose: () => void;
+    supabaseUser?: any;
+    onSignOut?: () => void;
+    onOpenSignIn?: () => void;
 }
 
-export const PlayerHQModal: React.FC<PlayerHQModalProps> = ({ progression, setProgression, onClose }) => {
+export const PlayerHQModal: React.FC<PlayerHQModalProps> = ({ 
+    progression, 
+    setProgression, 
+    onClose,
+    supabaseUser,
+    onSignOut,
+    onOpenSignIn
+}) => {
     const [isEditingName, setIsEditingName] = useState(false);
     const [tempName, setTempName] = useState(progression.playerName);
 
@@ -171,6 +181,55 @@ export const PlayerHQModal: React.FC<PlayerHQModalProps> = ({ progression, setPr
                                 </div>
                             </div>
 
+                            {/* Underdog ID Connected Status At Key Top-Of-Sidebar Position */}
+                            {supabaseUser ? (
+                                <div className="bg-indigo-950/25 border border-indigo-500/25 p-3 rounded-xl space-y-2">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-[9px] font-extrabold text-indigo-400 uppercase tracking-widest font-title">Underdog ID Status</span>
+                                        <span className="flex items-center gap-1">
+                                            <span className="text-[9px] text-emerald-400 font-bold uppercase">Online</span>
+                                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                        </span>
+                                    </div>
+                                    <p className="text-[10px] text-slate-300 font-mono truncate" title={supabaseUser.email}>
+                                        {supabaseUser.email}
+                                    </p>
+                                    <button 
+                                        type="button"
+                                        onClick={() => {
+                                            if (onSignOut) {
+                                                onSignOut();
+                                                onClose();
+                                            }
+                                        }}
+                                        className="w-full mt-1 bg-red-950/50 hover:bg-red-900/60 text-red-200 border border-red-900/40 font-bold text-[10px] py-1.5 px-2 rounded-lg transition-all cursor-pointer text-center"
+                                    >
+                                        Sign Out Account
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="bg-slate-950/50 border border-dashed border-indigo-500/25 p-3 rounded-xl space-y-2">
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                                        <span className="text-[9px] font-extrabold text-amber-400 uppercase tracking-widest font-title">Guest Space (Offline)</span>
+                                    </div>
+                                    <p className="text-[9.5px] text-slate-400 leading-normal">
+                                        Save levels, coins, and battle quests to the Cloud!
+                                    </p>
+                                    <button 
+                                        type="button"
+                                        onClick={() => {
+                                            if (onOpenSignIn) {
+                                                onOpenSignIn();
+                                            }
+                                        }}
+                                        className="w-full mt-1.5 bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white font-extrabold text-[10px] py-1.5 px-2 rounded-lg transition-all shadow-md hover:shadow-indigo-500/15 cursor-pointer text-center uppercase tracking-wider"
+                                    >
+                                        Sign In / Link ID
+                                    </button>
+                                </div>
+                            )}
+
                             {/* Total Wealth Row */}
                             <div className="bg-slate-900/60 border border-slate-800 p-3 rounded-xl flex items-center justify-between">
                                 <span className="text-xs font-semibold text-slate-400">Total Gold Saved</span>
@@ -186,7 +245,7 @@ export const PlayerHQModal: React.FC<PlayerHQModalProps> = ({ progression, setPr
                                     <span className="text-indigo-400 font-extrabold tracking-wider uppercase">Level {progression.level}</span>
                                     <span className="text-slate-400 font-mono text-[11px] font-bold">{progression.xp} / {progression.level * 500} XP</span>
                                 </div>
-                                <div className="w-full bg-slate-905 h-3 rounded-full overflow-hidden border border-slate-805">
+                                <div className="w-full bg-slate-950 h-3 rounded-full overflow-hidden border border-slate-805">
                                     <div className="bg-gradient-to-r from-indigo-500 to-purple-500 h-full transition-all duration-300" style={{ width: `${(progression.xp / (progression.level * 500)) * 100}%` }}></div>
                                 </div>
                                 <p className="text-[10px] text-slate-500 italic text-center">

@@ -17,6 +17,8 @@ import {
     SessionStats 
 } from './utils/progression';
 import { loadCampaign, saveCampaign, generateCampaignMap, CampaignState, getRandomElement } from './utils/campaign';
+import { getSupabase } from './utils/supabaseClient';
+import { syncUserData, pushProgressionUpdate } from './utils/supabaseSync';
 // Imported Components
 import { TutorialCompleteScreen } from './components/screens/TutorialCompleteScreen';
 import { CoinFlipOverlay } from './components/overlays/CoinFlipOverlay';
@@ -67,6 +69,105 @@ export const App: React.FC = () => {
 
   // Progression States
   const [progression, setProgression] = useState<ProgressionData>(() => loadProgression());
+
+  // Underdog ID / Supabase States
+  const [supabaseUser, setSupabaseUser] = useState<any>(null);
+
+  // Sign out handler
+  const handleSignOut = async () => {
+    console.log("Initiating underdogs ID sign out process...");
+    
+    // 1. Instantly update React state so the UI reflects signed-out status immediately
+    setSupabaseUser(null);
+    setProgression(loadProgression());
+    
+    // 2. Clear all cache/supabase keys in localStorage synchronously and immediately
+    try {
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (key.startsWith('sb-') || key.includes('supabase') || key.startsWith('supabase.'))) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach(key => localStorage.removeItem(key));
+      console.log("Immediately cleared Supabase keys from localStorage on signout:", keysToRemove);
+    } catch (lsErr) {
+      console.error("Failed to clear localStorage keys on signout:", lsErr);
+    }
+
+    // 3. Fire the remote signout safely raced with a 400ms timeout.
+    // This allows the browser/network a fair window to invalidate the server side,
+    // but ensures that iframe restrictions, timeouts, or lagging proxy pipelines
+    // have returned control before the user can re-open the Login window,
+    // avoiding async event clobbering or endless spinning during immediate re-login.
+    const supabase = getSupabase();
+    if (supabase) {
+      try {
+        await Promise.race([
+          supabase.auth.signOut(),
+          new Promise((resolve) => setTimeout(resolve, 400))
+        ]);
+        console.log("Supabase signOut completed or timed out safely within 400ms constraint.");
+      } catch (err) {
+        console.error("Error during Supabase signOut:", err);
+      }
+    }
+    
+    console.log("Sign out completed. Progression reverted to offline profile state.");
+  };
+
+  // Auth success callback
+  const handleAuthSuccess = (user: any, syncedProg: ProgressionData) => {
+    setSupabaseUser(user);
+    setProgression(syncedProg);
+  };
+
+  // Listen to Auth Changes and fetch session on mount
+  useEffect(() => {
+    const supabase = getSupabase();
+    if (!supabase) return;
+
+    // Get current session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSupabaseUser(session?.user || null);
+      if (session?.user) {
+        syncUserData(session.user.id, loadProgression())
+          .then(({ syncedData }) => {
+            setProgression(syncedData);
+          })
+          .catch(err => console.error("Initial sync on session load failed:", err));
+      }
+    });
+
+    // Listen for auth events
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      const currentUser = session?.user || null;
+      setSupabaseUser(currentUser);
+      if (currentUser) {
+        try {
+          const { syncedData } = await syncUserData(currentUser.id, loadProgression());
+          setProgression(syncedData);
+        } catch (err) {
+          console.error("Sync on auth state change failed:", err);
+        }
+      } else {
+        // Safe reset if user is cleared or signed out
+        setProgression(loadProgression());
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  // Automatically push progression updates to the cloud if signed in
+  useEffect(() => {
+    if (supabaseUser) {
+      pushProgressionUpdate(supabaseUser.id, progression);
+    }
+  }, [progression, supabaseUser]);
   const [endGameRewards, setEndGameRewards] = useState<{
     xpGained: number;
     goldGained: number;
@@ -869,6 +970,9 @@ export const App: React.FC = () => {
                 setCpuDifficulty={setCpuDifficulty}
                 cpu2Difficulty={cpu2Difficulty}
                 setCpu2Difficulty={setCpu2Difficulty}
+                supabaseUser={supabaseUser}
+                onSignOut={handleSignOut}
+                onAuthSuccess={handleAuthSuccess}
             />
             {status === 'CONNECTED' && isHost && !gameState && (
                 <div className="absolute inset-0 z-[100] bg-black/60 flex items-center justify-center backdrop-blur-sm">
