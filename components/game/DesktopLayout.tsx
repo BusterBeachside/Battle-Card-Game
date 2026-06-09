@@ -95,6 +95,9 @@ export const DesktopLayout: React.FC<LayoutProps> = ({
                 )}
 
                 <div className="flex items-center gap-6">
+                    <div className="text-xs text-indigo-300 font-bold bg-slate-950/40 px-3 py-1 rounded border border-slate-800 truncate max-w-[140px]" title={topPlayer.name}>
+                        👤 {topPlayer.name}
+                    </div>
                     <div className="flex items-center gap-2 text-red-400 font-bold" ref={refs.lifeIconRef}>
                         <Heart size={18} fill="currentColor" /> {topPlayer.life}
                     </div>
@@ -279,14 +282,14 @@ export const DesktopLayout: React.FC<LayoutProps> = ({
                                 <div className="grid grid-cols-2 gap-4 scale-90 origin-top">
                                     <div className="flex flex-col -space-y-20 relative z-10">
                                         {bottomPlayer.resources.slice(0, 5).map((r, i) => (
-                                            <div key={r.instanceId} id={r.instanceId} style={{ zIndex: i }} className="transition-all cursor-pointer hover:z-50 hover:scale-105 hover:-translate-y-2" onClick={() => handlers.onCardClick(r.card, 'RESOURCE', bottomPlayer.id, r.instanceId)}>
+                                            <div key={r.instanceId} id={`res-${r.instanceId}`} style={{ zIndex: i }} className="transition-all cursor-pointer hover:z-50 hover:scale-105 hover:-translate-y-2" onClick={() => handlers.onCardClick(r.card, 'RESOURCE', bottomPlayer.id, r.instanceId)}>
                                                 <CardDisplay card={r.card} isTapped={r.isTapped} size="md" isSummoningSick={false} cardBack={bottomPlayer.cardBack} cardFace={bottomPlayer.cardFace} />
                                             </div>
                                         ))}
                                     </div>
                                     <div className="flex flex-col -space-y-20 relative z-0">
                                         {bottomPlayer.resources.slice(5, 10).map((r, i) => (
-                                            <div key={r.instanceId} id={r.instanceId} style={{ zIndex: i }} className="transition-all cursor-pointer hover:z-50 hover:scale-105 hover:-translate-y-2" onClick={() => handlers.onCardClick(r.card, 'RESOURCE', bottomPlayer.id, r.instanceId)}>
+                                            <div key={r.instanceId} id={`res-${r.instanceId}`} style={{ zIndex: i }} className="transition-all cursor-pointer hover:z-50 hover:scale-105 hover:-translate-y-2" onClick={() => handlers.onCardClick(r.card, 'RESOURCE', bottomPlayer.id, r.instanceId)}>
                                                 <CardDisplay card={r.card} isTapped={r.isTapped} size="md" isSummoningSick={false} cardBack={bottomPlayer.cardBack} cardFace={bottomPlayer.cardFace} />
                                             </div>
                                         ))}
@@ -303,7 +306,7 @@ export const DesktopLayout: React.FC<LayoutProps> = ({
                         className="fixed pointer-events-none z-[100]"
                         style={{ left: dragState.currentX, top: dragState.currentY, transform: 'translate(-50%, -50%) rotate(5deg)' }}
                     >
-                        <CardDisplay card={dragState.cardObj!} size="md" isDragging cardBack={dragState.senderId === bottomPlayer.id ? bottomPlayer.cardBack : topPlayer.cardBack} cardFace={dragState.senderId === bottomPlayer.id ? bottomPlayer.cardFace : topPlayer.cardFace} />
+                        <CardDisplay card={dragState.cardObj!} size="md" isDragging cardBack={dragState.ownerId === bottomPlayer.id ? bottomPlayer.cardBack : topPlayer.cardBack} cardFace={dragState.ownerId === bottomPlayer.id ? bottomPlayer.cardFace : topPlayer.cardFace} />
                     </div>
                 )}
             </div>

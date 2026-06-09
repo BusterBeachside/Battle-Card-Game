@@ -346,7 +346,7 @@ export const LESSON_3_STEPS: TutorialStep[] = [
     {
         id: 'l3-swap-res',
         instructionText: "Then, select the card you want from your Resources, and the swap will happen!",
-        highlightElementId: 'tut-4-♥',
+        highlightElementId: 'res-tut-4-♥',
         highlightMode: 'OUTLINE',
         requiredAction: 'CLICK_CARD',
         targetId: 'tut-4-♥',

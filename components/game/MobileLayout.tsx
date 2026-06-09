@@ -211,7 +211,7 @@ export const MobileLayout: React.FC<LayoutProps> = ({
                                 {bottomPlayer.resources.map((r, i) => (
                                     <div 
                                         key={r.instanceId} 
-                                        id={r.instanceId} 
+                                        id={`res-${r.instanceId}`} 
                                         style={{ zIndex: i }} 
                                         className="transition-all duration-200 hover:scale-110 hover:z-50 hover:mb-4" 
                                         onClick={() => handlers.onCardClick(r.card, 'RESOURCE', bottomPlayer.id, r.instanceId)}
@@ -427,7 +427,7 @@ export const MobileLayout: React.FC<LayoutProps> = ({
                     className="fixed pointer-events-none z-[100]"
                     style={{ left: dragState.currentX, top: dragState.currentY, transform: 'translate(-50%, -50%) rotate(5deg)' }}
                 >
-                    <CardDisplay card={dragState.cardObj!} size="md" isDragging cardBack={dragState.senderId === bottomPlayer.id ? bottomPlayer.cardBack : topPlayer.cardBack} cardFace={dragState.senderId === bottomPlayer.id ? bottomPlayer.cardFace : topPlayer.cardFace} />
+                    <CardDisplay card={dragState.cardObj!} size="md" isDragging cardBack={dragState.ownerId === bottomPlayer.id ? bottomPlayer.cardBack : topPlayer.cardBack} cardFace={dragState.ownerId === bottomPlayer.id ? bottomPlayer.cardFace : topPlayer.cardFace} />
                 </div>
             )}
         </div>

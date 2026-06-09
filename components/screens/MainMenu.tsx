@@ -111,6 +111,14 @@ export const MainMenu: React.FC<MainMenuProps> = ({
         cb();
     };
 
+    const hasUnclaimedQuests = progression.quests.some(q => q.completed && !q.claimed);
+    const hasDailyLogin = !progression.claimedStreakToday;
+    const needsAttention = hasUnclaimedQuests || hasDailyLogin;
+    let attentionText = "Attention Needed!";
+    if (hasDailyLogin) attentionText = "Claim Login Reward!";
+    if (hasUnclaimedQuests) attentionText = "Quest Complete!";
+    if (hasDailyLogin && hasUnclaimedQuests) attentionText = "Rewards Ready!";
+
     return (
         <div className="relative z-10 w-full h-full overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
             {/* Top Left Deck Style & Card Shop Button Pill */}
@@ -137,15 +145,21 @@ export const MainMenu: React.FC<MainMenuProps> = ({
             </div>
 
             {/* Top Right Settings & Player HUD Button Pill */}
-            <div className="absolute top-4 right-4 flex items-center gap-2 md:gap-3 z-40 bg-slate-900/80 p-1 md:p-1.5 pl-3 md:pl-4 rounded-full border border-slate-700 backdrop-blur-md shadow-lg">
+            <div className={`absolute top-4 right-4 flex items-center gap-2 md:gap-3 z-40 bg-slate-900/80 p-1 md:p-1.5 pl-3 md:pl-4 rounded-full border backdrop-blur-md shadow-lg ${needsAttention ? 'border-amber-400 animate-pulse' : 'border-slate-700'}`}>
+                {/* Attention Popup Message */}
+                {needsAttention && (
+                    <div className="absolute -bottom-8 right-6 bg-amber-400 text-amber-950 font-bold text-[10px] px-2 py-1 rounded shadow-lg whitespace-nowrap animate-bounce pointer-events-none after:content-[''] after:absolute after:top-[-4px] after:right-4 after:border-l-[4px] after:border-l-transparent after:border-r-[4px] after:border-r-transparent after:border-b-[4px] after:border-b-amber-400">
+                        {attentionText}
+                    </div>
+                )}
                 {/* HUD Profile Button */}
                 <button 
                     onClick={() => handleClick(() => setShowHQModal(true))}
-                    className="flex items-center gap-1.5 md:gap-3 transition-colors hover:text-indigo-400 text-left cursor-pointer group"
+                    className="flex items-center gap-1.5 md:gap-3 transition-colors hover:text-indigo-400 text-left cursor-pointer group relative"
                     title="Click for Player details and quests"
                 >
                     <div className="flex flex-col">
-                        <span className="font-bold text-slate-100 text-[11px] md:text-xs line-clamp-1 truncate max-w-[70px] md:max-w-[120px] group-hover:text-indigo-300 transition-colors">
+                        <span className="font-bold text-slate-100 text-[11px] md:text-xs line-clamp-1 truncate max-w-[50px] sm:max-w-[70px] md:max-w-[120px] group-hover:text-indigo-300 transition-colors">
                             {progression.playerName}
                         </span>
                         <span className="text-[9px] text-slate-400 font-semibold font-mono tracking-tighter">
@@ -164,8 +178,14 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                         </div>
                     </div>
                     
-                    <div className="bg-indigo-600/10 p-2 rounded-full border border-indigo-500/20 text-indigo-400 hover:bg-indigo-500/20 group-hover:bg-indigo-500/30 transition-all flex items-center justify-center">
+                    <div className={`bg-indigo-600/10 p-2 rounded-full border border-indigo-500/20 text-indigo-400 hover:bg-indigo-500/20 group-hover:bg-indigo-500/30 transition-all flex items-center justify-center relative`}>
                         <Trophy size={14} className="md:w-[16px] md:h-[16px]" fill="currentColor" />
+                        {needsAttention && (
+                            <div className="absolute top-0 right-0 w-2.5 h-2.5 bg-amber-400 rounded-full border-2 border-slate-900 animate-ping"></div>
+                        )}
+                        {needsAttention && (
+                            <div className="absolute top-0 right-0 w-2.5 h-2.5 bg-amber-400 rounded-full border-2 border-slate-900"></div>
+                        )}
                     </div>
                 </button>
 
@@ -184,7 +204,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
             <div className="flex flex-col items-center space-y-6 md:space-y-12 animate-in fade-in zoom-in duration-700 w-full max-w-6xl mx-auto px-4 md:px-6 py-8">
 
             {/* Title Section */}
-            <div className="text-center space-y-4 pt-4 md:pt-8 shrink-0">
+            <div className="text-center space-y-4 pt-20 md:pt-8 shrink-0">
                 <div className="flex items-center justify-center gap-4 opacity-60">
                         <div className="h-px w-16 md:w-32 bg-gradient-to-r from-transparent via-indigo-500 to-transparent"></div>
                         <span className="text-indigo-400 text-xs md:text-sm font-bold tracking-[0.4em] uppercase font-title text-shadow-sm">Tactical Card Warfare</span>

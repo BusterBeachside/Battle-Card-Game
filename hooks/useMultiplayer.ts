@@ -11,6 +11,7 @@ export type MultiplayerAction =
   | { type: 'PHASE_ACTION', action: string }
   | { type: 'DRAG_DROP', cardObj: any, targetInstanceId: string | null, targetElementId: string | null, sourceType: string, instanceId?: string }
   | { type: 'CHAT', message: string }
+  | { type: 'UPDATE_PLAYER_INFO', playerId: number, name: string, cardBack: string, cardFace: string }
   | { type: 'RESIGN', playerId: number };
 
 export const useMultiplayer = (

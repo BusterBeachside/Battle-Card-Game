@@ -143,9 +143,13 @@ export const useDragAndDrop = ({ gameState, actions, tutorial, ui }: UseDragAndD
         const targetInstanceId = targetElement.getAttribute('data-instance-id');
         const targetElementId = targetElement.id;
 
-        // Broadcast here via App.tsx wrapper logic? Wait, hook doesn't have access to broadcast.
-        // We can expose `onDropResult` or we can trigger `dragDrop` event to `App.tsx` via callback!
-        // We'll pass `onDragDropData` via props.
+        if (gameState.mode === 'TUTORIAL') {
+            if (targetInstanceId && !tutorial.isInteractionAllowed(targetInstanceId)) {
+                 setDragState(null);
+                 return;
+            }
+        }
+
         if (actions.onDragDropData) {
             actions.onDragDropData(dragState.cardObj, targetInstanceId, targetElementId, dragState.sourceType, dragState.instanceId);
         }

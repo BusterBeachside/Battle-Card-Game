@@ -18,13 +18,15 @@ import {
 } from './utils/progression';
 import { loadCampaign, saveCampaign, generateCampaignMap, CampaignState, getRandomElement } from './utils/campaign';
 // Imported Components
+import { TutorialCompleteScreen } from './components/screens/TutorialCompleteScreen';
 import { CoinFlipOverlay } from './components/overlays/CoinFlipOverlay';
 import { TurnChangeOverlay } from './components/overlays/TurnChangeOverlay';
 import { TutorialOverlay } from './components/overlays/TutorialOverlay';
 import { Confetti, Explosion, DamageOverlay } from './components/effects/VisualEffects';
 import { Flyer, SpecialCardAnimation, SoulOrb, Summoner } from './components/effects/GameAnimations';
-import { MainMenu } from './components/screens/MainMenu';
+import { GameOverScreen } from './components/screens/GameOverScreen';
 import { MainMenuBackground } from './components/effects/MainMenuBackground';
+import { MainMenu } from './components/screens/MainMenu';
 import { SandboxTools } from './components/tools/SandboxTools';
 import { EndTurnModal, ResignModal, QuitModal, PauseMenu } from './components/modals/GameModals';
 import { OptionsMenu } from './components/modals/OptionsMenu';
@@ -76,6 +78,7 @@ export const App: React.FC = () => {
   } | null>(null);
   
   const isGameEndProcessedRef = useRef(false);
+  const broadcastRef = useRef<any>(null);
 
     const { 
         gameState, setGameState, gameStateRef,
@@ -96,7 +99,7 @@ export const App: React.FC = () => {
 
     const handleDragDropData = (cardObj: any, targetInstanceId: string | null, targetElementId: string | null, sourceType: string, instanceId?: string) => {
         if (gameState?.isOnline && getActiveDecisionPlayerId(gameState) === localPlayerId) {
-            broadcast({ type: 'DRAG_DROP', cardObj, targetInstanceId, targetElementId, sourceType, instanceId });
+            broadcastRef.current?.({ type: 'DRAG_DROP', cardObj, targetInstanceId, targetElementId, sourceType, instanceId });
         }
     };
 
@@ -121,17 +124,73 @@ export const App: React.FC = () => {
         if (!currentState && action.type !== 'START_GAME') return;
 
         switch (action.type) {
-            case 'START_GAME':
+            case 'START_GAME': {
                 setLocalPlayerId(1); // You are the guest
-                setGameState(action.state);
+                const guestName = progression.playerName || "Player 2";
+                const guestBack = progression.selectedCardBack || "battle";
+                const guestFace = progression.selectedCardFace || "classic";
+
+                // Update Guest Player's own info locally in the copied state
+                const updatedState = { ...action.state };
+                if (updatedState.players && updatedState.players[1]) {
+                    updatedState.players[1] = {
+                        ...updatedState.players[1],
+                        name: guestName,
+                        cardBack: guestBack,
+                        cardFace: guestFace
+                    };
+                }
+                setGameState(updatedState);
+
                 if (action.coinFlipWinner !== undefined) {
                     setCoinFlipWinner(action.coinFlipWinner);
                     ui.setIsCoinFlipping(true);
                 }
                 ui.setMenuStep('MODE'); // Get out of setup
+
+                // Broadcast guest's real info to the host!
+                broadcastRef.current?.({
+                    type: 'UPDATE_PLAYER_INFO',
+                    playerId: 1,
+                    name: guestName,
+                    cardBack: guestBack,
+                    cardFace: guestFace
+                });
+                break;
+            }
+            case 'UPDATE_PLAYER_INFO':
+                setGameState(prev => {
+                    if (!prev) return null;
+                    const players = [...prev.players];
+                    if (players[action.playerId]) {
+                        players[action.playerId] = {
+                            ...players[action.playerId],
+                            name: action.name,
+                            cardBack: action.cardBack,
+                            cardFace: action.cardFace
+                        };
+                    }
+                    return { ...prev, players };
+                });
                 break;
             case 'SYNC_STATE':
-                setGameState(action.state);
+                setGameState(prev => {
+                    if (!prev) return action.state;
+                    const nextState = { ...action.state };
+                    if (nextState.players && prev.players) {
+                        nextState.players = nextState.players.map((p, idx) => {
+                            const prevP = prev.players[idx];
+                            if (!prevP) return p;
+                            return {
+                                ...p,
+                                name: prevP.name || p.name,
+                                cardBack: prevP.cardBack || p.cardBack,
+                                cardFace: prevP.cardFace || p.cardFace
+                            };
+                        });
+                    }
+                    return nextState;
+                });
                 break;
             case 'CARD_CLICK':
                 interactions.handleCardClick(action.card, action.location as any, action.ownerId, action.instanceId, true);
@@ -160,9 +219,10 @@ export const App: React.FC = () => {
                 });
                 break;
         }
-    }, [setGameState, ui, interactions]);
+    }, [setGameState, ui, interactions, progression]);
 
     const { peerId, status, error, isHost, connectToPeer, broadcast, disconnect, connection } = useMultiplayer(onActionReceived);
+    broadcastRef.current = broadcast;
 
     const handleCardClick = (card: any, location: any, ownerId: number, instanceId?: string, fromRemote: boolean = false) => {
         if (!fromRemote && gameState?.isOnline && getActiveDecisionPlayerId(gameState) === localPlayerId) {
@@ -913,50 +973,11 @@ export const App: React.FC = () => {
       )}
 
       {tutorialComplete && (
-          <div className="absolute inset-0 z-[120] flex items-center justify-center bg-black/95 backdrop-blur-md animate-in fade-in duration-1000 overflow-hidden">
-              <Confetti />
-              <div className="text-center space-y-6 relative z-[130] w-full max-w-md px-6">
-                  <GraduationCap className="w-20 h-20 mx-auto text-emerald-400 animate-bounce" />
-                  <h1 className="text-4xl md:text-5xl font-black font-title text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-500 drop-shadow-[0_0_25px_rgba(16,185,129,0.2)]">
-                      LESSON COMPLETE!
-                  </h1>
-
-                  {/* Gold claim animations */}
-                  {rewardClaimedThisSession ? (
-                      <div className="bg-slate-900/90 border border-slate-800 p-5 rounded-2xl space-y-3.5 shadow-2xl animate-in zoom-in-95 delay-150 duration-500 text-center">
-                          <div className="text-xs uppercase font-extrabold tracking-widest text-amber-400">Reward Claimed</div>
-                          <div className="text-3xl font-black text-yellow-400 flex items-center justify-center gap-1.5">
-                              <span>+1,000</span> <GoldCoin size={24} />
-                          </div>
-                          <div className="text-xs text-slate-400 font-medium font-mono">One-time tutorial lesson completion reward.</div>
-                          
-                          {/* All-completed grand bonus block */}
-                          {bonusClaimedThisSession && (
-                              <div className="bg-gradient-to-br from-indigo-950/50 via-amber-950/30 to-slate-900 border border-amber-500/30 p-3 rounded-xl text-center mt-3 animate-pulse">
-                                  <div className="text-[10px] text-amber-300 font-black uppercase tracking-widest flex items-center justify-center gap-1">🏆 Grandmaster Bonus Unlocked!</div>
-                                  <div className="text-xl font-black text-amber-400 mt-1 flex items-center justify-center gap-1.5">
-                                      +5,000 <GoldCoin size={20} /> Gold Added!
-                                  </div>
-                                  <div className="text-[9px] text-yellow-250 italic">Completed all 4 master tutorials!</div>
-                              </div>
-                          )}
-                      </div>
-                  ) : (
-                      <div className="bg-slate-900/40 border border-slate-800 p-5 rounded-2xl space-y-2.5 shadow-xl animate-in zoom-in-95 delay-150 duration-500 text-center">
-                          <div className="text-xs uppercase font-extrabold tracking-widest text-slate-400">Lesson Completed</div>
-                          <p className="text-sm text-slate-350 leading-relaxed">
-                              You've successfully cleared this lesson! You've already claimed this one-time 1,000 Gold reward on a previous run.
-                          </p>
-                      </div>
-                  )}
-
-                  <div className="flex gap-4 justify-center mt-8">
-                      <button onClick={handleQuitToTitle} className="px-8 py-3 bg-emerald-600 hover:bg-emerald-500 rounded-lg font-bold text-xl shadow-lg shadow-emerald-500/30 transform transition-all hover:scale-105 active:scale-95 flex items-center gap-2">
-                          <RotateCcw size={20} /> Return to Menu
-                      </button>
-                  </div>
-              </div>
-          </div>
+          <TutorialCompleteScreen 
+             rewardClaimedThisSession={rewardClaimedThisSession}
+             bonusClaimedThisSession={bonusClaimedThisSession}
+             handleQuitToTitle={handleQuitToTitle}
+          />
       )}
 
       {gameState.isSandboxRun && (
@@ -1039,128 +1060,12 @@ export const App: React.FC = () => {
       )}
       
       {gameState.phase === Phase.GAME_OVER && !tutorialComplete && gameState.mode !== 'TUTORIAL' && (
-          <div className="absolute inset-0 z-[120] flex items-center justify-center bg-black/95 backdrop-blur-md animate-in fade-in duration-1000 overflow-y-auto py-10">
-              <Confetti />
-              <div className="text-center space-y-6 relative z-[130] w-full max-w-lg px-4">
-                  <h1 className="text-6xl md:text-7xl font-black font-title text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-red-500 drop-shadow-[0_0_25px_rgba(234,179,8,0.5)] animate-bounce mt-4">
-                      GAME OVER
-                  </h1>
-                  <h2 className="text-3xl font-bold text-white drop-shadow-md">
-                      {gameState.winner !== null ? `${gameState.players[gameState.winner].name} Wins!` : "It's a Draw!"}
-                  </h2>
-                  <div className="text-sm text-slate-400 font-title uppercase tracking-widest mt-1">
-                      Total Turns: {gameState.turnCount}
-                  </div>
-
-                  {endGameRewards && (
-                      <div className="max-w-md mx-auto bg-slate-900/90 border border-slate-800 rounded-xl p-5 space-y-4 shadow-2xl text-left animate-in zoom-in-95 duration-500">
-                          <h3 className="text-sm font-semibold tracking-wider text-indigo-400 uppercase border-b border-slate-800 pb-2 flex justify-between items-center">
-                              <span>Match Summary</span>
-                              {!endGameRewards.isQualifying && <span className="text-[10px] text-slate-500 lowercase normal-case italic">Custom modes (vs CPU/P2P matches earn progress)</span>}
-                          </h3>
-                          <div className="grid grid-cols-2 gap-4">
-                              <div className="bg-slate-950/55 p-3 rounded-lg border border-slate-800/40 text-center">
-                                  <div className="text-[10px] uppercase text-indigo-400/80 tracking-widest font-bold">XP Gained</div>
-                                  <div className="text-2xl font-black text-indigo-300 mt-1">
-                                      +<CountUp end={endGameRewards.xpGained} delay={400} suffix=" XP" />
-                                  </div>
-                              </div>
-                              <div className="bg-slate-950/55 p-3 rounded-lg border border-slate-800/40 text-center">
-                                  <div className="text-[10px] uppercase text-amber-400/80 tracking-widest font-bold">Gold Gained</div>
-                                  <div className="text-2xl font-black text-amber-400 mt-1">
-                                      {endGameRewards.goldGained > 0 ? (
-                                          <span>+<CountUp end={endGameRewards.goldGained} delay={700} suffix=" Gold" /></span>
-                                      ) : (
-                                          <span className="text-slate-500">0 Gold</span>
-                                      )}
-                                  </div>
-                              </div>
-                          </div>
-
-                          {/* Campaign Completion Bonus Alert */}
-                          {endGameRewards.gotCompletionBonus && (
-                              <div className="bg-gradient-to-r from-amber-500/20 via-yellow-500/20 to-amber-500/20 border border-amber-400/40 p-4 rounded-xl text-center shadow-lg shadow-amber-500/5 animate-in zoom-in-95 duration-500">
-                                  <div className="text-sm text-amber-300 font-extrabold uppercase tracking-wider flex items-center justify-center gap-1.5">
-                                      🏆 Area Cleared!
-                                  </div>
-                                  <div className="text-xs text-slate-300 mt-1 leading-normal">
-                                      Area clear! Completion Bonus: <span className="font-bold text-amber-300">1,000 XP</span> and <span className="font-bold text-amber-400">500 Gold</span>
-                                  </div>
-                              </div>
-                          )}
-
-                          {/* Level Up Alerts */}
-                          {endGameRewards.levelUpGains.length > 0 && (
-                              <div className="bg-gradient-to-r from-amber-600/20 to-purple-600/20 border border-amber-500/30 p-3 rounded-lg text-center animate-pulse">
-                                  <div className="text-xs text-amber-300 font-bold uppercase tracking-widest">Level Up!</div>
-                                  {endGameRewards.levelUpGains.map(g => (
-                                      <div key={g.level} className="text-sm text-yellow-105 mt-1">
-                                          Reached <span className="font-extrabold text-yellow-400">Level {g.level}</span>! Gained <span className="font-extrabold text-amber-400">+{g.gold} Gold</span>
-                                      </div>
-                                  ))}
-                              </div>
-                          )}
-
-                          {/* Quest Progress Section */}
-                          {endGameRewards.isQualifying && endGameRewards.finalQuests.length > 0 && (() => {
-                              const progressedQuests = endGameRewards.finalQuests.map((q) => {
-                                  const initQ = endGameRewards.initialQuests?.find((iq: any) => iq.id === q.id);
-                                  const progressDiff = q.current - (initQ ? initQ.current : 0);
-                                  if (progressDiff <= 0 && !q.completed) return null;
-
-                                  const pct = (q.current / q.target) * 100;
-
-                                  return (
-                                      <div key={q.id} className="bg-slate-950/40 p-2.5 rounded border border-slate-800 text-xs space-y-1">
-                                          <div className="flex justify-between font-medium">
-                                              <span className="text-slate-200">{q.description}</span>
-                                              <span className="text-slate-400 font-mono font-bold">{q.current}/{q.target}</span>
-                                          </div>
-                                          <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
-                                              <div 
-                                                  className={`h-full transition-all duration-1000 ${q.completed ? 'bg-gradient-to-r from-emerald-500 to-teal-500' : 'bg-gradient-to-r from-indigo-505 to-purple-500'}`}
-                                                  style={{ width: `${pct}%` }}
-                                              ></div>
-                                          </div>
-                                          {q.completed && (
-                                              <div className="text-[10px] text-emerald-400 font-bold flex items-center gap-1 mt-1">
-                                                  ✓ Completed! (Head to menu to claim rewards)
-                                              </div>
-                                          )}
-                                      </div>
-                                  );
-                              }).filter(Boolean);
-
-                              return (
-                                  <div className="space-y-2">
-                                      <h4 className="text-[10px] uppercase tracking-widest font-bold text-slate-400">Quests Advanced:</h4>
-                                      <div className="space-y-2.5">
-                                          {progressedQuests.length > 0 ? (
-                                              progressedQuests
-                                          ) : (
-                                              <div className="text-slate-500 text-xs italic">No quests progressed in this match.</div>
-                                          )}
-                                      </div>
-                                  </div>
-                              );
-                          })()}
-                      </div>
-                  )}
-
-                  <div className="flex gap-4 justify-center pt-2">
-                      <button onClick={handleQuitToTitle} className="px-8 py-3 bg-indigo-600 hover:bg-indigo-500 rounded-lg font-bold text-xl shadow-lg shadow-indigo-500/30 transform transition-all hover:scale-105 active:scale-95">
-                          {(() => {
-                              let isCampaignGame = false;
-                              try {
-                                  isCampaignGame = sessionStorage.getItem('battle_is_campaign_game') === 'true';
-                              } catch (e) {}
-                              const isCampaignWin = isCampaignGame && gameState.winner === localPlayerId;
-                              return isCampaignWin ? 'Next' : 'Rematch / Menu';
-                          })()}
-                      </button>
-                  </div>
-              </div>
-          </div>
+          <GameOverScreen 
+            gameState={gameState}
+            endGameRewards={endGameRewards}
+            localPlayerId={localPlayerId}
+            handleQuitToTitle={handleQuitToTitle}
+          />
       )}
 
       <EndTurnModal show={ui.showEndTurnModal} onCancel={() => ui.setShowEndTurnModal(false)} onConfirm={() => { 

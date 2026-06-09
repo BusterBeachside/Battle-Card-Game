@@ -483,10 +483,10 @@ export const CampaignMenu: React.FC<CampaignMenuProps> = ({
                                         disabled={isLocked || isCompleted}
                                         className={`w-10 h-10 md:w-11 md:h-11 rounded-full flex items-center justify-center font-bold tracking-widest text-xs font-title border shadow-lg transition-all
                                             ${isCompleted 
-                                                ? 'bg-emerald-950/90 text-emerald-405 border-emerald-500/60 ring-2 ring-emerald-500/10' 
+                                                ? 'bg-emerald-950/90 text-emerald-400 border-emerald-500/60 ring-2 ring-emerald-500/10' 
                                                 : isActive
                                                 ? (node.id === 10) 
-                                                    ? 'bg-red-950 hover:bg-red-800 text-red-105 border-red-500 shadow-[0_0_25px_rgba(220,38,38,0.9)] ring-4 ring-red-600/50 animate-pulse scale-125' 
+                                                    ? 'bg-red-950 hover:bg-red-800 text-red-100 border-red-500 shadow-[0_0_25px_rgba(220,38,38,0.9)] ring-4 ring-red-600/50 animate-pulse scale-125' 
                                                     : 'bg-indigo-600 hover:bg-indigo-500 text-white border-indigo-400 ring-4 ring-indigo-500/30 animate-pulse scale-110' 
                                                 : (node.id === 10)
                                                     ? 'bg-slate-900 border-red-950 text-slate-500 cursor-not-allowed opacity-90 shadow-[0_0_15px_rgba(220,38,38,0.25)]'
