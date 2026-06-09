@@ -108,7 +108,7 @@ export const useGameUI = () => {
         selectedMode, setSelectedMode,
         isCoinFlipping, setIsCoinFlipping,
         autoSort, toggleAutoSort, setAutoSort,
-        autoEndTurn, toggleAutoEndTurn,
+        autoEndTurn, toggleAutoEndTurn, setAutoEndTurn,
         isMobile,
         showOptions, setShowOptions,
         enableMultiBlocking, setEnableMultiBlocking,

@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { GameState, Phase, Card } from "../../types";
 import { createFieldCard } from "../../utils/rules";
 import { addLog } from "../../utils/core";
@@ -21,6 +22,8 @@ export const usePhaseInteractions = ({
   ui,
   refs,
 }: UsePhaseInteractionsProps) => {
+  const confirmInProgressRef = useRef(false);
+
   const handleCardClick = async (
     card: Card,
     location: "HAND" | "RESOURCE" | "FIELD",
@@ -293,113 +296,144 @@ export const usePhaseInteractions = ({
   };
 
   const handleConfirmInitSelection = async () => {
+    if (confirmInProgressRef.current) {
+      console.log("Confirm initial card selection already in progress. Ignoring duplicate call.");
+      return;
+    }
+
     const currentState = actions.gameStateRef.current;
     if (!currentState) return;
 
+    if (currentState.phase !== Phase.INIT_SELECT) {
+      console.log("Not in INIT_SELECT phase. Ignoring.");
+      return;
+    }
+
     const activeId = actions.getActiveDecisionPlayerId(currentState);
-    if (currentState.mode === "TUTORIAL") {
-      if (!tutorial.isInteractionAllowed("btn-confirm-init")) return;
-      tutorial.advanceTutorialStep("CLICK_UI_BUTTON", "btn-confirm-init");
-    }
-
     const p = currentState.players[activeId];
-    // Use updated state for selection
-    const selectedCards = p.hand.filter((c: any) =>
-      currentState.initSelectedIds.includes(c.id),
-    );
-    const resContainer = document.getElementById(
-      `resource-container-${activeId}`,
-    );
+    if (!p) return;
 
-    if (resContainer) {
-      const resRect = resContainer.getBoundingClientRect();
-      // Ensure CPU DOM elements are found. Sometimes the state update for selection runs fast,
-      // but if we are CPU, the cards are rendered.
-      const animations = selectedCards.map((c: any) => {
-        let startRect: DOMRect | null = null;
-        const el = document.getElementById(c.id);
-
-        if (el) {
-          startRect = el.getBoundingClientRect();
-        } else {
-          // Fallback for CPU cards that might be tricky to select (offscreen or reflowed)
-          const handContainer =
-            activeId === 0 ? refs.handRef.current : refs.cpuHandRef.current;
-          if (handContainer) {
-            const parentRect = handContainer.getBoundingClientRect();
-            // Approximate position in center of hand container
-            startRect = {
-              ...parentRect,
-              left: parentRect.left + parentRect.width / 2,
-              top: parentRect.top + parentRect.height / 2,
-              x: parentRect.left + parentRect.width / 2,
-              y: parentRect.top + parentRect.height / 2,
-              width: 0,
-              height: 0,
-              bottom: 0,
-              right: 0,
-              toJSON: () => {},
-            } as DOMRect;
-          }
-        }
-
-        if (startRect)
-          return effects.triggerFlyer(
-            c,
-            startRect,
-            resRect,
-            false,
-            undefined,
-            undefined,
-            p.cardBack,
-            p.cardFace,
-          );
-        return Promise.resolve();
-      });
-      await Promise.all(animations);
+    const selectedCardsCount = currentState.initSelectedIds.length;
+    if (selectedCardsCount !== 3) {
+      console.log(`Expected precisely 3 selected cards to confirm setup, but got ${selectedCardsCount}. Ignoring.`);
+      return;
     }
 
-    playSound("play_resource");
+    confirmInProgressRef.current = true;
 
-    actions.setGameState((prev: any) => {
-      if (!prev) return null;
-      const p = prev.players[activeId];
-      const selected = p.hand.filter((c: any) =>
-        prev.initSelectedIds.includes(c.id),
-      );
-      const remaining = p.hand.filter(
-        (c: any) => !prev.initSelectedIds.includes(c.id),
-      );
-      p.hand = remaining;
-
-      // CRITICAL FIX: Preserve IDs for tutorial resources to allow highlighting
-      selected.forEach((c: any) => {
-        const fc = createFieldCard(c, p.id);
-        if (prev.mode === "TUTORIAL") fc.instanceId = c.id;
-        p.resources.push(fc);
-      });
-
-      const otherId = activeId === 0 ? 1 : 0;
-      const other = prev.players[otherId];
-      let nextState = { ...prev, initSelectedIds: [] };
-      let gameStarting = false;
-
-      // Simplified Start Logic: If the other player has resources, start. If not, swap.
-      // This works for CPU vs CPU to avoid infinite loops.
-      if (other.resources.length >= 3) {
-        nextState.logs = addLog(nextState, "Battle Commencing!");
-        nextState.phase = Phase.UPKEEP;
-        nextState.turnPlayer = prev.startingPlayerId;
-        gameStarting = true;
-        setTimeout(() => actions.advancePhase(Phase.UPKEEP, nextState), 500);
-      } else {
-        nextState.turnPlayer = otherId;
-        nextState.logs = addLog(nextState, `${other.name}'s turn to setup.`);
+    try {
+      if (currentState.mode === "TUTORIAL") {
+        if (!tutorial.isInteractionAllowed("btn-confirm-init")) {
+          confirmInProgressRef.current = false;
+          return;
+        }
+        tutorial.advanceTutorialStep("CLICK_UI_BUTTON", "btn-confirm-init");
       }
 
-      if (gameStarting) setTimeout(() => effects.setShowTurnAnim(true), 100);
-      return nextState;
-    });
+      // Use updated state for selection
+      const selectedCards = p.hand.filter((c: any) =>
+        currentState.initSelectedIds.includes(c.id),
+      );
+      const resContainer = document.getElementById(
+        `resource-container-${activeId}`,
+      );
+
+      if (resContainer) {
+        const resRect = resContainer.getBoundingClientRect();
+        // Ensure CPU DOM elements are found. Sometimes the state update for selection runs fast,
+        // but if we are CPU, the cards are rendered.
+        const animations = selectedCards.map((c: any) => {
+          let startRect: DOMRect | null = null;
+          const el = document.getElementById(c.id);
+
+          if (el) {
+            startRect = el.getBoundingClientRect();
+          } else {
+            // Fallback for CPU cards that might be tricky to select (offscreen or reflowed)
+            const handContainer =
+              activeId === 0 ? refs.handRef.current : refs.cpuHandRef.current;
+            if (handContainer) {
+              const parentRect = handContainer.getBoundingClientRect();
+              // Approximate position in center of hand container
+              startRect = {
+                ...parentRect,
+                left: parentRect.left + parentRect.width / 2,
+                top: parentRect.top + parentRect.height / 2,
+                x: parentRect.left + parentRect.width / 2,
+                y: parentRect.top + parentRect.height / 2,
+                width: 0,
+                height: 0,
+                bottom: 0,
+                right: 0,
+                toJSON: () => {},
+              } as DOMRect;
+            }
+          }
+
+          if (startRect)
+            return effects.triggerFlyer(
+              c,
+              startRect,
+              resRect,
+              false,
+              undefined,
+              undefined,
+              p.cardBack,
+              p.cardFace,
+            );
+          return Promise.resolve();
+        });
+        await Promise.all(animations);
+      }
+
+      playSound("play_resource");
+
+      actions.setGameState((prev: any) => {
+        if (!prev) return null;
+        if (prev.initSelectedIds.length === 0) return prev; // already processed
+
+        const p = prev.players[activeId];
+        const selected = p.hand.filter((c: any) =>
+          prev.initSelectedIds.includes(c.id),
+        );
+        const remaining = p.hand.filter(
+          (c: any) => !prev.initSelectedIds.includes(c.id),
+        );
+        p.hand = remaining;
+
+        // CRITICAL FIX: Preserve IDs for tutorial resources to allow highlighting
+        selected.forEach((c: any) => {
+          const fc = createFieldCard(c, p.id);
+          if (prev.mode === "TUTORIAL") fc.instanceId = c.id;
+          p.resources.push(fc);
+        });
+
+        const otherId = activeId === 0 ? 1 : 0;
+        const other = prev.players[otherId];
+        let nextState = { ...prev, initSelectedIds: [] };
+        let gameStarting = false;
+
+        // Simplified Start Logic: If the other player has resources, start. If not, swap.
+        // This works for CPU vs CPU to avoid infinite loops.
+        if (other.resources.length >= 3) {
+          nextState.logs = addLog(nextState, "Battle Commencing!");
+          nextState.phase = Phase.UPKEEP;
+          nextState.turnPlayer = prev.startingPlayerId;
+          gameStarting = true;
+          setTimeout(() => actions.advancePhase(Phase.UPKEEP, nextState), 500);
+        } else {
+          nextState.turnPlayer = otherId;
+          nextState.logs = addLog(nextState, `${other.name}'s turn to setup.`);
+        }
+
+        if (gameStarting) setTimeout(() => effects.setShowTurnAnim(true), 100);
+        return nextState;
+      });
+    } catch (err) {
+      console.error("Error in handleConfirmInitSelection:", err);
+    } finally {
+      confirmInProgressRef.current = false;
+    }
   };
 
   const handlePhaseAction = (

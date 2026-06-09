@@ -126,21 +126,89 @@ export const App: React.FC = () => {
     setProgression(syncedProg);
   };
 
+  // Track premium app startup loading state
+  const [isAppLoading, setIsAppLoading] = useState(false);
+
+  // Keep settings inside progression in sync with option/settings changes
+  useEffect(() => {
+    setProgression(prev => {
+      if (
+        prev.autoSort === ui.autoSort &&
+        prev.autoEndTurn === ui.autoEndTurn &&
+        prev.sfxVolume === ui.sfxVolume
+      ) {
+        return prev;
+      }
+      const updated = {
+        ...prev,
+        autoSort: ui.autoSort,
+        autoEndTurn: ui.autoEndTurn,
+        sfxVolume: ui.sfxVolume
+      };
+      saveProgression(updated);
+      return updated;
+    });
+  }, [ui.autoSort, ui.autoEndTurn, ui.sfxVolume]);
+
+  // Keep options UI states in sync with (possibly cloud-sync'd) progression properties
+  useEffect(() => {
+    if (progression.autoSort !== undefined && progression.autoSort !== ui.autoSort) {
+      ui.setAutoSort(progression.autoSort);
+      localStorage.setItem('battle_autosort', JSON.stringify(progression.autoSort));
+    }
+    if (progression.autoEndTurn !== undefined && progression.autoEndTurn !== ui.autoEndTurn) {
+      ui.setAutoEndTurn(progression.autoEndTurn);
+      localStorage.setItem('battle_auto_end_turn', JSON.stringify(progression.autoEndTurn));
+    }
+    if (progression.sfxVolume !== undefined && progression.sfxVolume !== ui.sfxVolume) {
+      ui.setSfxVolume(progression.sfxVolume);
+      localStorage.setItem('battle_sfx_volume', progression.sfxVolume.toString());
+    }
+  }, [progression.autoSort, progression.autoEndTurn, progression.sfxVolume]);
+
   // Listen to Auth Changes and fetch session on mount
   useEffect(() => {
     const supabase = getSupabase();
-    if (!supabase) return;
+    if (!supabase) {
+      setIsAppLoading(false);
+      return;
+    }
+
+    let isMounted = true;
 
     // Get current session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSupabaseUser(session?.user || null);
-      if (session?.user) {
-        syncUserData(session.user.id, loadProgression())
-          .then(({ syncedData }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!isMounted) return;
+      
+      const currentUser = session?.user || null;
+      setSupabaseUser(currentUser);
+      
+      if (currentUser) {
+        if (isMounted) setIsAppLoading(true);
+        try {
+          console.log("[Loading Screen] Active login session found. Triggering user progress synchronization...");
+          const { syncedData } = await syncUserData(currentUser.id, loadProgression());
+          if (isMounted) {
             setProgression(syncedData);
-          })
-          .catch(err => console.error("Initial sync on session load failed:", err));
+            console.log("[Loading Screen] Cloud synchronization successful.");
+          }
+        } catch (err) {
+          console.error("[Loading Screen] Error syncing user progress on startup:", err);
+        } finally {
+          if (isMounted) {
+            // Slight delay of 1s to display the premium loading screen gracefully
+            setTimeout(() => {
+              if (isMounted) setIsAppLoading(false);
+            }, 1000);
+          }
+        }
+      } else {
+        console.log("[Loading Screen] Guest mode. Continuing without cloud synchronization.");
+        if (isMounted) setIsAppLoading(false);
       }
+    }).catch(err => {
+      console.error("[Loading Screen] Critical error loading session:", err);
+      if (isMounted) setIsAppLoading(false);
     });
 
     // Listen for auth events
@@ -161,6 +229,7 @@ export const App: React.FC = () => {
     });
 
     return () => {
+      isMounted = false;
       subscription.unsubscribe();
     };
   }, []);
@@ -937,6 +1006,46 @@ export const App: React.FC = () => {
                       <span className="text-white/80 font-bold tracking-[0.2em] text-lg md:text-xl border-b-2 border-transparent group-hover:border-indigo-500 transition-all">
                           CLICK TO START
                       </span>
+                  </div>
+              </div>
+          </div>
+      );
+  }
+
+  // --- IN-GAME INITIAL DISCOVERY & SYNCHRONIZATION LOADING SCREEN ---
+  if (isAppLoading) {
+      return (
+          <div className="relative flex flex-col items-center justify-center h-screen w-full bg-slate-950 overflow-hidden text-slate-100 selection:bg-indigo-500/30">
+              <MainMenuBackground />
+              <div className="z-10 flex flex-col items-center gap-6 max-w-sm px-6 py-8 rounded-3xl bg-slate-900/60 border border-slate-800/40 backdrop-blur-md shadow-2xl text-center">
+                  
+                  {/* Glowing Halos & Rotating Orbits */}
+                  <div className="relative w-20 h-20 flex items-center justify-center">
+                      <div className="absolute inset-0 bg-gradient-to-tr from-indigo-500/20 via-purple-500/10 to-transparent rounded-full filter blur-xl animate-pulse"></div>
+                      
+                      {/* Active rotating spinner */}
+                      <div className="absolute w-16 h-16 border-2 border-indigo-500/10 rounded-full"></div>
+                      <div className="absolute w-16 h-16 border-t-2 border-r-2 border-indigo-400 rounded-full animate-spin"></div>
+                      
+                      {/* Innermost pulsing light */}
+                      <div className="w-8 h-8 rounded-full bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center animate-pulse">
+                          <div className="w-2.5 h-2.5 rounded-full bg-indigo-400 shadow-[0_0_8px_#818cf8]"></div>
+                      </div>
+                  </div>
+                  
+                  <div className="space-y-1.5">
+                      <h2 className="text-xl font-bold font-title uppercase tracking-widest text-[#a5b4fc]">
+                          Loading Profile...
+                      </h2>
+                      <p className="text-[10px] text-slate-500 tracking-[0.2em] font-bold uppercase">
+                          Synchronizing Progress
+                      </p>
+                  </div>
+                  
+                  <div className="h-4 flex items-center justify-center">
+                      <p className="text-[11px] text-slate-400 font-medium font-mono animate-pulse">
+                          {supabaseUser ? "Syncing data with server archives..." : "Checking user session credentials..."}
+                      </p>
                   </div>
               </div>
           </div>
