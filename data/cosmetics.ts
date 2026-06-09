@@ -18,6 +18,7 @@ export const COSMETIC_ITEMS: CosmeticItem[] = [
   { id: 'cosmic_void', name: 'Cosmic Void Back', description: 'Deep space purple back with swirling galactic stardust.', type: 'BACK', cost: 4000 },
   { id: 'minimalist_charcoal', name: 'Minimalist Charcoal Back', description: 'Sleek ultra-thin matte black casing with fine geometric hair-lines.', type: 'BACK', cost: 4500 },
   { id: 'glitch', name: 'Glitch Back', description: 'An animated reality-distorting cybernetic back that glitches continuously.', type: 'BACK', cost: 5000 },
+  { id: 'beach_breeze', name: 'Beach Breeze Back', description: 'Tropical paradise animated card back featuring a palm tree swaying over an active tide.', type: 'BACK', cost: 3800 },
   { id: 'royal_gold', name: 'Royal Gold Back', description: 'Premium gilded solid gold back with intricate crowns and gold leaf detailing.', type: 'BACK', cost: 8000 },
 
   // Card Faces
@@ -31,5 +32,6 @@ export const COSMETIC_ITEMS: CosmeticItem[] = [
   { id: 'cosmic_void', name: 'Cosmic Void Face', description: 'Swirling nebulae of purple and deep violet cascading across the face card.', type: 'FACE', cost: 4000 },
   { id: 'minimalist_charcoal', name: 'Minimalist Charcoal Face', description: 'Ultra-thin elegant fonts, spacious margins and neat suites.', type: 'FACE', cost: 4500 },
   { id: 'glitch', name: 'Glitch Face', description: 'Cybernetic static and hologram distortion face backgrounds that twitch.', type: 'FACE', cost: 5000 },
+  { id: 'beach_breeze', name: 'Beach Breeze Face', description: 'Top-down animated shoreline with realistic ocean swell rolling over glistening sands.', type: 'FACE', cost: 3800 },
   { id: 'royal_gold', name: 'Royal Gold Face', description: 'Ultimate prestige solid gold plated card face with metallic reflections.', type: 'FACE', cost: 8000 }
 ];

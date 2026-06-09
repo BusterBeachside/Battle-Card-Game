@@ -17,7 +17,7 @@ import {
     SessionStats 
 } from './utils/progression';
 import { loadCampaign, saveCampaign, generateCampaignMap, CampaignState, getRandomElement } from './utils/campaign';
-import { getSupabase } from './utils/supabaseClient';
+import { getSupabase, clearSupabaseInstance } from './utils/supabaseClient';
 import { syncUserData, pushProgressionUpdate } from './utils/supabaseSync';
 // Imported Components
 import { TutorialCompleteScreen } from './components/screens/TutorialCompleteScreen';
@@ -113,6 +113,9 @@ export const App: React.FC = () => {
         console.error("Error during Supabase signOut:", err);
       }
     }
+    
+    // Clear Supabase Client singleton so that any subsequent login gets a fresh, clean client instance
+    clearSupabaseInstance();
     
     console.log("Sign out completed. Progression reverted to offline profile state.");
   };

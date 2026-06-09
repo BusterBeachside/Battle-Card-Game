@@ -267,6 +267,90 @@ export function getCardBackConfig(activeCardBack: string, size: 'sm' | 'md' | 'l
         </div>
       );
       break;
+    case 'beach_breeze':
+      backThemeClass = 'bg-gradient-to-b from-sky-300 via-sky-100 to-amber-100 border border-amber-300 shadow-md overflow-hidden relative';
+      backContent = (
+        <div className="absolute inset-0 flex flex-col justify-end overflow-hidden">
+          {/* Animated Sky / Cloud */}
+          <div className="absolute top-[8%] left-2 w-6 h-1.5 bg-white/60 rounded-full blur-[0.2px] animate-[beach-cloud-move_12s_infinite_linear]"></div>
+          <div className="absolute top-[16%] right-2 w-4 h-1 bg-white/45 rounded-full blur-[0.1px] animate-[beach-cloud-move_8s_infinite_linear_reverse]"></div>
+ 
+          {/* Sun */}
+          <div className="absolute top-[12%] left-1/2 -translate-x-1/2 w-[22%] h-[15%] rounded-full bg-gradient-to-b from-amber-300 to-rose-400 opacity-80 blur-[0.5px]"></div>
+          {/* Sun Glow Ring */}
+          <div className="absolute top-[9%] left-1/2 -translate-x-1/2 w-[34%] h-[22%] rounded-full bg-amber-200/20 opacity-60 blur-md animate-pulse"></div>
+ 
+          {/* Floating Island Centerpiece */}
+          <div className="absolute bottom-[18%] left-1/2 -translate-x-1/2 w-[68%] h-[12%] bg-gradient-to-t from-amber-300 via-amber-200 to-amber-100 rounded-full shadow-[0_2px_4px_rgba(0,0,0,0.12),inset_0_-1.5px_2px_rgba(0,0,0,0.06)] z-10"></div>
+          
+          {/* Palm Tree Centerpiece - starts nicely on the island and rises up */}
+          <div className="absolute bottom-[23%] left-[50%] -translate-x-[50%] w-[32%] h-[35%] origin-bottom animate-[beach-palm-sway_4s_infinite_ease-in-out] z-15">
+            <svg viewBox="0 0 50 50" fill="none" className="overflow-visible w-full h-full">
+              {/* Textured Curved Trunk */}
+              <path d="M25,50 C23.5,38 23.5,23 27,11" stroke="#78350f" strokeWidth="2.8" strokeLinecap="round" fill="none" />
+              <path d="M25,50 C23.5,38 23.5,23 27,11" stroke="#92400e" strokeWidth="1.2" strokeDasharray="1,4" strokeLinecap="round" fill="none" />
+              
+              {/* Leaves & Coconuts Group */}
+              <g transform="translate(27, 11)">
+                {/* Back Leaves */}
+                <path d="M0,0 C-4,-10 -11,-12 -16,-9" stroke="#16a34a" strokeWidth="2.0" strokeLinecap="round" fill="none" />
+                <path d="M0,0 C4,-8 11,-10 15,-8" stroke="#15803d" strokeWidth="2.0" strokeLinecap="round" fill="none" />
+                
+                {/* Front Leaves */}
+                <path d="M0,0 C-8,-4 -16,3 -20,8" stroke="#16a34a" strokeWidth="2.2" strokeLinecap="round" fill="none" />
+                <path d="M0,0 C8,-5 16,1 20,4" stroke="#15803d" strokeWidth="2.2" strokeLinecap="round" fill="none" />
+                
+                {/* Little Coconuts */}
+                <circle cx="-1.5" cy="1.5" r="1.6" fill="#451a03" />
+                <circle cx="2" cy="1" r="1.3" fill="#451a03" stroke="#78350f" strokeWidth="0.5" />
+              </g>
+            </svg>
+          </div>
+ 
+          {/* Animated Waves (overlays at the bottom) with glittering sun spots */}
+          <div className="absolute bottom-0 left-0 right-0 h-[28%] bg-gradient-to-t from-cyan-600 via-cyan-500/90 to-teal-400/80 z-5 overflow-hidden shadow-[inset_0_1px_3px_rgba(255,255,255,0.4)]">
+            {/* Wave layer 1 */}
+            <div 
+              className="absolute inset-x-[-20%] -top-2.5 h-4.5 bg-cyan-300/45 animate-[beach-wave-one_3s_infinite_ease-in-out]" 
+              style={{ borderRadius: '40% 40% 0 0' }}
+            ></div>
+            {/* Wave layer 2 (offset) */}
+            <div 
+              className="absolute inset-x-[-20%] -top-1.5 h-4.5 bg-teal-300/45 animate-[beach-wave-two_4s_infinite_ease-in-out_1s]" 
+              style={{ borderRadius: '45% 45% 0 0' }}
+            ></div>
+            {/* Wave foam edge */}
+            <div className="absolute inset-x-0 -top-2 h-1 bg-white/80 blur-[0.2px] animate-[beach-wave-foam_3s_infinite_ease-in-out]"></div>
+ 
+            {/* Glittering Sun Sparkles on Water */}
+            <div className="absolute inset-0 pointer-events-none">
+              {[
+                { top: '15%', left: '48%', size: 'w-2 h-2', delay: '0.1s' }, // Brightest reflection spot in vector sun corridor
+                { top: '22%', left: '54%', size: 'w-1.5 h-1.5', delay: '0.5s' },
+                { top: '25%', left: '42%', size: 'w-1.5 h-1.5', delay: '1.1s' },
+                { top: '35%', left: '50%', size: 'w-1 h-1', delay: '0.3s' },
+                { top: '20%', left: '20%', size: 'w-1 h-1', delay: '0.8s' },
+                { top: '45%', left: '78%', size: 'w-1 h-1', delay: '1.4s' },
+                { top: '55%', left: '32%', size: 'w-1 h-1', delay: '1.9s' },
+                { top: '30%', left: '68%', size: 'w-1.5 h-1.5', delay: '0.6s' }
+              ].map((spark, i) => (
+                <div 
+                  key={i}
+                  className={`absolute ${spark.size} bg-white mix-blend-screen rounded-full animate-[water-glitter-anim_2.5s_infinite_ease-in-out] opacity-0`}
+                  style={{
+                    top: spark.top,
+                    left: spark.left,
+                    animationDelay: spark.delay,
+                  }}
+                >
+                  <div className="absolute inset-[-100%] bg-white/40 rounded-full blur-[0.3px]"></div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      );
+      break;
     case 'battle':
     default: {
       const scaling = {

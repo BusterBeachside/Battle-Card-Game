@@ -104,6 +104,17 @@ export function getCardFaceThemeClasses(activeCardFace: string, isSelected: bool
       badgeThemeClass = 'bg-amber-950 text-yellow-300 text-[8px] font-bold border border-amber-300 rounded';
       spectrumAccentClass = isRed ? 'bg-[#7e1d1d] border-b border-amber-300' : 'bg-indigo-950 border-b border-amber-300';
       break;
+    case 'beach_breeze':
+      borderClass = isSelected ? '' : 'border border-amber-400 shadow-md';
+      cardFaceBgClass = 'bg-[#fcefbf] relative overflow-hidden';
+      fontClass = 'font-title font-black text-sm tracking-tight';
+      centerArtOpacity = 'opacity-[0.25]';
+      textThemeColor = isRed 
+        ? 'text-rose-600 font-extrabold [text-shadow:0_1.5px_2px_rgba(255,255,255,0.7)]' 
+        : 'text-sky-900 font-extrabold [text-shadow:0_1.5px_2px_rgba(255,255,255,0.7)]';
+      badgeThemeClass = 'bg-sky-600 border border-sky-450 text-sky-50 text-[8px] font-sans font-bold rounded px-1 py-0.5 uppercase tracking-wide';
+      spectrumAccentClass = isRed ? 'bg-rose-500 shadow-[0_0_6px_#f43f5e]' : 'bg-sky-500 shadow-[0_0_6px_#0ea5e9]';
+      break;
     case 'classic':
     default:
       borderClass = isSelected ? '' : 'border border-slate-300';

@@ -123,6 +123,66 @@ export const CardFaceBackgrounds: React.FC<{ activeCardFace: string }> = ({ acti
           ))}
         </div>
       )}
+      {activeCardFace === 'beach_breeze' && (
+        <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none rounded-sm">
+          {/* Sandy Beach background */}
+          <div className="absolute inset-0 bg-gradient-to-b from-[#fef08a] via-[#fde047] to-[#f59e0b] opacity-90"></div>
+          
+          {/* Waves and Tide rolling in from the top down */}
+          <div className="absolute inset-x-[-30%] -top-[35%] h-[115%] origin-top animate-[tide-animation_6s_infinite_ease-in-out]">
+            {/* The ocean layer */}
+            <div className="absolute inset-0 bg-gradient-to-b from-blue-600/90 via-cyan-500/80 to-teal-400/70" style={{ borderRadius: '0 0 50% 50% / 0 0 20% 20%' }}></div>
+            
+            {/* Foam lines (Tide Edge) */}
+            <div className="absolute bottom-0 left-0 right-0 h-4 bg-white/70 blur-[0.5px] animate-pulse" style={{ borderRadius: '0 0 50% 50% / 0 0 35% 35%' }}></div>
+            <div className="absolute bottom-1.5 left-0 right-0 h-2 bg-cyan-200/50" style={{ borderRadius: '0 0 50% 50% / 0 0 30% 30%' }}></div>
+          </div>
+
+          {/* Stationary Glowing sun glitter sparkles relative to the water area */}
+          <div className="absolute inset-0 z-[1] overflow-hidden pointer-events-none">
+            {[
+              { top: '8%', left: '32%', size: 'w-1 h-1', delay: '0s' },
+              { top: '22%', left: '48%', size: 'w-1.5 h-1.5', delay: '0.4s' },
+              { top: '5%', left: '68%', size: 'w-0.5 h-0.5', delay: '0.8s' },
+              { top: '30%', left: '38%', size: 'w-1.5 h-1.5', delay: '1.2s' },
+              { top: '15%', left: '60%', size: 'w-1 h-1', delay: '1.6s' },
+              { top: '25%', left: '72%', size: 'w-1 h-1', delay: '0.2s' },
+              { top: '12%', left: '44%', size: 'w-1.5 h-1.5', delay: '0.6s' },
+              { top: '35%', left: '50%', size: 'w-2 h-2', delay: '1s' }
+            ].map((sparkle, idx) => (
+              <div 
+                key={`water-sparkle-${idx}`} 
+                className={`absolute ${sparkle.size} bg-white rounded-full mix-blend-screen animate-[water-glitter-anim_2s_infinite_ease-in-out] opacity-0`}
+                style={{
+                  top: sparkle.top,
+                  left: sparkle.left,
+                  animationDelay: sparkle.delay,
+                }}
+              >
+                <div className="absolute inset-[-100%] bg-white/40 rounded-full blur-[0.3px]"></div>
+              </div>
+            ))}
+          </div>
+          
+          {/* Subtle glistening sand sparkles on the dry sand at the bottom */}
+          {[
+            { top: '80%', left: '15%', delay: '0s' },
+            { top: '82%', left: '55%', delay: '1.2s' },
+            { top: '75%', left: '78%', delay: '1.8s' },
+            { top: '88%', left: '32%', delay: '0.6s' }
+          ].map((sparkle, idx) => (
+            <div 
+              key={idx} 
+              className="absolute w-0.5 h-0.5 bg-white rounded-full animate-pulse opacity-40 animate-[star-twinkle-anim_2s_infinite]"
+              style={{
+                top: sparkle.top,
+                left: sparkle.left,
+                animationDelay: sparkle.delay,
+              }}
+            ></div>
+          ))}
+        </div>
+      )}
     </>
   );
 };
