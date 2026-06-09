@@ -59,20 +59,20 @@
         60% { opacity: 0.1; color: #064e3b; text-shadow: none; }
       }
       @keyframes glitch-pop-anim {
-        0%, 100% { clip-path: inset(0 0 0 0); transform: translate(0, 0) scale(1); filter: hue-rotate(0deg); }
+        0%, 100% { clip-path: inset(0 0 0 0); transform: translate(0, 0) scale(1); }
         8% { clip-path: inset(12% 0 55% 0); transform: translate(-4px, 3px) scale(0.98); }
-        15% { clip-path: inset(45% 0 15% 0); transform: translate(3px, -2px) scale(1.02); filter: hue-rotate(90deg); }
+        15% { clip-path: inset(45% 0 15% 0); transform: translate(3px, -2px) scale(1.02); }
         22% { clip-path: inset(0 45% 35% 0); transform: translate(0px, 0px) scale(1); }
-        30% { clip-path: inset(60% 0 5% 0); transform: translate(-3px, -3px) scale(0.96); filter: hue-rotate(180deg); }
+        30% { clip-path: inset(60% 0 5% 0); transform: translate(-3px, -3px) scale(0.96); }
         36% { clip-path: inset(15% 55% 45% 0); transform: translate(4px, 2px) scale(1); }
         45% { clip-path: inset(0 0 0 0); transform: translate(0, 0) scale(1); }
       }
       @keyframes fire-rise-anim {
-        0% { transform: translateY(45%) scale(0.7) rotate(0deg); opacity: 0; filter: blur(4px) brightness(0.5); }
-        15% { opacity: 0.9; filter: blur(3px) brightness(1.2); }
-        50% { transform: translateY(5%) scale(1.1) rotate(6deg); opacity: 0.85; filter: blur(2px) brightness(1.5); }
+        0% { transform: translateY(45%) scale(0.7) rotate(0deg); opacity: 0; }
+        15% { opacity: 0.9; }
+        50% { transform: translateY(5%) scale(1.1) rotate(6deg); opacity: 0.85; }
         80% { opacity: 0.4; }
-        100% { transform: translateY(-55%) scale(1.3) rotate(-12deg); opacity: 0; filter: blur(6px) brightness(0.2); }
+        100% { transform: translateY(-55%) scale(1.3) rotate(-12deg); opacity: 0; }
       }
       @keyframes fire-sway-anim {
         0%, 100% { transform: translateX(0) scaleX(1); }
@@ -87,8 +87,8 @@
         50% { opacity: 0.9; transform: scale(1.1); }
       }
       @keyframes circuit-pulse-anim {
-        0%, 100% { opacity: 0.3; filter: drop-shadow(0 0 1px rgba(6,182,212,0.3)); }
-        50% { opacity: 0.95; filter: drop-shadow(0 0 5px rgba(6,182,212,0.95)); }
+        0%, 100% { opacity: 0.3; }
+        50% { opacity: 0.95; }
       }
       @keyframes gold-shimmer-anim {
         0% { background-position: -200% 0; }
@@ -124,12 +124,10 @@
         0%, 100% {
           transform: scale(0.3) rotate(0deg);
           opacity: 0;
-          filter: brightness(0.8) drop-shadow(0 0 0px rgba(255, 255, 255, 0));
         }
         50% {
           transform: scale(1.1) rotate(180deg);
           opacity: 0.95;
-          filter: brightness(1.2) drop-shadow(0 0 3px rgba(255, 255, 255, 0.8));
         }
       }
     </style>
