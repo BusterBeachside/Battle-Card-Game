@@ -25,8 +25,10 @@ jobs:
       - name: Build project
         run: npm run build
         env:
-          VITE_SUPABASE_URL: ${{ https://fuxlhuepfsumbrucqagk.supabase.co }}
-          VITE_SUPABASE_ANON_KEY: ${{ sb_publishable_0yqXhhF9YuRXwSInuoqw5Q_dZI6lmlx }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || secrets.SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL || secrets.VITE_SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY || secrets.VITE_SUPABASE_ANON_KEY }}
 
       - name: Upload Build for Download
         uses: actions/upload-artifact@v4
