@@ -9,7 +9,7 @@ export function getSupabase(): SupabaseClient | null {
   const key = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
   if (!url || !key) {
-    console.warn("Supabase credentials are not configured in environment variables. Define VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.");
+    console.warn("Supabase credentials are not configured in environment variables. Define VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY or SUPABASE_URL / SUPABASE_ANON_KEY.");
     return null;
   }
 
