@@ -54,6 +54,15 @@ export default defineConfig(({ mode }) => {
   const supabaseUrl = env.VITE_SUPABASE_URL || env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
   const supabaseAnonKey = env.VITE_SUPABASE_ANON_KEY || env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || '';
 
+  console.log(`\n⚙️  [Vite Build Config] Supabase Variable Resolution Status:`);
+  console.log(`   - URL Present: ${!!supabaseUrl} (Length: ${supabaseUrl ? supabaseUrl.length : 0})`);
+  console.log(`   - Anon Key Present: ${!!supabaseAnonKey} (Length: ${supabaseAnonKey ? supabaseAnonKey.length : 0})`);
+  if (supabaseUrl) {
+    console.log(`   - URL Snippet: ${supabaseUrl.substring(0, 16)}...`);
+  }
+  console.log(`   - Mode: ${mode}`);
+  console.log(`   - Build Source: GitHub Actions or AI Studio Runner\n`);
+
   return {
     plugins: [
       react(),
