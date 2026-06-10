@@ -73,9 +73,39 @@ export async function syncUserData(
 
       console.log(`Local XP: ${localTotalXp} (Level ${localData.level}), Cloud XP: ${cloudTotalXp} (Level ${cloudProg.level})`);
 
+      const getCosmeticsCount = (data: ProgressionData) => {
+        return (data.unlockedCardBacks?.length || 0) + (data.unlockedCardFaces?.length || 0);
+      };
+
+      let localIsBetter = false;
       if (localTotalXp > cloudTotalXp) {
-        // Local has higher XP, sync local to cloud (overwriting cloud)
-        console.log('Local has higher XP. Overwriting cloud data...');
+        localIsBetter = true;
+      } else if (localTotalXp < cloudTotalXp) {
+        localIsBetter = false;
+      } else {
+        // Total XP is identical. Let's apply tiebreaker logic!
+        const localCosmetics = getCosmeticsCount(localData);
+        const cloudCosmetics = getCosmeticsCount(cloudProg);
+        console.log(`[Sync Tiebreaker] XP is identical (${localTotalXp}). Comparing cosmetics: Local has ${localCosmetics}, Cloud has ${cloudCosmetics}`);
+        
+        if (localCosmetics > cloudCosmetics) {
+          localIsBetter = true;
+        } else if (localCosmetics < cloudCosmetics) {
+          localIsBetter = false;
+        } else {
+          // Cosmetics are identical. Check Gold.
+          console.log(`[Sync Tiebreaker] Cosmetics counts are identical. Comparing gold: Local has ${localData.gold}, Cloud has ${cloudProg.gold}`);
+          if (localData.gold > cloudProg.gold) {
+            localIsBetter = true;
+          } else {
+            localIsBetter = false; // Default to cloud/local (cloud if tie)
+          }
+        }
+      }
+
+      if (localIsBetter) {
+        // Local is prioritized, sync local to cloud (overwriting cloud)
+        console.log('Local progression is chosen. Overwriting cloud data...');
         const { error: updateError } = await supabase
           .from('battle_card_game_data')
           .update({
@@ -94,8 +124,8 @@ export async function syncUserData(
 
         return { syncedData: localData, source: 'local' };
       } else {
-        // Cloud has higher (or equal) XP, use the cloud data (overwriting local)
-        console.log('Cloud has higher or equal XP. Overwriting local data...');
+        // Cloud is prioritized (or completely identical), use the cloud data (overwriting local)
+        console.log('Cloud progression is chosen (or identical). Overwriting local data...');
         saveProgression(cloudProg); // Saves cloud progression to local storage
         return { syncedData: cloudProg, source: 'cloud' };
       }

@@ -3,15 +3,18 @@ import { ChevronLeft, BookOpen, CheckCircle, ArrowRight } from 'lucide-react';
 import { playSound } from '../../../utils/soundUtils';
 import { TUTORIAL_LESSONS } from '../../../data/tutorials';
 import { GoldCoin } from '../../ui/GoldCoin';
+import { ProgressionData } from '../../../utils/progression';
 
 interface TutorialMenuProps {
     setMenuStep: (step: any) => void;
     startLesson: (lessonId: string) => void;
+    progression?: ProgressionData;
 }
 
 export const TutorialMenu: React.FC<TutorialMenuProps> = ({
     setMenuStep,
-    startLesson
+    startLesson,
+    progression
 }) => {
     const handleClick = (cb: () => void) => {
         playSound('menu_click');
@@ -19,6 +22,9 @@ export const TutorialMenu: React.FC<TutorialMenuProps> = ({
     };
 
     const isLessonCompleted = (lessonId: string) => {
+        if (progression?.claimedTutorialRewards?.includes(lessonId)) {
+            return true;
+        }
         return localStorage.getItem(`battle_lesson_complete_${lessonId}`) === 'true';
     };
 

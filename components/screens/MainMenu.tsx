@@ -300,6 +300,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                 <TutorialMenu
                     setMenuStep={setMenuStep}
                     startLesson={startLesson}
+                    progression={progression}
                 />
             )}
 

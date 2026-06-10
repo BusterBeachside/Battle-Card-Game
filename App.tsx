@@ -76,6 +76,12 @@ export const App: React.FC = () => {
   // Gating state to prevent stale local progression from overwriting database records before synchronization is complete
   const [isInitialSyncCompleted, setIsInitialSyncCompleted] = useState<boolean>(false);
 
+  // Ref to cache matching progression pushes and avoid redundant round-trips
+  const lastPushedProgressionRef = useRef<string | null>(null);
+
+  // Ref to gate active or pending sync session user ID
+  const syncInProgressUserIdRef = useRef<string | null>(null);
+
   // Sign out handler
   const handleSignOut = async () => {
     console.log("Initiating underdogs ID sign out process...");
@@ -84,6 +90,8 @@ export const App: React.FC = () => {
     setSupabaseUser(null);
     setProgression(loadProgression());
     setIsInitialSyncCompleted(false);
+    lastPushedProgressionRef.current = null;
+    syncInProgressUserIdRef.current = null;
     
     // 2. Clear all cache/supabase keys in localStorage synchronously and immediately
     try {
@@ -126,14 +134,26 @@ export const App: React.FC = () => {
 
   // Auth success callback
   const handleAuthSuccess = (user: any, syncedProg: ProgressionData) => {
+    syncInProgressUserIdRef.current = user.id;
+    lastPushedProgressionRef.current = JSON.stringify(syncedProg);
     setIsInitialSyncCompleted(false);
     setSupabaseUser(user);
     setProgression(syncedProg);
     setIsInitialSyncCompleted(true);
   };
 
-  // Track premium app startup loading state
-  const [isAppLoading, setIsAppLoading] = useState(false);
+  // Track premium app startup loading state, checking if there is probably an active login session first
+  const [isAppLoading, setIsAppLoading] = useState<boolean>(() => {
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (key.startsWith('sb-') || key.includes('-auth-token'))) {
+          return true;
+        }
+      }
+    } catch (e) {}
+    return false;
+  });
 
   // Keep settings inside progression in sync with option/settings changes
   useEffect(() => {
@@ -172,77 +192,120 @@ export const App: React.FC = () => {
     }
   }, [progression.autoSort, progression.autoEndTurn, progression.sfxVolume]);
 
-  // Listen to Auth Changes and fetch session on mount
+  // Safety fallback: if startup loading or sync gets stuck for some system or network reason, force-clear it to let the player proceed.
+  useEffect(() => {
+    if (isAppLoading) {
+      const timer = setTimeout(() => {
+        console.warn("[Sync Safety] Startup loader safety timeout reached (7.5s). Forcing load completion to bypass potential locks.");
+        setIsAppLoading(false);
+        setIsInitialSyncCompleted(true);
+      }, 7500);
+      return () => clearTimeout(timer);
+    }
+  }, [isAppLoading]);
+
+  // Listen to Auth Changes on mount
   useEffect(() => {
     const supabase = getSupabase();
     if (!supabase) {
       setIsAppLoading(false);
+      setIsInitialSyncCompleted(true);
       return;
     }
 
     let isMounted = true;
 
-    // Get current session
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (!isMounted) return;
-      
-      const currentUser = session?.user || null;
-      setSupabaseUser(currentUser);
-      
-      if (currentUser) {
-        if (isMounted) {
-          setIsInitialSyncCompleted(false);
-          setIsAppLoading(true);
-        }
-        try {
-          console.log("[Loading Screen] Active login session found. Triggering user progress synchronization...");
-          const { syncedData } = await syncUserData(currentUser.id, loadProgression());
-          if (isMounted) {
-            setProgression(syncedData);
-            setIsInitialSyncCompleted(true);
-            console.log("[Loading Screen] Cloud synchronization successful.");
-          }
-        } catch (err) {
-          console.error("[Loading Screen] Error syncing user progress on startup:", err);
-        } finally {
-          if (isMounted) {
-            // Slight delay of 1s to display the premium loading screen gracefully
-            setTimeout(() => {
-              if (isMounted) setIsAppLoading(false);
-            }, 1000);
-          }
-        }
-      } else {
-        console.log("[Loading Screen] Guest mode. Continuing without cloud synchronization.");
-        if (isMounted) {
-          setIsInitialSyncCompleted(true);
-          setIsAppLoading(false);
-        }
+    // Helper helper to race a promise against a timeout
+    const withTimeout = async <T,>(promise: Promise<T>, timeoutMs: number, fallbackValue: T): Promise<T> => {
+      let timeoutId: any;
+      const timeoutPromise = new Promise<T>((resolve) => {
+        timeoutId = setTimeout(() => {
+          console.warn(`[Sync Safety] Connection/sync operation exceeded ${timeoutMs}ms limit. Falling back to offline/local progression state.`);
+          resolve(fallbackValue);
+        }, timeoutMs);
+      });
+      try {
+        const result = await Promise.race([promise, timeoutPromise]);
+        clearTimeout(timeoutId);
+        return result;
+      } catch (err) {
+        clearTimeout(timeoutId);
+        throw err;
       }
-    }).catch(err => {
-      console.error("[Loading Screen] Critical error loading session:", err);
-      if (isMounted) {
-        setIsInitialSyncCompleted(true);
-        setIsAppLoading(false);
-      }
-    });
+    };
 
-    // Listen for auth events
+    // Listen for auth events as the single source of truth for the entire session lifecycle
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       const currentUser = session?.user || null;
+      
+      if (!isMounted) return;
+
+      console.log(`[Sync Engine] Auth Event Triggered: "${event}". User ID:`, currentUser ? currentUser.id : "none");
+
+      // 1. Update the Supabase user state
       setSupabaseUser(currentUser);
+
       if (currentUser) {
+        // If we are already syncing or have successfully synced this exact user, bypass to avoid redundancy or race conditions
+        if (syncInProgressUserIdRef.current === currentUser.id) {
+          console.log(`[Sync Gate] Already matching active sync or completed sync in progress for user ${currentUser.id}. Bypassing extra trigger.`);
+          // Clear loading screen immediately since we are already synced/syncing
+          setIsAppLoading(false);
+          return;
+        }
+
+        // Set the active sync ref to block redundant triggers
+        syncInProgressUserIdRef.current = currentUser.id;
+        
+        // Ensure gated push is blocked during startup sync
+        setIsInitialSyncCompleted(false);
+        setIsAppLoading(true);
+
         try {
-          const { syncedData } = await syncUserData(currentUser.id, loadProgression());
-          setProgression(syncedData);
-          setIsInitialSyncCompleted(true);
+          console.log(`[Sync Engine] Initializing database synchronization for user ${currentUser.id}...`);
+          
+          const localFallback = { syncedData: loadProgression(), source: 'local' as const };
+          // Wrap with a 5-second timeout fallback to prevent the sync process from blocking the loading screen forever
+          const { syncedData } = await withTimeout(
+            syncUserData(currentUser.id, localFallback.syncedData),
+            5000,
+            localFallback
+          );
+          
+          if (isMounted && syncInProgressUserIdRef.current === currentUser.id) {
+            // Update local progression state with the verified synced progression
+            setProgression(syncedData);
+            
+            // Critical: Update the last pushed progression ref to match the freshly synced data.
+            // This prevents the gated push useEffect from immediately pushing downloaded cloud data back to the DB!
+            lastPushedProgressionRef.current = JSON.stringify(syncedData);
+            
+            // Mark initial sync complete to open the gateway for future local progress updates to push
+            setIsInitialSyncCompleted(true);
+            console.log("[Sync Engine] Synchronization finalized successfully.");
+          }
         } catch (err) {
-          console.error("Sync on auth state change failed:", err);
+          console.error("[Sync Engine] Error syncing user progress:", err);
+          // Recover gracefully to let the user play anyway
+          if (isMounted && syncInProgressUserIdRef.current === currentUser.id) {
+            setIsInitialSyncCompleted(true);
+          }
+        } finally {
+          if (isMounted && syncInProgressUserIdRef.current === currentUser.id) {
+            // Slight delay of 500ms to view the loading screen elegantly
+            setTimeout(() => {
+              if (isMounted) setIsAppLoading(false);
+            }, 500);
+          }
         }
       } else {
         // Safe reset if user is cleared or signed out
+        console.log("[Sync Engine] No active session. Transitioning to Guest mode.");
+        syncInProgressUserIdRef.current = null;
+        lastPushedProgressionRef.current = null;
         setProgression(loadProgression());
-        setIsInitialSyncCompleted(false);
+        setIsInitialSyncCompleted(true); // Offline users need the gate open so their local progress saves correctly in client state
+        setIsAppLoading(false);
       }
     });
 
@@ -255,7 +318,14 @@ export const App: React.FC = () => {
   // Automatically push progression updates to the cloud if signed in and synchronization is completed
   useEffect(() => {
     if (supabaseUser && isInitialSyncCompleted) {
-      console.log("[Sync Debug] Gated push - Active synchronization complete. Saving push to database:", progression);
+      const progString = JSON.stringify(progression);
+      if (lastPushedProgressionRef.current === progString) {
+        console.log("[Sync Debug] Skipping push - Progression is identical to the last synchronized/pushed state.");
+        return;
+      }
+
+      console.log("[Sync Debug] Gated push - Active synchronization complete. Saving push to database.");
+      lastPushedProgressionRef.current = progString;
       pushProgressionUpdate(supabaseUser.id, progression);
     } else if (supabaseUser) {
       console.log("[Sync Debug] Blocked push - Initial synchronization is still in progress under user:", supabaseUser.id);
@@ -953,7 +1023,9 @@ export const App: React.FC = () => {
         // Find if all lessons are completed
         const allLessons = ['lesson-1', 'lesson-2', 'lesson-3', 'lesson-4'];
         const completedAll = allLessons.every(id => 
-          id === lessonId || localStorage.getItem(`battle_lesson_complete_${id}`) === 'true'
+          id === lessonId || 
+          localStorage.getItem(`battle_lesson_complete_${id}`) === 'true' ||
+          progression.claimedTutorialRewards?.includes(id)
         );
         const claimedAllBefore = !!progression.claimedAllTutorialsBonus;
         if (completedAll && !claimedAllBefore) {
@@ -974,7 +1046,9 @@ export const App: React.FC = () => {
         // Check if all lessons are completed
         const allLessons = ['lesson-1', 'lesson-2', 'lesson-3', 'lesson-4'];
         const completedAll = allLessons.every(id => 
-          id === lessonId || localStorage.getItem(`battle_lesson_complete_${id}`) === 'true'
+          id === lessonId || 
+          localStorage.getItem(`battle_lesson_complete_${id}`) === 'true' ||
+          claimed.includes(id)
         );
 
         let claimedAll = !!prev.claimedAllTutorialsBonus;
