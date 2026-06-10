@@ -114,7 +114,12 @@ export async function syncUserData(
 // Function to push standard progress updates to cloud whenever local progression changes
 export async function pushProgressionUpdate(userId: string, currentData: ProgressionData) {
   const supabase = getSupabase();
-  if (!supabase) return;
+  if (!supabase) {
+    console.log("[Sync Debug] pushProgressionUpdate called but supabase is null.");
+    return;
+  }
+
+  console.log(`[Sync Debug] Pushing progression update for user ${userId}:`, currentData);
 
   try {
     const { error } = await supabase
@@ -129,9 +134,11 @@ export async function pushProgressionUpdate(userId: string, currentData: Progres
       });
 
     if (error) {
-      console.error('Error pushing progression update to cloud:', error);
+      console.error('[Sync Debug] Error in pushProgressionUpdate:', error);
+    } else {
+      console.log('[Sync Debug] Successfully pushed progression update.');
     }
   } catch (err) {
-    console.error('Failed to push progression update:', err);
+    console.error('[Sync Debug] Caught exception in pushProgressionUpdate:', err);
   }
 }

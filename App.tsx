@@ -73,6 +73,9 @@ export const App: React.FC = () => {
   // Underdog ID / Supabase States
   const [supabaseUser, setSupabaseUser] = useState<any>(null);
 
+  // Gating state to prevent stale local progression from overwriting database records before synchronization is complete
+  const [isInitialSyncCompleted, setIsInitialSyncCompleted] = useState<boolean>(false);
+
   // Sign out handler
   const handleSignOut = async () => {
     console.log("Initiating underdogs ID sign out process...");
@@ -80,6 +83,7 @@ export const App: React.FC = () => {
     // 1. Instantly update React state so the UI reflects signed-out status immediately
     setSupabaseUser(null);
     setProgression(loadProgression());
+    setIsInitialSyncCompleted(false);
     
     // 2. Clear all cache/supabase keys in localStorage synchronously and immediately
     try {
@@ -122,8 +126,10 @@ export const App: React.FC = () => {
 
   // Auth success callback
   const handleAuthSuccess = (user: any, syncedProg: ProgressionData) => {
+    setIsInitialSyncCompleted(false);
     setSupabaseUser(user);
     setProgression(syncedProg);
+    setIsInitialSyncCompleted(true);
   };
 
   // Track premium app startup loading state
@@ -184,12 +190,16 @@ export const App: React.FC = () => {
       setSupabaseUser(currentUser);
       
       if (currentUser) {
-        if (isMounted) setIsAppLoading(true);
+        if (isMounted) {
+          setIsInitialSyncCompleted(false);
+          setIsAppLoading(true);
+        }
         try {
           console.log("[Loading Screen] Active login session found. Triggering user progress synchronization...");
           const { syncedData } = await syncUserData(currentUser.id, loadProgression());
           if (isMounted) {
             setProgression(syncedData);
+            setIsInitialSyncCompleted(true);
             console.log("[Loading Screen] Cloud synchronization successful.");
           }
         } catch (err) {
@@ -204,11 +214,17 @@ export const App: React.FC = () => {
         }
       } else {
         console.log("[Loading Screen] Guest mode. Continuing without cloud synchronization.");
-        if (isMounted) setIsAppLoading(false);
+        if (isMounted) {
+          setIsInitialSyncCompleted(true);
+          setIsAppLoading(false);
+        }
       }
     }).catch(err => {
       console.error("[Loading Screen] Critical error loading session:", err);
-      if (isMounted) setIsAppLoading(false);
+      if (isMounted) {
+        setIsInitialSyncCompleted(true);
+        setIsAppLoading(false);
+      }
     });
 
     // Listen for auth events
@@ -219,12 +235,14 @@ export const App: React.FC = () => {
         try {
           const { syncedData } = await syncUserData(currentUser.id, loadProgression());
           setProgression(syncedData);
+          setIsInitialSyncCompleted(true);
         } catch (err) {
           console.error("Sync on auth state change failed:", err);
         }
       } else {
         // Safe reset if user is cleared or signed out
         setProgression(loadProgression());
+        setIsInitialSyncCompleted(false);
       }
     });
 
@@ -234,12 +252,15 @@ export const App: React.FC = () => {
     };
   }, []);
 
-  // Automatically push progression updates to the cloud if signed in
+  // Automatically push progression updates to the cloud if signed in and synchronization is completed
   useEffect(() => {
-    if (supabaseUser) {
+    if (supabaseUser && isInitialSyncCompleted) {
+      console.log("[Sync Debug] Gated push - Active synchronization complete. Saving push to database:", progression);
       pushProgressionUpdate(supabaseUser.id, progression);
+    } else if (supabaseUser) {
+      console.log("[Sync Debug] Blocked push - Initial synchronization is still in progress under user:", supabaseUser.id);
     }
-  }, [progression, supabaseUser]);
+  }, [progression, supabaseUser, isInitialSyncCompleted]);
   const [endGameRewards, setEndGameRewards] = useState<{
     xpGained: number;
     goldGained: number;
