@@ -476,7 +476,7 @@ export const CampaignMenu: React.FC<CampaignMenuProps> = ({
                             return (
                                 <div 
                                     key={`node-coord-${node.id}`}
-                                    className="absolute -translate-x-1/2 -translate-y-1/2 group"
+                                    className="absolute -translate-x-1/2 -translate-y-1/2 group hover:z-50 transition-all"
                                     style={{ left: `${node.x}%`, top: `${node.y}%` }}
                                 >
                                     <button

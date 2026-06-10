@@ -71,7 +71,6 @@ export const ModeMenu: React.FC<ModeMenuProps> = ({
                         <button 
                             onClick={() => handleClick(() => {
                                 handleModeSelect('SANDBOX');
-                                handleStartGameClick(false);
                             })}
                             className="group relative flex flex-col items-center text-center p-6 md:p-8 rounded-2xl bg-gradient-to-b from-slate-900/90 to-slate-950 border border-slate-800 hover:border-amber-500/50 transition-all duration-300 hover:-translate-y-1.5 hover:shadow-[0_0_30px_rgba(245,158,11,0.15)] cursor-pointer select-none"
                         >
