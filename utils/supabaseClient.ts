@@ -24,10 +24,10 @@ export function getSupabase(): SupabaseClient | null {
 
   // 2. Try standard import.meta.env properties
   if (!url) {
-    url = import.meta.env.VITE_SUPABASE_URL || '';
+    url = (import.meta as any).env.VITE_SUPABASE_URL || '';
   }
   if (!key) {
-    key = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+    key = (import.meta as any).env.VITE_SUPABASE_ANON_KEY || '';
   }
 
   // 3. Try process.env variables if defined

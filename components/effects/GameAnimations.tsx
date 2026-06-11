@@ -5,61 +5,56 @@ import { Card, FlyingCard, Rank, SoulTrail, SummoningCard, Color } from '../../t
 
 export const Flyer: React.FC<{ fc: FlyingCard }> = ({ fc }) => {
     const [style, setStyle] = useState<React.CSSProperties>({
-        left: fc.startX,
-        top: fc.startY,
+        left: 0,
+        top: 0,
         position: 'fixed',
         zIndex: 100,
-        transform: 'translate(0px, 0px) scale(0.6) rotate(0deg)',
+        transform: `translate3d(${fc.startX}px, ${fc.startY}px, 0) scale(0.6) rotate(0deg)`,
         transition: 'transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1)',
-        pointerEvents: 'none'
+        pointerEvents: 'none',
+        willChange: 'transform'
     });
 
     useEffect(() => {
         const centerX = window.innerWidth / 2 - 40; // 40 = half of w-20 (80px)
         const centerY = window.innerHeight / 2 - 56; // 56 = half of h-28 (112px)
-        const targetDX = fc.targetX - fc.startX;
-        const targetDY = fc.targetY - fc.startY;
         
         let timeout1: number, timeout2: number;
 
         if (fc.pauseDuration && fc.pauseDuration > 0) {
-            // STEP 1: Move to Center
+            // STEP 1: Move to Center using only translation on GPU layer
             requestAnimationFrame(() => {
                 setStyle(prev => ({
                     ...prev,
-                    left: centerX, 
-                    top: centerY,
-                    transform: 'scale(1.5) rotate(360deg)', 
-                    transition: 'all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+                    transform: `translate3d(${centerX}px, ${centerY}px, 0) scale(1.5) rotate(360deg)`, 
+                    transition: 'transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
                 }));
             });
 
-            // STEP 2: Wait then Move to Target
-            timeout1 = setTimeout(() => {
+            // STEP 2: Wait then Move to Target using only translation on GPU layer
+            timeout1 = window.setTimeout(() => {
                 setStyle(prev => ({
                     ...prev,
-                    left: fc.targetX,
-                    top: fc.targetY,
-                    transform: 'scale(0.8) rotate(0deg)', // Approx hand scale
-                    transition: 'all 0.5s ease-in-out'
+                    transform: `translate3d(${fc.targetX}px, ${fc.targetY}px, 0) scale(0.8) rotate(360deg)`, // Approx hand scale
+                    transition: 'transform 0.5s ease-in-out'
                 }));
             }, 500 + fc.pauseDuration); // Fly time + pause
 
             // Finish
-            timeout2 = setTimeout(() => {
+            timeout2 = window.setTimeout(() => {
                 if (fc.onComplete) fc.onComplete();
             }, 500 + fc.pauseDuration + 500);
 
         } else {
-            // Standard Direct Flight
+            // Standard Direct Flight using absolute coordinates translated on GPU layer
             requestAnimationFrame(() => {
                 setStyle(prev => ({
                     ...prev,
-                    transform: `translate(${targetDX}px, ${targetDY}px) scale(0.6) rotate(360deg)`
+                    transform: `translate3d(${fc.targetX}px, ${fc.targetY}px, 0) scale(0.6) rotate(360deg)`
                 }));
             });
             
-            timeout1 = setTimeout(() => {
+            timeout1 = window.setTimeout(() => {
                 if (fc.onComplete) fc.onComplete();
             }, 600);
         }
@@ -79,14 +74,15 @@ export const Flyer: React.FC<{ fc: FlyingCard }> = ({ fc }) => {
 
 export const Summoner: React.FC<{ sc: SummoningCard }> = ({ sc }) => {
     const [style, setStyle] = useState<React.CSSProperties>({
-        left: sc.startX,
-        top: sc.startY,
+        left: 0,
+        top: 0,
         position: 'fixed',
         zIndex: 200,
-        transform: 'translate(-50%, -50%) scale(0.8) rotate(0deg)',
-        transition: 'all 0.4s ease-out',
+        transform: `translate3d(${sc.startX}px, ${sc.startY}px, 0) translate(-50%, -50%) scale(0.8) rotate(0deg)`,
+        transition: 'transform 0.4s ease-out, opacity 0.4s ease-out',
         pointerEvents: 'none',
-        opacity: 1
+        opacity: 1,
+        willChange: 'transform, opacity'
     });
     
     const [phase, setPhase] = useState<'LIFT' | 'HOVER' | 'SLAM'>('LIFT');
@@ -110,14 +106,15 @@ export const Summoner: React.FC<{ sc: SummoningCard }> = ({ sc }) => {
 
         requestAnimationFrame(() => {
             setStyle({
-                left: targetX,
-                top: liftY,
+                left: 0,
+                top: 0,
                 position: 'fixed',
                 zIndex: 300,
-                transform: 'translate(-50%, -50%) scale(1.4) rotate(0deg)',
-                transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)', // Spring out
+                transform: `translate3d(${targetX}px, ${liftY}px, 0) translate(-50%, -50%) scale(1.4) rotate(0deg)`,
+                transition: 'transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)', // Spring out
                 pointerEvents: 'none',
-                boxShadow: isRed ? '0 0 30px rgba(220, 38, 38, 0.6)' : '0 0 30px rgba(99, 102, 241, 0.6)'
+                boxShadow: isRed ? '0 0 30px rgba(220, 38, 38, 0.6)' : '0 0 30px rgba(99, 102, 241, 0.6)',
+                willChange: 'transform, opacity'
             });
         });
 
@@ -131,10 +128,8 @@ export const Summoner: React.FC<{ sc: SummoningCard }> = ({ sc }) => {
             setPhase('SLAM');
             setStyle(prev => ({
                 ...prev,
-                left: targetX,
-                top: targetY, // Precise lane center
-                transform: 'translate(-50%, -50%) scale(1.0)',
-                transition: 'all 0.2s cubic-bezier(0.6, -0.28, 0.735, 0.045)', // Hard impact ease
+                transform: `translate3d(${targetX}px, ${targetY}px, 0) translate(-50%, -50%) scale(1.0)`,
+                transition: 'transform 0.2s cubic-bezier(0.6, -0.28, 0.735, 0.045)', // Hard impact ease
                 zIndex: 200
             }));
         }, 900); // 400ms lift + 500ms hover
@@ -168,29 +163,27 @@ export const SoulOrb: React.FC<{ trail: SoulTrail }> = ({ trail }) => {
     const angle = Math.atan2(dy, dx) * (180 / Math.PI);
 
     const [style, setStyle] = useState<React.CSSProperties>({
-        left: trail.startX,
-        top: trail.startY,
+        left: 0,
+        top: 0,
         position: 'fixed',
         width: '48px',
         height: '48px',
         zIndex: 200,
         // Set initial rotation immediately
-        transform: `translate(-50%, -50%) rotate(${angle}deg) scale(1)`,
+        transform: `translate3d(${trail.startX}px, ${trail.startY}px, 0) translate(-50%, -50%) rotate(${angle}deg) scale(1)`,
         opacity: 1,
-        // Animate position and scale/opacity, but rotation stays fixed (via the transform string)
-        transition: 'left 0.8s ease-in, top 0.8s ease-in, opacity 0.8s ease-in, transform 0.8s ease-in',
-        pointerEvents: 'none'
+        transition: 'transform 0.8s ease-in, opacity 0.8s ease-in',
+        pointerEvents: 'none',
+        willChange: 'transform, opacity'
     });
 
     useLayoutEffect(() => {
         requestAnimationFrame(() => {
             setStyle(prev => ({
                 ...prev,
-                left: trail.targetX,
-                top: trail.targetY,
                 opacity: 0,
                 // Maintain angle, shrink scale
-                transform: `translate(-50%, -50%) rotate(${angle}deg) scale(0.2)`
+                transform: `translate3d(${trail.targetX}px, ${trail.targetY}px, 0) translate(-50%, -50%) rotate(${angle}deg) scale(0.2)`
             }));
         });
     }, [trail, angle]);
@@ -247,12 +240,13 @@ export const SoulOrb: React.FC<{ trail: SoulTrail }> = ({ trail }) => {
 export const SpecialCardAnimation: React.FC<{ type: 'K' | 'Q' | 'J', card: Card, targetRect?: DOMRect, cardFace?: string, cardBack?: string, onComplete: () => void }> = ({ type, card, targetRect, cardFace, cardBack, onComplete }) => {
     const [style, setStyle] = useState<React.CSSProperties>({
         position: 'fixed',
-        left: '50%',
-        top: '50%',
-        transform: 'translate(-50%, -50%) scale(0.5)',
+        left: 0,
+        top: 0,
+        transform: `translate3d(${window.innerWidth / 2}px, ${window.innerHeight / 2}px, 0) translate(-50%, -50%) scale(0.5)`,
         opacity: 0,
         zIndex: 200,
-        transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+        transition: 'transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+        willChange: 'transform, opacity'
     });
 
     const [label, setLabel] = useState("");
@@ -279,18 +273,19 @@ export const SpecialCardAnimation: React.FC<{ type: 'K' | 'Q' | 'J', card: Card,
             const destX = targetRect ? targetRect.left + targetRect.width / 2 : window.innerWidth / 2;
             const destY = targetRect ? targetRect.top + targetRect.height / 2 : window.innerHeight / 2;
             
-            const finalLeft = type === 'J' ? '50%' : destX;
-            const finalTop = type === 'J' ? '50%' : destY;
-            const transform = type === 'J' ? 'translate(-50%, -50%) scale(1.2)' : 'translate(-50%, -50%) scale(1.5)';
+            const finalX = type === 'J' ? window.innerWidth / 2 : destX;
+            const finalY = type === 'J' ? window.innerHeight / 2 : destY;
+            const scale = type === 'J' ? 1.2 : 1.5;
 
             setStyle({
                 position: 'fixed',
-                left: finalLeft,
-                top: finalTop,
-                transform: transform,
+                left: 0,
+                top: 0,
+                transform: `translate3d(${finalX}px, ${finalY}px, 0) translate(-50%, -50%) scale(${scale})`,
                 opacity: 1,
                 zIndex: 200,
-                transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+                transition: 'transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+                willChange: 'transform, opacity'
             });
         });
 

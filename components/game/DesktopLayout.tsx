@@ -193,14 +193,14 @@ export const DesktopLayout: React.FC<LayoutProps> = ({
                                 <div className="grid grid-cols-2 gap-4 scale-90 origin-top">
                                     <div className="flex flex-col -space-y-20 relative z-10">
                                         {topPlayer.resources.slice(0, 5).map((r, i) => (
-                                            <div key={r.instanceId} style={{ zIndex: i }} className="origin-top transition-transform hover:z-50 hover:scale-105" onClick={() => handlers.onCardClick(r.card, 'RESOURCE', topPlayer.id, r.instanceId)}>
+                                            <div key={r.instanceId} id={`res-${r.instanceId}`} style={{ zIndex: i }} className="origin-top transition-transform hover:z-50 hover:scale-105" onClick={() => handlers.onCardClick(r.card, 'RESOURCE', topPlayer.id, r.instanceId)}>
                                                 <CardDisplay card={r.card} isTapped={r.isTapped} size="md" isSummoningSick={false} cardBack={topPlayer.cardBack} cardFace={topPlayer.cardFace} />
                                             </div>
                                         ))}
                                     </div>
                                     <div className="flex flex-col -space-y-20 relative z-0">
                                         {topPlayer.resources.slice(5, 10).map((r, i) => (
-                                            <div key={r.instanceId} style={{ zIndex: i }} className="origin-top transition-transform hover:z-50 hover:scale-105" onClick={() => handlers.onCardClick(r.card, 'RESOURCE', topPlayer.id, r.instanceId)}>
+                                            <div key={r.instanceId} id={`res-${r.instanceId}`} style={{ zIndex: i }} className="origin-top transition-transform hover:z-50 hover:scale-105" onClick={() => handlers.onCardClick(r.card, 'RESOURCE', topPlayer.id, r.instanceId)}>
                                                 <CardDisplay card={r.card} isTapped={r.isTapped} size="md" isSummoningSick={false} cardBack={topPlayer.cardBack} cardFace={topPlayer.cardFace} />
                                             </div>
                                         ))}

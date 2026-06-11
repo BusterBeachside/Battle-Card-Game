@@ -114,6 +114,12 @@ export const CardDisplay: React.FC<CardDisplayProps> = ({
       <div
         id={domId}
         className={`${dimensions[size]} ${backThemeClass} relative overflow-hidden flex items-center justify-center`}
+        style={{
+          willChange: 'transform, opacity',
+          WebkitBackfaceVisibility: 'hidden',
+          backfaceVisibility: 'hidden',
+          ...rest.style
+        }}
         {...rest}
       >
         {backContent}
@@ -157,7 +163,7 @@ export const CardDisplay: React.FC<CardDisplayProps> = ({
         className={`
           ${dimensions[size]} 
           relative z-10
-          ${cardFaceBgClass} shadow-md select-none transition-all duration-300 ease-out
+          ${cardFaceBgClass} shadow-md select-none transition-[transform,opacity,box-shadow] duration-300 ease-out
           flex flex-col justify-between p-1
           ${textThemeColor}
           ${isSelected ? 'ring-4 ring-yellow-400 -translate-y-2 z-20' : borderClass}
@@ -171,6 +177,12 @@ export const CardDisplay: React.FC<CardDisplayProps> = ({
           ${onClick || onMouseDown || onTouchStart ? 'cursor-pointer' : ''}
           ${onMouseDown || onTouchStart ? 'touch-none' : ''} 
         `}
+        style={{
+          willChange: 'transform, opacity',
+          WebkitBackfaceVisibility: 'hidden',
+          backfaceVisibility: 'hidden',
+          ...rest.style
+        }}
         {...rest}
       >
         {/* Physical / Magical Top Accent Bar removed for cleaner look */}

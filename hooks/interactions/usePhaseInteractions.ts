@@ -139,7 +139,7 @@ export const usePhaseInteractions = ({
 
         const handCardEl = document.getElementById(currentState.selectedCardId);
         const resCardEl = instanceId
-          ? document.getElementById(instanceId)
+          ? (document.getElementById(instanceId) || document.getElementById(`res-${instanceId}`))
           : null;
         const handContainer = isBottom
           ? refs.handRef.current

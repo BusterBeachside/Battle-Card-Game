@@ -22,7 +22,7 @@ import { UnderdogLoginModal } from '../modals/UnderdogLoginModal';
 
 interface MainMenuProps {
     menuStep: 'MODE' | 'TUTORIAL_MENU' | 'MULTIPLAYER_SETUP' | 'SHOP' | 'CUSTOMIZE' | 'CAMPAIGN_MAP' | 'GAME_SETUP';
-    setMenuStep: (step: 'MODE' | 'TUTORIAL_MENU' | 'MULTIPLAYER_SETUP' | 'SHOP' | 'CUSTOMIZE' | 'CAMPAIGN_MAP' | 'GAME_SETUP' | string) => void;
+    setMenuStep: (step: 'MODE' | 'TUTORIAL_MENU' | 'MULTIPLAYER_SETUP' | 'SHOP' | 'CUSTOMIZE' | 'CAMPAIGN_MAP' | 'GAME_SETUP') => void;
     handleModeSelect: (mode: GameMode) => void;
     handleStartGameClick: (isCpu: boolean, modeOverride?: GameMode) => void;
     handleSpectateClick: (modeOverride?: GameMode) => void;

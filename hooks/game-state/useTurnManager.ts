@@ -1,5 +1,5 @@
 import React, { useRef, useCallback } from "react";
-import { GameState, Phase, PlayerState, Card } from "../../types";
+import { GameState, Phase, PlayerState, Card, Rank } from "../../types";
 import { sortHand } from "../../utils/cards";
 import { addLog } from "../../utils/core";
 import { MAX_RESOURCES } from "../../constants";

@@ -51,14 +51,14 @@ const EASY_AI_COSMETICS = {
 };
 
 const MEDIUM_AI_COSMETICS = {
-  backs: ['neon_matrix', 'futuristic_tech', 'crimson_fire', 'japanese_calligraphy'],
-  faces: ['neon_matrix', 'futuristic_tech', 'crimson_fire', 'japanese_calligraphy'],
+  backs: ['neon_matrix', 'futuristic_tech', 'crimson_fire', 'japanese_calligraphy', 'beach_breeze'],
+  faces: ['neon_matrix', 'futuristic_tech', 'crimson_fire', 'japanese_calligraphy', 'beach_breeze'],
   names: ['Jester', 'Guard', 'Knight', 'Scholar', 'Thief', 'Magician', 'Priest'],
 };
 
 const HARD_AI_COSMETICS = {
-  backs: ['cosmic_void', 'minimalist_charcoal', 'glitch', 'royal_gold'],
-  faces: ['cosmic_void', 'minimalist_charcoal', 'glitch', 'royal_gold'],
+  backs: ['cosmic_void', 'minimalist_charcoal', 'glitch', 'royal_gold', 'beach_breeze'],
+  faces: ['cosmic_void', 'minimalist_charcoal', 'glitch', 'royal_gold', 'beach_breeze'],
   names: ['Jester', 'Royal Tactician', 'Prince of Aces', 'Captain Clubs', 'Anime Protagonist', 'Mysterious Wanderer', 'Joker Paladin'],
 };
 
@@ -268,29 +268,72 @@ export function generateCampaignMap(
 
 export function loadCampaign(): CampaignState {
   try {
+    const progressionRaw = localStorage.getItem('battle_card_progression_v1');
+    let progressionCampaign: CampaignState | null = null;
+    if (progressionRaw) {
+      try {
+        const prog = JSON.parse(progressionRaw);
+        if (prog && prog.campaignState) {
+          progressionCampaign = prog.campaignState;
+        }
+      } catch (err) {}
+    }
+
     const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
+    let state: any = null;
     if (raw) {
-      const state = JSON.parse(raw);
-      if (state && Array.isArray(state.nodes) && state.nodes.length === 10) {
-        // Ensure defaults are present if any fields are missing
-        if (state.areasCleared === undefined) state.areasCleared = 0;
-        if (state.currentWinStreak === undefined) state.currentWinStreak = 0;
-        if (state.bestWinStreak === undefined) state.bestWinStreak = 0;
-        if (state.rulesFormat === undefined) state.rulesFormat = 'STREET';
-        // Patch missing challenge for final node
-        if (!state.nodes[9].challenge) {
-            const challenges: CampaignNode['challenge'][] = ['SUPPLY_CHAIN', 'AMBUSH', 'WEAK_SOLDIERS', 'UNGA_BUNGA', 'BIG_BOI'];
-            state.nodes[9].challenge = getRandomElement(challenges);
-            saveCampaign(state);
+      state = JSON.parse(raw);
+    }
+
+    if (progressionCampaign) {
+      let chooseProgression = false;
+      if (!state) {
+        chooseProgression = true;
+      } else {
+        const localCleared = state.areasCleared || 0;
+        const progCleared = progressionCampaign.areasCleared || 0;
+        if (progCleared > localCleared) {
+          chooseProgression = true;
+        } else if (progCleared === localCleared) {
+          const localNodeIdx = state.currentNodeIndex || 0;
+          const progNodeIdx = progressionCampaign.currentNodeIndex || 0;
+          if (progNodeIdx > localNodeIdx) {
+            chooseProgression = true;
+          } else if (progNodeIdx === localNodeIdx) {
+            const localCompletedCount = state.nodes?.filter((n: any) => n.completed).length || 0;
+            const progCompletedCount = progressionCampaign.nodes?.filter((n: any) => n.completed).length || 0;
+            if (progCompletedCount > localCompletedCount) {
+              chooseProgression = true;
+            }
+          }
         }
-        if (!state.theme) {
-            const themes: CampaignThemeType[] = ['GRASSLANDS', 'DUNGEON', 'DESERT', 'GLACIER', 'COAST', 'MOUNTAIN'];
-            state.theme = getRandomElement(themes);
-            state.details = generateDetailsForTheme(state.theme, state.nodes);
-            saveCampaign(state);
-        }
-        return state;
       }
+
+      if (chooseProgression) {
+        state = progressionCampaign;
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(state));
+      }
+    }
+
+    if (state && Array.isArray(state.nodes) && state.nodes.length === 10) {
+      // Ensure defaults are present if any fields are missing
+      if (state.areasCleared === undefined) state.areasCleared = 0;
+      if (state.currentWinStreak === undefined) state.currentWinStreak = 0;
+      if (state.bestWinStreak === undefined) state.bestWinStreak = 0;
+      if (state.rulesFormat === undefined) state.rulesFormat = 'STREET';
+      // Patch missing challenge for final node
+      if (!state.nodes[9].challenge) {
+          const challenges: CampaignNode['challenge'][] = ['SUPPLY_CHAIN', 'AMBUSH', 'WEAK_SOLDIERS', 'UNGA_BUNGA', 'BIG_BOI'];
+          state.nodes[9].challenge = getRandomElement(challenges);
+          saveCampaign(state);
+      }
+      if (!state.theme) {
+          const themes: CampaignThemeType[] = ['GRASSLANDS', 'DUNGEON', 'DESERT', 'GLACIER', 'COAST', 'MOUNTAIN'];
+          state.theme = getRandomElement(themes);
+          state.details = generateDetailsForTheme(state.theme, state.nodes);
+          saveCampaign(state);
+      }
+      return state;
     }
   } catch (e) {
     console.error('Failed to load campaign state:', e);
@@ -304,6 +347,24 @@ export function loadCampaign(): CampaignState {
 export function saveCampaign(state: CampaignState): void {
   try {
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(state));
+    
+    // Write into the modern progression JSON so cloud-sync can immediately capture it
+    const progressionRaw = localStorage.getItem('battle_card_progression_v1');
+    if (progressionRaw) {
+      try {
+        const prog = JSON.parse(progressionRaw);
+        if (prog) {
+          prog.campaignState = state;
+          localStorage.setItem('battle_card_progression_v1', JSON.stringify(prog));
+        }
+      } catch (err) {
+        console.error('Failed to update campaign state inside progression storage:', err);
+      }
+    }
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('campaign-updated'));
+    }
   } catch (e) {
     console.error('Failed to save campaign state:', e);
   }

@@ -1,4 +1,6 @@
 
+import { CampaignState } from './campaign';
+
 export interface DailyQuest {
   id: string;
   type: 'PLAY_GAMES' | 'DEAL_DAMAGE' | 'CONSCRIPT_SOLDIERS' | 'PLAY_TACTICS' | 'KILL_SOLDIERS' | 'CLEAR_CAMPAIGN';
@@ -27,6 +29,10 @@ export interface ProgressionData {
   selectedCardBack?: string;
   unlockedCardFaces?: string[];
   selectedCardFace?: string;
+  autoSort?: boolean;
+  autoEndTurn?: boolean;
+  sfxVolume?: number;
+  campaignState?: CampaignState;
 }
 
 export interface SessionStats {

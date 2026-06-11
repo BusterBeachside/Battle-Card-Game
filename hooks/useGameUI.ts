@@ -6,7 +6,7 @@ import { setGlobalSfxVolume } from '../utils/soundUtils';
 
 export const useGameUI = () => {
     // Meta State
-    const [menuStep, setMenuStep] = useState<'MODE' | 'TUTORIAL_MENU' | 'MULTIPLAYER_SETUP' | 'SHOP' | 'CUSTOMIZE' | 'CAMPAIGN_MAP' | 'GAME_SETUP' | string>('MODE');
+    const [menuStep, setMenuStep] = useState<'MODE' | 'TUTORIAL_MENU' | 'MULTIPLAYER_SETUP' | 'SHOP' | 'CUSTOMIZE' | 'CAMPAIGN_MAP' | 'GAME_SETUP'>('MODE');
     const [selectedMode, setSelectedMode] = useState<GameMode | null>(null);
     const [isCoinFlipping, setIsCoinFlipping] = useState(false);
     const [isMobile, setIsMobile] = useState(false);

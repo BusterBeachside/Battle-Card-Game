@@ -190,7 +190,7 @@ export const MobileLayout: React.FC<LayoutProps> = ({
                             </div>
                             <div id={`resource-container-${topPlayer.id}`} className="flex flex-col items-center -space-y-12">
                                 {topPlayer.resources.map((r, i) => (
-                                    <div key={r.instanceId} style={{ zIndex: i }} className="transition-all" onClick={() => handlers.onCardClick(r.card, 'RESOURCE', topPlayer.id, r.instanceId)}>
+                                    <div key={r.instanceId} id={`res-${r.instanceId}`} style={{ zIndex: i }} className="transition-all" onClick={() => handlers.onCardClick(r.card, 'RESOURCE', topPlayer.id, r.instanceId)}>
                                         <CardDisplay card={r.card} isTapped={r.isTapped} size="sm" isSummoningSick={false} cardBack={topPlayer.cardBack} cardFace={topPlayer.cardFace} />
                                     </div>
                                 ))}

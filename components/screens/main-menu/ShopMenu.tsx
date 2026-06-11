@@ -29,7 +29,7 @@ export const ShopMenu: React.FC<ShopMenuProps> = ({
 
     const handleBuyCosmetic = (item: CosmeticItem) => {
         if (progression.gold < item.cost) {
-            playSound('error');
+            playSound('damage_sm');
             return;
         }
 

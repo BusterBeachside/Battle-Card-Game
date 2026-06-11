@@ -476,7 +476,7 @@ export const CampaignMenu: React.FC<CampaignMenuProps> = ({
                             return (
                                 <div 
                                     key={`node-coord-${node.id}`}
-                                    className="absolute -translate-x-1/2 -translate-y-1/2 group hover:z-50 transition-all"
+                                    className="absolute -translate-x-1/2 -translate-y-1/2 group z-10 hover:z-50 transition-all"
                                     style={{ left: `${node.x}%`, top: `${node.y}%` }}
                                 >
                                     <button
@@ -507,7 +507,7 @@ export const CampaignMenu: React.FC<CampaignMenuProps> = ({
                                     </button>
 
                                     {/* Simple hover tooltip explaining details of the node opponent */}
-                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 p-2 bg-slate-950/95 border border-slate-800 rounded-lg text-center opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity whitespace-nowrap shadow-2xl z-50 text-[10px] space-y-0.5 font-sans">
+                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 p-2 bg-slate-950/95 border border-slate-800 rounded-lg text-center opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity whitespace-nowrap shadow-2xl z-[1000] text-[10px] space-y-0.5 font-sans">
                                         <div className="font-extrabold text-white">{node.id === 10 ? '👑 BOSS CONFLICT' : `Node #${node.id}`} &bull; {node.aiName}</div>
                                         <div className="text-slate-400 font-medium">Difficulty: <span className="font-bold text-indigo-300">{node.difficulty}</span></div>
                                         <div className="text-[9px] text-[#818cf8] mt-0.5">

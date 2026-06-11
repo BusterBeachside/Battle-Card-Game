@@ -82,6 +82,13 @@ export const App: React.FC = () => {
   // Ref to gate active or pending sync session user ID
   const syncInProgressUserIdRef = useRef<string | null>(null);
 
+  // Ref to track last synchronized settings to prevent infinite loops
+  const prevProgSettingsRef = useRef<{
+    autoSort: boolean | undefined;
+    autoEndTurn: boolean | undefined;
+    sfxVolume: number | undefined;
+  }>({ autoSort: undefined, autoEndTurn: undefined, sfxVolume: undefined });
+
   // Sign out handler
   const handleSignOut = async () => {
     console.log("Initiating underdogs ID sign out process...");
@@ -155,7 +162,7 @@ export const App: React.FC = () => {
     return false;
   });
 
-  // Keep settings inside progression in sync with option/settings changes
+  // Keep settings inside progression in sync with option/settings changes (Upward sync)
   useEffect(() => {
     setProgression(prev => {
       if (
@@ -176,19 +183,37 @@ export const App: React.FC = () => {
     });
   }, [ui.autoSort, ui.autoEndTurn, ui.sfxVolume]);
 
-  // Keep options UI states in sync with (possibly cloud-sync'd) progression properties
+  // Keep options UI states in sync with (possibly cloud-sync'd) progression properties (Downward sync)
   useEffect(() => {
-    if (progression.autoSort !== undefined && progression.autoSort !== ui.autoSort) {
-      ui.setAutoSort(progression.autoSort);
-      localStorage.setItem('battle_autosort', JSON.stringify(progression.autoSort));
-    }
-    if (progression.autoEndTurn !== undefined && progression.autoEndTurn !== ui.autoEndTurn) {
-      ui.setAutoEndTurn(progression.autoEndTurn);
-      localStorage.setItem('battle_auto_end_turn', JSON.stringify(progression.autoEndTurn));
-    }
-    if (progression.sfxVolume !== undefined && progression.sfxVolume !== ui.sfxVolume) {
-      ui.setSfxVolume(progression.sfxVolume);
-      localStorage.setItem('battle_sfx_volume', progression.sfxVolume.toString());
+    const prev = prevProgSettingsRef.current;
+    const current = {
+      autoSort: progression.autoSort,
+      autoEndTurn: progression.autoEndTurn,
+      sfxVolume: progression.sfxVolume
+    };
+
+    // Only proceed if progression settings have actually changed from their last known values
+    if (
+      current.autoSort !== prev.autoSort ||
+      current.autoEndTurn !== prev.autoEndTurn ||
+      current.sfxVolume !== prev.sfxVolume
+    ) {
+      // Update ref with new known values
+      prevProgSettingsRef.current = current;
+
+      // Only overwrite UI if progression value is defined and doesn't match current UI state
+      if (current.autoSort !== undefined && current.autoSort !== ui.autoSort) {
+        ui.setAutoSort(current.autoSort);
+        localStorage.setItem('battle_autosort', JSON.stringify(current.autoSort));
+      }
+      if (current.autoEndTurn !== undefined && current.autoEndTurn !== ui.autoEndTurn) {
+        ui.setAutoEndTurn(current.autoEndTurn);
+        localStorage.setItem('battle_auto_end_turn', JSON.stringify(current.autoEndTurn));
+      }
+      if (current.sfxVolume !== undefined && current.sfxVolume !== ui.sfxVolume) {
+        ui.setSfxVolume(current.sfxVolume);
+        localStorage.setItem('battle_sfx_volume', current.sfxVolume.toString());
+      }
     }
   }, [progression.autoSort, progression.autoEndTurn, progression.sfxVolume]);
 
@@ -313,6 +338,27 @@ export const App: React.FC = () => {
       isMounted = false;
       subscription.unsubscribe();
     };
+  }, []);
+
+  // Synchronize campaign updates with React progression state to trigger cloud backup
+  useEffect(() => {
+    const handleCampaignUpdated = () => {
+      try {
+        const currentCampaign = loadCampaign();
+        setProgression(prev => {
+          if (JSON.stringify(prev.campaignState) === JSON.stringify(currentCampaign)) return prev;
+          const next = { ...prev, campaignState: currentCampaign };
+          try {
+            localStorage.setItem('battle_card_progression_v1', JSON.stringify(next));
+          } catch (err) {}
+          return next;
+        });
+      } catch (e) {
+        console.error("Error keeping campaign and progression state coupled:", e);
+      }
+    };
+    window.addEventListener('campaign-updated', handleCampaignUpdated);
+    return () => window.removeEventListener('campaign-updated', handleCampaignUpdated);
   }, []);
 
   // Automatically push progression updates to the cloud if signed in and synchronization is completed
@@ -613,7 +659,7 @@ export const App: React.FC = () => {
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [progression.playerName, gameState, ui.uiMode, localPlayerId]);
+    }, [gameState, localPlayerId]);
 
   const gameHandlers = {
       onCardClick: handleCardClick,
@@ -652,7 +698,10 @@ export const App: React.FC = () => {
 
   // --- Handlers wrapping UI logic ---
   const handleModeSelect = (mode: GameMode) => {
-      if (mode === 'SANDBOX') { startGame('SANDBOX', { p1: false, p2: false }); } 
+      if (mode === 'SANDBOX') { 
+          startGame('SANDBOX', { p1: false, p2: false }); 
+          ui.setSandboxToolsOpen(true);
+      } 
       else if (mode === 'TUTORIAL') { ui.setMenuStep('TUTORIAL_MENU'); }
       else { ui.setSelectedMode(mode); }
   };
@@ -873,6 +922,7 @@ export const App: React.FC = () => {
         }
         
         saveCampaign(nextCampState);
+        updatedProg.campaignState = nextCampState;
         
         // Apply campaign end-game rewards
         const { updatedData: finalProg, levelUpGains } = addXpAndGold(updatedProg, campaignXpGained, campaignGoldGained);

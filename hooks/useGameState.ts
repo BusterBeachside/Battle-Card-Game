@@ -71,7 +71,7 @@ export const useGameState = ({ effects, refs, autoSort, localPlayerId }: GameSta
         }
 
         let sharedDeck: Card[] = [];
-        if (mode === 'STREET') {
+        if (mode === 'STREET' || mode === 'SANDBOX') {
             sharedDeck = createDeck();
         } else if (mode === 'TUTORIAL') {
             if (lessonId === 'lesson-3') {
