@@ -54,6 +54,9 @@ export async function syncUserData(
           level: localData.level,
           xp: localData.xp,
           gold: localData.gold,
+          campaign_cleared: localData.campaignState?.areasCleared || 0,
+          campaign_streak: localData.campaignState?.currentWinStreak || 0,
+          campaign_best: localData.campaignState?.bestWinStreak || 0,
           progression_data: localData,
           updated_at: new Date().toISOString()
         });
@@ -112,6 +115,9 @@ export async function syncUserData(
             level: localData.level,
             xp: localData.xp,
             gold: localData.gold,
+            campaign_cleared: localData.campaignState?.areasCleared || 0,
+            campaign_streak: localData.campaignState?.currentWinStreak || 0,
+            campaign_best: localData.campaignState?.bestWinStreak || 0,
             progression_data: localData,
             updated_at: new Date().toISOString()
           })
@@ -159,6 +165,9 @@ export async function pushProgressionUpdate(userId: string, currentData: Progres
         level: currentData.level,
         xp: currentData.xp,
         gold: currentData.gold,
+        campaign_cleared: currentData.campaignState?.areasCleared || 0,
+        campaign_streak: currentData.campaignState?.currentWinStreak || 0,
+        campaign_best: currentData.campaignState?.bestWinStreak || 0,
         progression_data: currentData,
         updated_at: new Date().toISOString()
       });

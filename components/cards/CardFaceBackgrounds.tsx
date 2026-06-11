@@ -1,9 +1,9 @@
 import React from 'react';
 
 const MATRIX_COLS = [
-  { chars: ['ヌ', '0', 'カ', '1'], offset: 0, left: '15%', dur: '4s' },
-  { chars: ['シ', '1', 'ユ', 'フ'], offset: 1.5, left: '50%', dur: '3.5s' },
-  { chars: ['ア', '0', 'ヌ', 'コ'], offset: 0.5, left: '80%', dur: '4.8s' }
+  { chars: ['ヌ', '0', 'カ', '1'], offset: 0, left: '15%', dur: '6s' },
+  { chars: ['シ', '1', 'ユ', 'フ'], offset: 2.2, left: '50%', dur: '5s' },
+  { chars: ['ア', '0', 'ヌ', 'コ'], offset: 0.8, left: '80%', dur: '7s' }
 ];
 
 const CRIMSON_FIRE_SPECS = [
@@ -68,35 +68,36 @@ export const CardFaceBackgrounds: React.FC<{ activeCardFace: string }> = ({ acti
 
       {activeCardFace === 'neon_matrix' && (
         <div 
-          className="absolute inset-0 z-0 overflow-hidden pointer-events-none bg-slate-950"
+          className="absolute inset-0 z-0 overflow-hidden pointer-events-none bg-[#030712]"
           style={{ willChange: 'transform', transform: 'translate3d(0, 0, 0)', backfaceVisibility: 'hidden' }}
         >
           {MATRIX_COLS.map((col, i) => (
             <div 
               key={i} 
-              className="absolute top-2 bottom-2 flex flex-col select-none text-[6px] tracking-widest leading-none"
-              style={{ 
-                left: col.left, 
-                filter: 'drop-shadow(0 0 2px rgba(16,185,129,0.8))',
-                willChange: 'transform'
-              }}
+              className="absolute top-2 bottom-2 font-mono flex flex-col select-none text-[6.5px] font-bold tracking-widest leading-none text-center"
+              style={{ left: col.left }}
             >
-              {col.chars.map((char, charIdx) => (
-                <span 
-                  key={charIdx}
-                  className="opacity-0"
-                  style={{
-                    animationName: 'matrix-char-print-dim',
-                    animationDuration: col.dur,
-                    animationIterationCount: 'infinite',
-                    animationTimingFunction: 'linear',
-                    animationDelay: `${col.offset + charIdx * 0.15}s`,
-                    willChange: 'opacity'
-                  }}
-                >
-                  {char}
-                </span>
-              ))}
+              {/* Dim base text (static layer) */}
+              <div className="absolute inset-0 flex flex-col text-[#059669] opacity-30">
+                {col.chars.map((char, charIdx) => <span key={`d-${charIdx}`}>{char}</span>)}
+              </div>
+              {/* Bright animated text (clipping gradient layer) */}
+              <div 
+                className="absolute inset-0 flex flex-col"
+                style={{
+                  backgroundImage: 'linear-gradient(to bottom, transparent 0%, rgba(16,185,129,0.2) 20%, rgba(52,211,153,0.9) 70%, #ffffff 95%, transparent 100%)',
+                  backgroundSize: '100% 15rem',
+                  backgroundRepeat: 'no-repeat',
+                  WebkitBackgroundClip: 'text',
+                  backgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  animation: `matrix-rain-flow ${col.dur} infinite linear`,
+                  animationDelay: `${col.offset}s`,
+                  willChange: 'background-position'
+                }}
+              >
+                {col.chars.map((char, charIdx) => <span key={`b-${charIdx}`}>{char}</span>)}
+              </div>
             </div>
           ))}
           <div className="absolute inset-0 bg-[linear-gradient(rgba(16,185,129,0.06)_1px,transparent_1px),linear-gradient(90deg,rgba(16,185,129,0.06)_1px,transparent_1px)] bg-[size:6px_6px]"></div>

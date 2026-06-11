@@ -6,9 +6,17 @@ CREATE TABLE IF NOT EXISTS public.battle_card_game_data (
     level INTEGER NOT NULL DEFAULT 1,
     xp INTEGER NOT NULL DEFAULT 0,
     gold INTEGER NOT NULL DEFAULT 150,
+    campaign_cleared INTEGER NOT NULL DEFAULT 0,
+    campaign_streak INTEGER NOT NULL DEFAULT 0,
+    campaign_best INTEGER NOT NULL DEFAULT 0,
     progression_data JSONB NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
+
+-- Note: If you already created this table previously, run these ALTER commands manually:
+-- ALTER TABLE public.battle_card_game_data ADD COLUMN IF NOT EXISTS campaign_cleared INTEGER NOT NULL DEFAULT 0;
+-- ALTER TABLE public.battle_card_game_data ADD COLUMN IF NOT EXISTS campaign_streak INTEGER NOT NULL DEFAULT 0;
+-- ALTER TABLE public.battle_card_game_data ADD COLUMN IF NOT EXISTS campaign_best INTEGER NOT NULL DEFAULT 0;
 
 -- Enable Row Level Security (RLS)
 ALTER TABLE public.battle_card_game_data ENABLE ROW LEVEL SECURITY;

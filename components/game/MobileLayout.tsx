@@ -133,10 +133,13 @@ export const MobileLayout: React.FC<LayoutProps> = ({
                     </div>
 
                     {/* CPU Field & Resources */}
-                    <div className="flex w-full items-start justify-between px-2 mt-2 flex-1 min-h-0">
+                    <div className="flex w-full items-stretch justify-between px-2 mt-2 flex-1 min-h-0">
                         
-                        {/* Field Lanes (Center/Left) */}
-                        <div className="flex-1 flex justify-center gap-2 min-w-0 pr-2">
+                        {/* Spacer for alignment */}
+                        <div className="flex-none w-[48px] pointer-events-none opacity-0" />
+
+                        {/* Field Lanes (Center) */}
+                        <div className="flex-1 flex items-end justify-center gap-2 min-w-0 pb-1">
                             {/* Black Lane */}
                             <div className="bg-slate-900/40 lane-physical p-1 rounded border border-slate-700/50 flex flex-wrap gap-1 min-w-[40px] items-start content-start justify-center">
                                 {topBlack.map(fc => (
@@ -184,7 +187,7 @@ export const MobileLayout: React.FC<LayoutProps> = ({
                         </div>
 
                         {/* Resources (Right) - Static, no overlap */}
-                        <div className="flex-none flex flex-col items-center gap-1 scale-90 origin-top-right z-20">
+                        <div className="flex-none w-[48px] flex flex-col items-center gap-1 scale-90 origin-top-right z-20 self-start">
                             <div className="text-[10px] font-bold text-slate-500 bg-slate-900/80 px-1.5 py-0.5 rounded border border-slate-700">
                                 {topPlayer.resources.length}
                             </div>
@@ -203,10 +206,10 @@ export const MobileLayout: React.FC<LayoutProps> = ({
                 <div className="flex-1 flex flex-col justify-end py-2 w-full min-h-0 border-t border-slate-800/30">
                     
                     {/* Bottom Field & Resources */}
-                    <div className="flex w-full items-end justify-between px-2 mb-2 flex-1 min-h-0">
+                    <div className="flex w-full items-stretch justify-between px-2 mb-2 flex-1 min-h-0">
                         
                         {/* Resources (Left) - Single Row/Column Stack with Hover Effect Restored */}
-                        <div className="flex-none flex flex-col items-center gap-1 scale-90 origin-bottom-left z-20">
+                        <div className="flex-none w-[48px] flex flex-col items-center gap-1 scale-90 origin-bottom-left z-20 self-end">
                             <div id={`resource-container-${bottomPlayer.id}`} className="flex flex-col-reverse items-center -space-y-12 space-y-reverse pb-8 pointer-events-auto">
                                 {bottomPlayer.resources.map((r, i) => (
                                     <div 
@@ -226,7 +229,7 @@ export const MobileLayout: React.FC<LayoutProps> = ({
                         </div>
 
                         {/* Field Lanes (Center/Right) - Flex-1 to take remaining space */}
-                        <div className="flex-1 flex justify-center gap-2 min-w-0 pl-2">
+                        <div className="flex-1 flex items-start justify-center gap-2 min-w-0 pt-1">
                             {/* Black Lane */}
                             <div id={`lane-black-${bottomPlayer.id}`} className="bg-slate-900/40 lane-physical p-1 rounded border border-slate-700/50 flex flex-wrap gap-1 min-w-[40px] items-end content-end justify-center">
                                 {bottomBlack.map(fc => (
@@ -282,6 +285,9 @@ export const MobileLayout: React.FC<LayoutProps> = ({
                                 ))}
                             </div>
                         </div>
+
+                        {/* Spacer for alignment */}
+                        <div className="flex-none w-[48px] pointer-events-none opacity-0" />
                     </div>
                 </div>
 

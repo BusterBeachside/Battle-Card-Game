@@ -9,11 +9,11 @@ const GOLD_SPARKLES_BACK = [
 ];
 
 const MATRIX_COLS_BACK = [
-  { chars: ['ヌ', 'フ', 'ア', 'ウ', '0', '1', 'カ', 'キ'], offset: 0, left: '8%', dur: '3.5s' },
-  { chars: ['エ', 'オ', 'テ', 'シ', '1', '0', 'ユ', 'ル'], offset: 1.2, left: '26%', dur: '4.2s' },
-  { chars: ['メ', 'ル', '0', '1', 'ラ', 'キ', 'ナ', 'ハ'], offset: 0.4, left: '48%', dur: '2.8s' },
-  { chars: ['ミ', 'ツ', 'フ', 'イ', '1', '1', 'エ', 'ヒ'], offset: 1.8, left: '70%', dur: '3.8s' },
-  { chars: ['コ', 'モ', '0', 'ワ', 'ヌ', '1', 'ア', 'ロ'], offset: 0.8, left: '88%', dur: '3.2s' }
+  { chars: ['ヌ', 'フ', 'ア', 'ウ', '0', '1', 'カ', 'キ'], offset: 0, left: '8%', dur: '5.5s' },
+  { chars: ['エ', 'オ', 'テ', 'シ', '1', '0', 'ユ', 'ル'], offset: 1.8, left: '26%', dur: '6.5s' },
+  { chars: ['メ', 'ル', '0', '1', 'ラ', 'キ', 'ナ', 'ハ'], offset: 0.6, left: '48%', dur: '4.5s' },
+  { chars: ['ミ', 'ツ', 'フ', 'イ', '1', '1', 'エ', 'ヒ'], offset: 2.7, left: '70%', dur: '5.8s' },
+  { chars: ['コ', 'モ', '0', 'ワ', 'ヌ', '1', 'ア', 'ロ'], offset: 1.2, left: '88%', dur: '5s' }
 ];
 
 const CRIMSON_FIRE_BACK = [
@@ -235,29 +235,29 @@ export function getCardBackConfig(activeCardBack: string, size: 'sm' | 'md' | 'l
             <div 
               key={i} 
               className="absolute top-1 bottom-1 flex flex-col select-none text-[8.5px] font-bold tracking-widest leading-none text-center"
-              style={{ 
-                left: col.left,
-                width: '10px',
-                filter: 'drop-shadow(0 0 2px rgba(16,185,129,0.85))',
-                willChange: 'transform'
-              }}
+              style={{ left: col.left, width: '10px' }}
             >
-              {col.chars.map((char, charIdx) => (
-                <span 
-                  key={charIdx} 
-                  className="opacity-0"
-                  style={{ 
-                    animationName: 'matrix-char-print',
-                    animationDuration: col.dur,
-                    animationIterationCount: 'infinite',
-                    animationTimingFunction: 'linear',
-                    animationDelay: `${col.offset + charIdx * 0.15}s`,
-                    willChange: 'opacity'
-                  }}
-                >
-                  {char}
-                </span>
-              ))}
+              {/* Dim base text (static layer) */}
+              <div className="absolute inset-0 flex flex-col text-[#059669] opacity-35">
+                {col.chars.map((char, charIdx) => <span key={`d-${charIdx}`}>{char}</span>)}
+              </div>
+              {/* Bright animated text (clipping gradient layer) */}
+              <div 
+                className="absolute inset-0 flex flex-col"
+                style={{
+                  backgroundImage: 'linear-gradient(to bottom, transparent 0%, rgba(16,185,129,0.3) 20%, rgba(52,211,153,0.9) 70%, #ffffff 95%, transparent 100%)',
+                  backgroundSize: '100% 15rem',
+                  backgroundRepeat: 'no-repeat',
+                  WebkitBackgroundClip: 'text',
+                  backgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  animation: `matrix-rain-flow ${col.dur} infinite linear`,
+                  animationDelay: `${col.offset}s`,
+                  willChange: 'background-position'
+                }}
+              >
+                {col.chars.map((char, charIdx) => <span key={`b-${charIdx}`}>{char}</span>)}
+              </div>
             </div>
           ))}
         </div>

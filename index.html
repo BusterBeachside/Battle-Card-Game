@@ -46,26 +46,14 @@
       }
 
       /* Premium Cosmetics Custom Animations */
-      @keyframes matrix-char-print {
-        0%, 100% { opacity: 0; color: #064e3b; }
-        1% { opacity: 1; color: #ffffff; }
-        15% { opacity: 0.9; color: #34d399; }
-        60% { opacity: 0.3; color: #064e3b; }
-      }
-      @keyframes matrix-char-print-dim {
-        0%, 100% { opacity: 0; color: #064e3b; }
-        1% { opacity: 0.8; color: #6ee7b7; }
-        20% { opacity: 0.3; color: #059669; }
-        60% { opacity: 0.1; color: #064e3b; }
-      }
       @keyframes matrix-column-scrolling {
         0% { transform: translate3d(0, -50%, 0); }
         100% { transform: translate3d(0, 0%, 0); }
       }
       @keyframes matrix-rain-flow {
-        0% { background-position: 0% -180%; }
-        65% { background-position: 0% 120%; }
-        100% { background-position: 0% 120%; }
+        0% { background-position-y: calc(0% - 15rem); }
+        65% { background-position-y: calc(100% + 15rem); }
+        100% { background-position-y: calc(100% + 15rem); }
       }
       @keyframes glitch-pop-anim {
         0%, 100% { clip-path: inset(0 0 0 0); transform: translate(0, 0) scale(1); }
