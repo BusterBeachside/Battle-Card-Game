@@ -161,10 +161,66 @@ export function getStreakReward(day: number): number {
   return rewards[index];
 }
 
+export function processDailyRollover(data: ProgressionData): ProgressionData {
+  const todayStr = getTodayString();
+  const updated = { ...data };
+
+  // Daily Login Streak Progression Check
+  if (!updated.lastLoginDate) {
+    updated.streakCount = 1;
+    updated.claimedStreakToday = false;
+    updated.lastLoginDate = todayStr;
+  } else if (updated.lastLoginDate !== todayStr) {
+    const dLast = parseDateStr(updated.lastLoginDate);
+    const dToday = parseDateStr(todayStr);
+    // Calculate day difference
+    const diffDays = Math.round((dToday.getTime() - dLast.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 1) {
+      // Yes, consecutive day! Progress streak
+      updated.claimedStreakToday = false;
+      if (updated.streakCount >= 7) {
+        updated.streakCount = 1; // Restart streak
+      } else {
+        updated.streakCount += 1;
+      }
+    } else if (diffDays > 1) {
+      // Missed login day, reset streak to 1
+      updated.streakCount = 1;
+      updated.claimedStreakToday = false;
+    }
+    updated.lastLoginDate = todayStr;
+  }
+
+  // Daily Quests Rollover Check
+  if (!updated.questsDate) {
+    updated.quests = getDefaultQuests();
+    updated.questsDate = todayStr;
+    updated.freeRerollUsed = false;
+  } else if (updated.questsDate !== todayStr) {
+    // Re-generate / reset quests for the new day
+    updated.quests = getDefaultQuests();
+    updated.questsDate = todayStr;
+    updated.freeRerollUsed = false;
+  }
+
+  // Backward compatibility for newly added properties
+  if (!updated.playerName) updated.playerName = 'Player 1';
+  if (!updated.quests) updated.quests = getDefaultQuests();
+  if (updated.freeRerollUsed === undefined) updated.freeRerollUsed = false;
+  if (!updated.claimedTutorialRewards) updated.claimedTutorialRewards = [];
+  if (updated.claimedAllTutorialsBonus === undefined) updated.claimedAllTutorialsBonus = false;
+  if (!updated.unlockedCardBacks) updated.unlockedCardBacks = ['battle'];
+  if (!updated.selectedCardBack) updated.selectedCardBack = 'battle';
+  if (!updated.unlockedCardFaces) updated.unlockedCardFaces = ['classic'];
+  if (!updated.selectedCardFace) updated.selectedCardFace = 'classic';
+
+  return updated;
+}
+
 export function loadProgression(): ProgressionData {
   try {
     const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
-    const todayStr = getTodayString();
     
     let data: ProgressionData;
     if (raw) {
@@ -173,58 +229,9 @@ export function loadProgression(): ProgressionData {
       data = getDefaultProgression();
     }
 
-    // Daily Login Streak Progression Check
-    if (!data.lastLoginDate) {
-      data.streakCount = 1;
-      data.claimedStreakToday = false;
-      data.lastLoginDate = todayStr;
-    } else if (data.lastLoginDate !== todayStr) {
-      const dLast = parseDateStr(data.lastLoginDate);
-      const dToday = parseDateStr(todayStr);
-      // Calculate day difference
-      const diffDays = Math.round((dToday.getTime() - dLast.getTime()) / (1000 * 60 * 60 * 24));
-      
-      if (diffDays === 1) {
-        // Yes, consecutive day! Progress streak
-        data.claimedStreakToday = false;
-        if (data.streakCount >= 7) {
-          data.streakCount = 1; // Restart streak
-        } else {
-          data.streakCount += 1;
-        }
-      } else if (diffDays > 1) {
-        // Missed login day, reset streak to 1
-        data.streakCount = 1;
-        data.claimedStreakToday = false;
-      }
-      data.lastLoginDate = todayStr;
-    }
-
-    // Daily Quests Rollover Check
-    if (!data.questsDate) {
-      data.quests = getDefaultQuests();
-      data.questsDate = todayStr;
-      data.freeRerollUsed = false;
-    } else if (data.questsDate !== todayStr) {
-      // Re-generate / reset quests for the new day
-      data.quests = getDefaultQuests();
-      data.questsDate = todayStr;
-      data.freeRerollUsed = false;
-    }
-
-    // Backward compatibility for newly added properties
-    if (!data.playerName) data.playerName = 'Player 1';
-    if (!data.quests) data.quests = getDefaultQuests();
-    if (data.freeRerollUsed === undefined) data.freeRerollUsed = false;
-    if (!data.claimedTutorialRewards) data.claimedTutorialRewards = [];
-    if (data.claimedAllTutorialsBonus === undefined) data.claimedAllTutorialsBonus = false;
-    if (!data.unlockedCardBacks) data.unlockedCardBacks = ['battle'];
-    if (!data.selectedCardBack) data.selectedCardBack = 'battle';
-    if (!data.unlockedCardFaces) data.unlockedCardFaces = ['classic'];
-    if (!data.selectedCardFace) data.selectedCardFace = 'classic';
-
-    saveProgression(data);
-    return data;
+    const processed = processDailyRollover(data);
+    saveProgression(processed);
+    return processed;
   } catch (e) {
     console.error("Failed to load progression:", e);
     return getDefaultProgression();

@@ -6,9 +6,10 @@ import { ArrowRight } from 'lucide-react';
 interface TutorialOverlayProps {
     step: TutorialStep;
     onNext?: () => void;
+    isCombatResolving?: boolean;
 }
 
-export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ step, onNext }) => {
+export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ step, onNext, isCombatResolving = false }) => {
     const [highlightStyle, setHighlightStyle] = useState<React.CSSProperties | null>(null);
     const [textStyle, setTextStyle] = useState<React.CSSProperties>({
         right: '5%',
@@ -37,7 +38,6 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ step, onNext }
                         boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.7)', 
                         zIndex: 140,
                         pointerEvents: 'none',
-                        transition: 'all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)'
                     });
                 } else if (mode === 'OUTLINE') {
                     setHighlightStyle({
@@ -51,7 +51,6 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ step, onNext }
                         zIndex: 140,
                         pointerEvents: 'none',
                         animation: 'pulse-border 2s infinite',
-                        transition: 'all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)'
                     });
                 }
                 
@@ -73,27 +72,37 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ step, onNext }
 
                 const isTargetLow = centerY > screenH * 0.6;
 
-                // Special overrides for Lesson 4 interaction steps on Mobile to prevent obscuring the field
-                const forceCenterSteps = ['l4-p2-attack', 'l4-play-queen', 'l4-play-king', 'l4-attack-8'];
-                const shouldCenter = isMobile && forceCenterSteps.includes(step.id);
-
-                if (shouldCenter) {
-                    newTextStyle.top = '50%';
-                    newTextStyle.left = '50%';
-                    newTextStyle.transform = 'translate(-50%, -50%)';
-                    newTextStyle.bottom = 'auto';
-                    newTextStyle.right = 'auto';
-                } else if (isMobile) {
+                if (isMobile) {
                     newTextStyle.left = '5%';
                     newTextStyle.right = 'auto';
                     newTextStyle.transform = 'none';
-                    // Mobile docking: If target is Low, dock Top. If target is High, dock Bottom.
-                    if (isTargetLow) {
-                        newTextStyle.top = '70px'; // Clear of header
-                        newTextStyle.bottom = 'auto';
-                    } else {
-                        newTextStyle.bottom = '20px'; // Clear of bottom interactions
+
+                    const targetOpponentSteps = ['l4-play-queen', 'l4-play-king'];
+                    const isTargetingOpponent = targetOpponentSteps.includes(step.id);
+
+                    if (step.requiredAction === 'DECLARE_BLOCK') {
+                        // Blocking phase: player drags from field to field. Keep the fields clear by docking textbox at the bottom.
+                        newTextStyle.bottom = '12px';
                         newTextStyle.top = 'auto';
+                    } else if (step.requiredAction === 'PLAY_CARD') {
+                        if (isTargetingOpponent) {
+                            // Opponent field is at the top. Dock textbox at the bottom above the hand scroll to leave the top field completely visible and clickable.
+                            newTextStyle.bottom = '125px';
+                            newTextStyle.top = 'auto';
+                        } else {
+                            // Conscripting phase: player drags from hand (bottom) to field (middle). Keep bottom clear by docking textbox at the top.
+                            newTextStyle.top = '70px';
+                            newTextStyle.bottom = 'auto';
+                        }
+                    } else {
+                        // Mobile docking: If target is Low, dock Top. If target is High, dock Bottom.
+                        if (isTargetLow) {
+                            newTextStyle.top = '70px'; // Clear of header
+                            newTextStyle.bottom = 'auto';
+                        } else {
+                            newTextStyle.bottom = '20px'; // Clear of bottom interactions
+                            newTextStyle.top = 'auto';
+                        }
                     }
                 } else {
                     // Desktop Logic: Float near element
@@ -138,10 +147,33 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ step, onNext }
                 } else {
                     setHighlightStyle(null);
                 }
-                setTextStyle({ 
-                    right: 'auto', left: '5%', top: '20%', bottom: 'auto',
+                const fallbackTextStyle: React.CSSProperties = { 
+                    right: 'auto', left: '5%',
                     position: 'fixed', zIndex: 150, width: '90%', maxWidth: isMobile ? 'none' : '350px' 
-                });
+                };
+                if (isMobile) {
+                    const targetOpponentSteps = ['l4-play-queen', 'l4-play-king'];
+                    const isTargetingOpponent = targetOpponentSteps.includes(step.id);
+                    if (step.requiredAction === 'DECLARE_BLOCK') {
+                        fallbackTextStyle.bottom = '12px';
+                        fallbackTextStyle.top = 'auto';
+                    } else if (step.requiredAction === 'PLAY_CARD') {
+                        if (isTargetingOpponent) {
+                            fallbackTextStyle.bottom = '125px';
+                            fallbackTextStyle.top = 'auto';
+                        } else {
+                            fallbackTextStyle.top = '70px';
+                            fallbackTextStyle.bottom = 'auto';
+                        }
+                    } else {
+                        fallbackTextStyle.top = '20%';
+                        fallbackTextStyle.bottom = 'auto';
+                    }
+                } else {
+                    fallbackTextStyle.top = '20%';
+                    fallbackTextStyle.bottom = 'auto';
+                }
+                setTextStyle(fallbackTextStyle);
             }
         } else {
             // No highlight (general phase)
@@ -197,10 +229,18 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ step, onNext }
                     {step.requiredAction === 'CLICK_UI_BUTTON' && step.targetId === 'btn-tutorial-next' && onNext && (
                          <div className="mt-2 md:mt-4 flex justify-center">
                             <button 
-                                onClick={onNext}
-                                className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1 md:px-6 md:py-2 text-xs md:text-base rounded-lg font-bold shadow-lg flex items-center gap-2 transform transition-all active:scale-95 animate-pulse"
+                                id="btn-tutorial-next"
+                                onClick={isCombatResolving ? undefined : onNext}
+                                disabled={isCombatResolving}
+                                className={`
+                                    text-white px-3 py-1 md:px-6 md:py-2 text-xs md:text-base rounded-lg font-bold shadow-lg flex items-center gap-2 transform transition-all
+                                    ${isCombatResolving 
+                                        ? 'bg-slate-700/80 text-slate-400 cursor-not-allowed opacity-60' 
+                                        : 'bg-emerald-600 hover:bg-emerald-500 active:scale-95 animate-pulse'
+                                    }
+                                `}
                             >
-                                Continue <ArrowRight size={14} className="md:w-4 md:h-4" />
+                                {isCombatResolving ? 'Resolving Combat...' : 'Continue'} <ArrowRight size={14} className="md:w-4 md:h-4" />
                             </button>
                          </div>
                     )}

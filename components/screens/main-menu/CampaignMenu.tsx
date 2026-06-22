@@ -75,7 +75,7 @@ export const CampaignMenu: React.FC<CampaignMenuProps> = ({
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 w-full">
                 
                 {/* Threat dossier / status HUD (Left Pane) */}
-                <div className="lg:col-span-4 bg-slate-900/40 border border-slate-800 rounded-2xl p-5 space-y-6 h-fit text-left">
+                <div className="order-2 lg:order-1 lg:col-span-4 bg-slate-900/40 border border-slate-800 rounded-2xl p-5 space-y-6 h-fit text-left">
                     <div>
                         <h3 className="text-xs font-black tracking-widest text-[#a5b4fc] uppercase border-b border-slate-800/60 pb-2">Campaign Status</h3>
                         <div className="grid grid-cols-3 gap-2 mt-3">
@@ -242,7 +242,7 @@ export const CampaignMenu: React.FC<CampaignMenuProps> = ({
                 </div>
 
                 {/* Interactive snaking map view (Right Pane) */}
-                <div className={`lg:col-span-8 p-6 md:p-8 rounded-2xl flex flex-col justify-between shadow-2xl relative min-h-[500px] border transition-all duration-300 ${(() => {
+                <div className={`order-1 lg:order-2 lg:col-span-8 p-6 md:p-8 rounded-2xl flex flex-col justify-between shadow-2xl relative min-h-[500px] border transition-all duration-300 ${(() => {
                     const theme = campaignState.theme || 'GRASSLANDS';
                     if (theme === 'GRASSLANDS') {
                         return "bg-gradient-to-b from-[#1b8a4f] via-[#136137] to-[#0a3d21] border-emerald-400/60 shadow-[inset_0_1px_5px_rgba(255,255,255,0.35)]";

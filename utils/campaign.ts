@@ -34,32 +34,65 @@ export interface CampaignState {
 
 const LOCAL_STORAGE_KEY = 'battle_card_campaign_v2';
 
-const BOSS_NAMES = [
-  'The Dark Lord',
-  'Temporal Wizard',
-  'Matt',
-  'The King of Hearts',
-  'Void Knight',
-  'Oracle of Doom',
-  'The Leviathan'
-];
-
 const EASY_AI_COSMETICS = {
   backs: ['battle', 'casino_style', 'retro_pixels', 'gothic_scroll'],
   faces: ['classic', 'casino_style', 'retro_pixels', 'gothic_scroll'],
-  names: ['Squire', 'Peasant', 'Joe', 'Fire Spirit', 'Trainee', 'Novice Mage', 'Intern Isaac'],
 };
 
 const MEDIUM_AI_COSMETICS = {
   backs: ['neon_matrix', 'futuristic_tech', 'crimson_fire', 'japanese_calligraphy', 'beach_breeze'],
   faces: ['neon_matrix', 'futuristic_tech', 'crimson_fire', 'japanese_calligraphy', 'beach_breeze'],
-  names: ['Jester', 'Guard', 'Knight', 'Scholar', 'Thief', 'Magician', 'Priest'],
 };
 
 const HARD_AI_COSMETICS = {
   backs: ['cosmic_void', 'minimalist_charcoal', 'glitch', 'royal_gold', 'beach_breeze'],
   faces: ['cosmic_void', 'minimalist_charcoal', 'glitch', 'royal_gold', 'beach_breeze'],
-  names: ['Jester', 'Royal Tactician', 'Prince of Aces', 'Captain Clubs', 'Anime Protagonist', 'Mysterious Wanderer', 'Joker Paladin'],
+};
+
+export interface ThemeEnemyNames {
+  easy: string[];
+  medium: string[];
+  hard: string[];
+  boss: string[];
+}
+
+export const THEME_ENEMY_NAMES: Record<CampaignThemeType, ThemeEnemyNames> = {
+  GRASSLANDS: {
+    easy: ['Wild Boar', 'Goblin', 'Dire Wolf', 'Joe', 'Novice Mage', 'Bandit', 'Trainee'],
+    medium: ['Ranger', 'Tree Spirit', 'Unicorn', 'Wind Elemental', 'Grizzly Bear', 'Lion'],
+    hard: ['Chaos Druid', 'Bandit Berzerker', 'Earth Magician', 'Larry The Lumberjack', 'Elder Tree Spirit'],
+    boss: ['The Corruption', 'King Of The Bandits', 'Queen of Wasps', 'Matt']
+  },
+  DUNGEON: {
+    easy: ['Skeleton', 'Bat', 'Giant Spider', 'Zombie', 'Imp', 'Slime'],
+    medium: ['Fire Bat', 'Undead Mage', 'Necromancer', 'Gargoyle', 'Mimic', 'Golem'],
+    hard: ['Executioner', 'Vampire', 'Shade', 'Dark Knight', 'Conjurer'],
+    boss: ['Void Knight', 'The Creepspawn', 'Crimson Soul-Stealer', 'The Dark Lord']
+  },
+  DESERT: {
+    easy: ['Angry Lizard', 'Scorpion', 'Camel', 'Vulture', 'Cactus Familiar', 'Sand Imp'],
+    medium: ['Sand Elemental', 'Giant Sand Worm', 'Bandit Nomad', 'Mummy', 'Sandstone Golem'],
+    hard: ['Mysterious Wanderer', 'Mirage Spirit', 'Sun Priest', 'Fire Elemental', 'Darkflame Mage'],
+    boss: ['Mr. Sandman', 'Pharaoh Mummy', 'A Guy In A Massive Truck', 'Oracle of Doom']
+  },
+  GLACIER: {
+    easy: ['Icy Ian', 'Frost Imp', 'Hot-Headed Penguin', 'Baby Yeti', 'Ice Slime', 'Ice Elemental'],
+    medium: ['Frost Giant', 'Snow Golem', 'Snow Leopard', 'Ice Mage', 'Frozen Skeleton'],
+    hard: ['Glacial Dragon', 'Frost Lich', 'Tundra Colossus', 'Blizzard Caller', 'Creator of Iceburgs'],
+    boss: ['Snow Tribe Leader', 'Emperor of Icicles', 'The Summit Monk', 'Minty Mindy']
+  },
+  COAST: {
+    easy: ['Crab', 'Turtle', 'Hungry Seagull', 'Water Elemental', 'Octopus', 'Magic Sea Urchin'],
+    medium: ['Merman', 'Coral Golem', 'Siren', 'Hammerhead Shark', 'Electric Eel'],
+    hard: ['Ghost Pirate Ship', 'Angler Fish', 'Kraken', 'Ocean Adept', 'Sea Serpent'],
+    boss: ['The Big One', 'The Leviathan', 'Dread Captain Avery', 'Tempest Wizard']
+  },
+  MOUNTAIN: {
+    easy: ['Mountain Goat', 'Earth Spirit', 'Falcon', 'Rock Imp', 'Porcupine', 'Wind Sprite'],
+    medium: ['Mountain Lion', 'Earth Mage', 'Griffon', 'Golem', 'Wyvern'],
+    hard: ['Thunder Roc', 'Earth Elemental', 'Giant', 'Cyclops', 'Colossus'],
+    boss: ['The Mountain Overlord', 'The Boulder Crusher', 'Tamer of Dragons', 'The King of the Hill']
+  }
 };
 
 export function getRandomElement<T>(arr: T[]): T {
@@ -212,24 +245,26 @@ export function generateCampaignMap(
     let cardFace = 'classic';
     let aiName = 'CPU';
     
+    const themeObj = THEME_ENEMY_NAMES[theme] || THEME_ENEMY_NAMES.GRASSLANDS;
+
     if (i < 3) {
       difficulty = 'EASY';
       cardBack = getRandomElement(EASY_AI_COSMETICS.backs);
       cardFace = getRandomElement(EASY_AI_COSMETICS.faces);
-      aiName = getRandomElement(EASY_AI_COSMETICS.names);
+      aiName = getRandomElement(themeObj.easy);
     } else if (i < 7) {
       difficulty = 'MEDIUM';
       cardBack = getRandomElement(MEDIUM_AI_COSMETICS.backs);
       cardFace = getRandomElement(MEDIUM_AI_COSMETICS.faces);
-      aiName = getRandomElement(MEDIUM_AI_COSMETICS.names);
+      aiName = getRandomElement(themeObj.medium);
     } else {
       difficulty = 'HARD';
       cardBack = getRandomElement(HARD_AI_COSMETICS.backs);
       cardFace = getRandomElement(HARD_AI_COSMETICS.faces);
       if (i === 9) {
-        aiName = getRandomElement(BOSS_NAMES);
+        aiName = getRandomElement(themeObj.boss);
       } else {
-        aiName = getRandomElement(HARD_AI_COSMETICS.names);
+        aiName = getRandomElement(themeObj.hard);
       }
     }
 

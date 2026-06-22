@@ -72,6 +72,9 @@ export const useTutorial = ({
 
     const handleTutorialNext = useCallback(() => {
         const state = gameStateRef.current;
+        if (state?.phase === Phase.DAMAGE) {
+            return;
+        }
         // Special logic for Lesson 2 flow control (force block confirm after watching)
         if (state?.mode === 'TUTORIAL' && state.tutorialState?.lessonId === 'lesson-2') {
             const stepId = state.tutorialState.steps[state.tutorialState.currentStepIndex]?.id;
@@ -149,43 +152,68 @@ export const useTutorial = ({
                  });
             }
 
-            // Script 2: P2 Ends Turn, P1 Draws 6S
-            if (stepId === 'l3-p1-resource' && gameState.turnPlayer === 1) {
-                 const c6S = createCard(Rank.Six, Suit.Spades);
-                 
-                 // Trigger Animation
-                 if (refs.bottomDeckRef.current && refs.handRef.current) {
-                     effects.triggerFlyer(
-                         c6S, 
-                         refs.bottomDeckRef.current.getBoundingClientRect(), 
-                         refs.handRef.current.getBoundingClientRect()
-                     );
-                 }
-                 playSound('draw');
-                 // Trigger Turn Animation explicitly since we are bypassing performEndTurn
-                 effects.setShowTurnAnim(true);
+            // Script 2: P2 Ends Turn, P1 Draws 6S (including failsafe if already turn 0 but wrong phase)
+            if (stepId === 'l3-p1-resource') {
+                if (gameState.turnPlayer === 1) {
+                     const c6S = createCard(Rank.Six, Suit.Spades);
+                     
+                     // Trigger Animation
+                     if (refs.bottomDeckRef.current && refs.handRef.current) {
+                         effects.triggerFlyer(
+                             c6S, 
+                             refs.bottomDeckRef.current.getBoundingClientRect(), 
+                             refs.handRef.current.getBoundingClientRect()
+                         );
+                     }
+                     playSound('draw');
+                     // Trigger Turn Animation explicitly since we are bypassing performEndTurn
+                     effects.setShowTurnAnim(true);
+ 
+                     setGameState(prev => {
+                         if(!prev) return null;
+                         
+                         const p1 = prev.players[0];
+                         // Ensure 6S isn't in deck duplicates (by Rank/Suit)
+                         const newDeck = prev.deck.filter(c => !(c.rank === c6S.rank && c.suit === c6S.suit));
+                         const has6S = p1.hand.some(c => c.rank === c6S.rank && c.suit === c6S.suit);
+                         const newHand = has6S ? p1.hand : [...p1.hand, c6S];
+                         
+                         const nextPlayers = [...prev.players];
+                         nextPlayers[0] = { ...p1, hand: newHand };
+                         
+                         return {
+                             ...prev,
+                             players: nextPlayers,
+                             deck: newDeck,
+                             turnPlayer: 0,
+                             turnCount: 2, // P2 was Turn 1, so P1 is Turn 2
+                             phase: Phase.RESOURCE_START,
+                             logs: addLog(prev, "Turn 2: Player 1. Drew [6♠].")
+                         };
+                     });
+                } else if (gameState.phase !== Phase.RESOURCE_START) {
+                     // Failsafe: if we are at step l3-p1-resource, but turnPlayer is already 0, and phase is somehow not RESOURCE_START (e.g. main)
+                     setGameState(prev => {
+                         if (!prev) return null;
+                         if (prev.phase === Phase.RESOURCE_START) return prev;
+                         const p1 = prev.players[0];
+                         const c6S = createCard(Rank.Six, Suit.Spades);
+                         const has6S = p1.hand.some(c => c.rank === Rank.Six && c.suit === Suit.Spades);
+                         const newHand = has6S ? p1.hand : [...p1.hand, c6S];
+                         const newDeck = prev.deck.filter(c => !(c.rank === c6S.rank && c.suit === c6S.suit));
+                         
+                         const nextPlayers = [...prev.players];
+                         nextPlayers[0] = { ...p1, hand: newHand };
 
-                 setGameState(prev => {
-                     if(!prev) return null;
-                     
-                     const p1 = prev.players[0];
-                     // Ensure 6S isn't in deck duplicates (by Rank/Suit)
-                     const newDeck = prev.deck.filter(c => !(c.rank === c6S.rank && c.suit === c6S.suit));
-                     const newHand = [...p1.hand, c6S];
-                     
-                     const nextPlayers = [...prev.players];
-                     nextPlayers[0] = { ...p1, hand: newHand };
-                     
-                     return {
-                         ...prev,
-                         players: nextPlayers,
-                         deck: newDeck,
-                         turnPlayer: 0,
-                         turnCount: 2, // P2 was Turn 1, so P1 is Turn 2
-                         phase: Phase.RESOURCE_START,
-                         logs: addLog(prev, "Turn 2: Player 1. Drew [6♠].")
-                     };
-                 });
+                         return {
+                             ...prev,
+                             players: nextPlayers,
+                             deck: newDeck,
+                             phase: Phase.RESOURCE_START,
+                             logs: addLog(prev, "Failsafe: Restored Resource Start Phase.")
+                         };
+                     });
+                }
             }
             
             // Script 4: P2 Turn 2 (Simulated)

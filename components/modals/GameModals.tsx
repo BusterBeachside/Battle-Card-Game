@@ -70,6 +70,7 @@ interface PauseMenuProps {
     onSyncState?: () => void;
     sfxVolume: number;
     setSfxVolume: (v: number) => void;
+    isTutorial?: boolean;
 }
 
 export const PauseMenu: React.FC<PauseMenuProps> = ({ 
@@ -83,7 +84,8 @@ export const PauseMenu: React.FC<PauseMenuProps> = ({
     onToggleAutoEndTurn,
     onSyncState,
     sfxVolume,
-    setSfxVolume
+    setSfxVolume,
+    isTutorial = false
 }) => {
     if (!show) return null;
     return (
@@ -108,11 +110,13 @@ export const PauseMenu: React.FC<PauseMenuProps> = ({
                     />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                    <button onClick={() => { playSound('menu_click'); onResign(); }} className="py-3 bg-red-900/30 hover:bg-red-900/50 text-red-200 rounded-lg font-bold flex items-center justify-center gap-2 border border-red-900/50">
-                        <LogOut size={18} /> Resign
-                    </button>
-                    <button onClick={() => { playSound('menu_click'); onQuit(); }} className="py-3 bg-slate-800 hover:bg-slate-700 text-slate-400 rounded-lg font-bold flex items-center justify-center gap-2 border border-slate-700">
+                <div className={isTutorial ? "flex flex-col gap-3 animate-fade-in" : "grid grid-cols-2 gap-3"}>
+                    {!isTutorial && (
+                        <button onClick={() => { playSound('menu_click'); onResign(); }} className="py-3 bg-red-900/30 hover:bg-red-900/50 text-red-200 rounded-lg font-bold flex items-center justify-center gap-2 border border-red-900/50">
+                            <LogOut size={18} /> Resign
+                        </button>
+                    )}
+                    <button onClick={() => { playSound('menu_click'); onQuit(); }} className={`py-3 bg-slate-800 hover:bg-slate-700 text-slate-400 rounded-lg font-bold flex items-center justify-center gap-2 border border-slate-700 ${isTutorial ? 'w-full' : ''}`}>
                         <ArrowRight size={18} /> Quit
                     </button>
                 </div>

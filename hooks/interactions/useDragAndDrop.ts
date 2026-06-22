@@ -63,16 +63,34 @@ export const useDragAndDrop = ({ gameState, actions, tutorial, ui }: UseDragAndD
                 if (untappedRes < cardObj.cost) { 
                     actions.setGameState((prev: any) => ({ ...prev!, logs: addLog(prev!, "Not enough resources!") })); 
                 } else {
+                    let cardWasPlayed = false;
                     if (cardObj.rank === 'Q' || cardObj.rank === 'K') {
                         if (targetInstanceId) {
                             let targetOwnerId = -1;
                             gameState!.players.forEach((p: any) => { if (p.field.some((f: any) => f.instanceId === targetInstanceId)) targetOwnerId = p.id; });
-                            if (targetOwnerId !== -1) actions.playCard(cardObj, targetInstanceId, targetOwnerId);
+                            if (targetOwnerId !== -1) {
+                                // Tutorial strict check: make sure correct target is attached to
+                                if (gameState!.mode === 'TUTORIAL') {
+                                    const step = gameState!.tutorialState?.steps[gameState!.tutorialState.currentStepIndex];
+                                    if (step && step.id === 'l4-play-queen' && targetInstanceId !== 'tut-9-♦') {
+                                        // User tried to attach Queen to something other than the target 9 of Diamonds
+                                        return;
+                                    }
+                                    if (step && step.id === 'l4-play-king' && targetInstanceId !== 'tut-10-♥') {
+                                        // User tried to attack/kill something other than the target 10 of Hearts
+                                        return;
+                                    }
+                                }
+                                actions.playCard(cardObj, targetInstanceId, targetOwnerId);
+                                cardWasPlayed = true;
+                            }
                         }
                     } else { 
                         actions.playCard(cardObj); 
+                        cardWasPlayed = true;
                     }
-                    if (gameState!.mode === 'TUTORIAL') {
+
+                    if (cardWasPlayed && gameState!.mode === 'TUTORIAL') {
                          tutorial.advanceTutorialStep('PLAY_CARD', cardObj.id);
                     }
                 }
@@ -83,6 +101,16 @@ export const useDragAndDrop = ({ gameState, actions, tutorial, ui }: UseDragAndD
                  const blockerInstanceId = instanceId;
                  const attackerInstanceId = targetInstanceId;
                  
+                 // Tutorial strict check: make sure correct blocker blocks the correct attacker
+                 if (gameState!.mode === 'TUTORIAL') {
+                     const step = gameState!.tutorialState?.steps[gameState!.tutorialState.currentStepIndex];
+                     if (step && step.id === 'l4-p2-attack') {
+                         if (blockerInstanceId !== 'tut-A-♠' || attackerInstanceId !== 'tut-10-♠') {
+                             return;
+                         }
+                     }
+                 }
+
                  actions.setGameState((prev: any) => {
                     if (!prev) return null;
                     if (!prev.pendingAttackers.includes(attackerInstanceId)) return prev;
@@ -117,46 +145,57 @@ export const useDragAndDrop = ({ gameState, actions, tutorial, ui }: UseDragAndD
     };
 
     const handleDrop = (e: MouseEvent | TouchEvent | React.TouchEvent | React.MouseEvent) => {
-        if (!dragState || !gameState) return;
-        
-        let clientX: number, clientY: number;
+         if (!dragState || !gameState) return;
+         
+         let clientX: number, clientY: number;
 
-        if ('changedTouches' in e && (e as TouchEvent).changedTouches.length > 0) {
-             clientX = (e as TouchEvent).changedTouches[0].clientX;
-             clientY = (e as TouchEvent).changedTouches[0].clientY;
-        } else if ('clientX' in e) {
-             clientX = (e as MouseEvent).clientX;
-             clientY = (e as MouseEvent).clientY;
-        } else {
-             setDragState(null);
-             return;
-        }
+         if ('changedTouches' in e && (e as TouchEvent).changedTouches.length > 0) {
+              clientX = (e as TouchEvent).changedTouches[0].clientX;
+              clientY = (e as TouchEvent).changedTouches[0].clientY;
+         } else if ('clientX' in e) {
+              clientX = (e as MouseEvent).clientX;
+              clientY = (e as MouseEvent).clientY;
+         } else {
+              setDragState(null);
+              return;
+         }
 
-        const elements = document.elementsFromPoint(clientX, clientY);
-        const targetElement = elements.find(el => el.getAttribute('data-instance-id') || el.id === 'field-area');
-        
-        if (!targetElement) {
-             setDragState(null);
-             return;
-        }
-        
-        const targetInstanceId = targetElement.getAttribute('data-instance-id');
-        const targetElementId = targetElement.id;
+         const elements = document.elementsFromPoint(clientX, clientY);
+         let targetElement = elements.find(el => el.getAttribute('data-instance-id') || el.id === 'field-area');
+         
+         // Mobile drag-drop usability fallback for cards from HAND:
+         // If a hand card is dropped and we didn't land directly on a specific target element or specific field-area backdrop,
+         // but the release coordinate is upper than the scrollable hand container itself (at least above the bottom 140px), 
+         // we fall back to dropping on 'field-area' container itself to make playing fluid.
+         if (!targetElement && dragState.sourceType === 'HAND' && clientY < window.innerHeight - 130) {
+              const fieldAreaEl = document.getElementById('field-area');
+              if (fieldAreaEl) {
+                  targetElement = fieldAreaEl;
+              }
+         }
 
-        if (gameState.mode === 'TUTORIAL') {
-            if (targetInstanceId && !tutorial.isInteractionAllowed(targetInstanceId)) {
-                 setDragState(null);
-                 return;
-            }
-        }
+         if (!targetElement) {
+              setDragState(null);
+              return;
+         }
+         
+         const targetInstanceId = targetElement.getAttribute('data-instance-id');
+         const targetElementId = targetElement.id;
 
-        if (actions.onDragDropData) {
-            actions.onDragDropData(dragState.cardObj, targetInstanceId, targetElementId, dragState.sourceType, dragState.instanceId);
-        }
+         if (gameState.mode === 'TUTORIAL') {
+             if (targetInstanceId && !tutorial.isInteractionAllowed(targetInstanceId)) {
+                  setDragState(null);
+                  return;
+             }
+         }
 
-        performDropAction(dragState.cardObj, targetInstanceId, targetElementId, dragState.sourceType, dragState.instanceId);
-        
-        setDragState(null);
+         if (actions.onDragDropData) {
+             actions.onDragDropData(dragState.cardObj, targetInstanceId, targetElementId, dragState.sourceType, dragState.instanceId);
+         }
+
+         performDropAction(dragState.cardObj, targetInstanceId, targetElementId, dragState.sourceType, dragState.instanceId);
+         
+         setDragState(null);
     };
 
     return { dragState, setDragState, handleDragStart, handleDrop, handleRemoteDrop };

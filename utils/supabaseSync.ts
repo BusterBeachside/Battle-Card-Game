@@ -1,5 +1,6 @@
 import { getSupabase } from './supabaseClient';
-import { ProgressionData, saveProgression } from './progression';
+import { ProgressionData, saveProgression, processDailyRollover } from './progression';
+import { saveCampaign } from './campaign';
 
 // helper to calculate total cumulative experience representation
 export function getCumulativeXp(level: number, xp: number): number {
@@ -69,17 +70,97 @@ export async function syncUserData(
       return { syncedData: localData, source: 'local' };
     } else {
       // There is existing cloud data! Let's resolve the desync
-      const cloudProg: ProgressionData = cloudRow.progression_data;
+      const cloudProgRaw: ProgressionData = cloudRow.progression_data;
+      const cloudProg = processDailyRollover(cloudProgRaw);
+
+      let campaignChangedOnCloud = false;
+      const hasLocalCampaign = !!localData.campaignState;
+      const hasCloudCampaign = !!cloudProg.campaignState;
+
+      if (hasLocalCampaign || hasCloudCampaign) {
+        // Merge campaign statistics (Highest Cleared, Streak, and Best)
+        const localCleared = localData.campaignState?.areasCleared || 0;
+        const localStreak = localData.campaignState?.currentWinStreak || 0;
+        const localBest = localData.campaignState?.bestWinStreak || 0;
+
+        const cloudCleared = cloudProg.campaignState?.areasCleared || 0;
+        const cloudStreak = cloudProg.campaignState?.currentWinStreak || 0;
+        const cloudBest = cloudProg.campaignState?.bestWinStreak || 0;
+
+        const maxCleared = Math.max(localCleared, cloudCleared);
+        const maxStreak = Math.max(localStreak, cloudStreak);
+        const maxBest = Math.max(localBest, cloudBest);
+
+        // Ensure localData campaignState has the maximums merged
+        if (localData.campaignState) {
+          if (
+            localData.campaignState.areasCleared !== maxCleared ||
+            localData.campaignState.currentWinStreak !== maxStreak ||
+            localData.campaignState.bestWinStreak !== maxBest
+          ) {
+            localData.campaignState = {
+              ...localData.campaignState,
+              areasCleared: maxCleared,
+              currentWinStreak: maxStreak,
+              bestWinStreak: maxBest
+            };
+          }
+        } else {
+          localData.campaignState = {
+            nodes: cloudProg.campaignState?.nodes || [],
+            currentNodeIndex: cloudProg.campaignState?.currentNodeIndex || 0,
+            rulesFormat: cloudProg.campaignState?.rulesFormat || 'STREET',
+            theme: cloudProg.campaignState?.theme || 'GRASSLANDS',
+            details: cloudProg.campaignState?.details || [],
+            areasCleared: maxCleared,
+            currentWinStreak: maxStreak,
+            bestWinStreak: maxBest
+          };
+        }
+
+        // Ensure cloudProg campaignState has the maximums merged
+        if (cloudProg.campaignState) {
+          if (
+            cloudProg.campaignState.areasCleared !== maxCleared ||
+            cloudProg.campaignState.currentWinStreak !== maxStreak ||
+            cloudProg.campaignState.bestWinStreak !== maxBest
+          ) {
+            cloudProg.campaignState = {
+              ...cloudProg.campaignState,
+              areasCleared: maxCleared,
+              currentWinStreak: maxStreak,
+              bestWinStreak: maxBest
+            };
+            campaignChangedOnCloud = true;
+          }
+        } else {
+          cloudProg.campaignState = {
+            nodes: localData.campaignState?.nodes || [],
+            currentNodeIndex: localData.campaignState?.currentNodeIndex || 0,
+            rulesFormat: localData.campaignState?.rulesFormat || 'STREET',
+            theme: localData.campaignState?.theme || 'GRASSLANDS',
+            details: localData.campaignState?.details || [],
+            areasCleared: maxCleared,
+            currentWinStreak: maxStreak,
+            bestWinStreak: maxBest
+          };
+          campaignChangedOnCloud = true;
+        }
+
+        if (campaignChangedOnCloud) {
+          console.log('[Sync] Campaign stats were higher locally. Cloud campaign stats bumped to match local max values.');
+        }
+      }
       
       const localTotalXp = getCumulativeXp(localData.level, localData.xp);
       const cloudTotalXp = getCumulativeXp(cloudProg.level, cloudProg.xp);
-
+ 
       console.log(`Local XP: ${localTotalXp} (Level ${localData.level}), Cloud XP: ${cloudTotalXp} (Level ${cloudProg.level})`);
-
+ 
       const getCosmeticsCount = (data: ProgressionData) => {
         return (data.unlockedCardBacks?.length || 0) + (data.unlockedCardFaces?.length || 0);
       };
-
+ 
       let localIsBetter = false;
       if (localTotalXp > cloudTotalXp) {
         localIsBetter = true;
@@ -105,7 +186,7 @@ export async function syncUserData(
           }
         }
       }
-
+ 
       if (localIsBetter) {
         // Local is prioritized, sync local to cloud (overwriting cloud)
         console.log('Local progression is chosen. Overwriting cloud data...');
@@ -122,17 +203,46 @@ export async function syncUserData(
             updated_at: new Date().toISOString()
           })
           .eq('user_id', userId);
-
+ 
         if (updateError) {
           console.error('Error updating cloud data with local progression:', updateError);
           throw updateError;
         }
-
+ 
+        if (localData.campaignState) {
+          saveCampaign(localData.campaignState);
+        }
         return { syncedData: localData, source: 'local' };
       } else {
         // Cloud is prioritized (or completely identical), use the cloud data (overwriting local)
         console.log('Cloud progression is chosen (or identical). Overwriting local data...');
+        
+        // If daily checklist rollover/streak updates occurred, or highest recorded campaign values were lower than local (campaignChangedOnCloud is true)
+        if (JSON.stringify(cloudProg) !== JSON.stringify(cloudProgRaw) || campaignChangedOnCloud) {
+          console.log('[Sync] Saving processed real-time rollover / campaign updates to the cloud database...');
+          try {
+            await supabase
+              .from('battle_card_game_data')
+              .update({
+                level: cloudProg.level,
+                xp: cloudProg.xp,
+                gold: cloudProg.gold,
+                campaign_cleared: cloudProg.campaignState?.areasCleared || 0,
+                campaign_streak: cloudProg.campaignState?.currentWinStreak || 0,
+                campaign_best: cloudProg.campaignState?.bestWinStreak || 0,
+                progression_data: cloudProg,
+                updated_at: new Date().toISOString()
+              })
+              .eq('user_id', userId);
+          } catch (updateDbError) {
+            console.error('[Sync] Failed to write processed real-time rollover / campaign back to cloud:', updateDbError);
+          }
+        }
+ 
         saveProgression(cloudProg); // Saves cloud progression to local storage
+        if (cloudProg.campaignState) {
+          saveCampaign(cloudProg.campaignState);
+        }
         return { syncedData: cloudProg, source: 'cloud' };
       }
     }

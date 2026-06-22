@@ -2,7 +2,7 @@ import React, { useRef, useCallback } from "react";
 import { GameState, Phase, PlayerState, Card, Rank } from "../../types";
 import { sortHand } from "../../utils/cards";
 import { addLog } from "../../utils/core";
-import { MAX_RESOURCES } from "../../constants";
+import { MAX_RESOURCES, CARD_VALUES } from "../../constants";
 import { playSound } from "../../utils/soundUtils";
 
 interface UseTurnManagerProps {
@@ -122,7 +122,14 @@ export const useTurnManager = ({
           '10': Rank.Five,
         };
         if (['6', '7', '8', '9', '10'].includes(c.rank)) {
-          return { ...c, rank: charToRankMap[c.rank]! };
+          const newRank = charToRankMap[c.rank]!;
+          const newVal = CARD_VALUES[newRank];
+          return {
+            ...c,
+            rank: newRank,
+            numericValue: newVal,
+            cost: newVal
+          };
         }
         return c;
       });

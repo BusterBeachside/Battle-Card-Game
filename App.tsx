@@ -1330,7 +1330,11 @@ export const App: React.FC = () => {
       )}
 
       {gameState.tutorialState?.active && !tutorialComplete && gameState.tutorialState.steps[gameState.tutorialState.currentStepIndex] && (
-          <TutorialOverlay step={gameState.tutorialState.steps[gameState.tutorialState.currentStepIndex]} onNext={handleTutorialNext} />
+          <TutorialOverlay 
+              step={gameState.tutorialState.steps[gameState.tutorialState.currentStepIndex]} 
+              onNext={handleTutorialNext} 
+              isCombatResolving={gameState.phase === Phase.DAMAGE}
+          />
       )}
 
       {tutorialComplete && (
@@ -1449,6 +1453,7 @@ export const App: React.FC = () => {
         onSyncState={gameState?.isOnline ? handleSyncState : undefined}
         sfxVolume={ui.sfxVolume}
         setSfxVolume={ui.setSfxVolume}
+        isTutorial={gameState?.mode === 'TUTORIAL'}
       />
 
       <DiscardModal 
