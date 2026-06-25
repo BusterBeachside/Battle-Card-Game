@@ -238,7 +238,7 @@ export const LESSON_3_STEPS: TutorialStep[] = [
         highlightMode: 'OUTLINE',
         requiredAction: 'CLICK_CARD',
         targetId: 'tut-4-♥',
-        allowedInteractionIds: ['tut-4-♥', 'tut-9-♠', 'tut-10-♠']
+        allowedInteractionIds: ['tut-4-♥']
     },
     {
         id: 'l3-sel-2',
@@ -247,7 +247,7 @@ export const LESSON_3_STEPS: TutorialStep[] = [
         highlightMode: 'OUTLINE',
         requiredAction: 'CLICK_CARD',
         targetId: 'tut-9-♠',
-        allowedInteractionIds: ['tut-9-♠', 'tut-10-♠']
+        allowedInteractionIds: ['tut-9-♠']
     },
     {
         id: 'l3-sel-3',

@@ -1018,7 +1018,7 @@ export const App: React.FC = () => {
   useEffect(() => {
     if (effects.hasActiveAnimations) return;
 
-    if (ui.autoEndTurn && gameState && gameState.phase === Phase.MAIN) {
+    if (ui.autoEndTurn && gameState && gameState.phase === Phase.MAIN && gameState.mode !== 'TUTORIAL') {
         const activePid = getActiveDecisionPlayerId(gameState);
         const player = gameState.players[activePid];
         const opponent = gameState.players[activePid === 0 ? 1 : 0];

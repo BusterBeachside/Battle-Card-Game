@@ -505,12 +505,16 @@ export const usePhaseInteractions = ({
         tutorial.advanceTutorialStep("CLICK_UI_BUTTON", "btn-swap-resource");
       }
       actions.advancePhase(Phase.RESOURCE_SWAP_SELECT_HAND);
-    } else if (action === "CANCEL_RESOURCE")
+    } else if (action === "CANCEL_RESOURCE") {
+      if (gameState?.mode === "TUTORIAL") {
+        if (!tutorial.isInteractionAllowed("btn-cancel-resource")) return;
+      }
       actions.setGameState((prev: any) =>
         prev
           ? { ...prev, phase: Phase.RESOURCE_START, selectedCardId: null }
           : null,
       );
+    }
     else if (action === "CONFIRM_INIT") handleConfirmInitSelection();
   };
 
